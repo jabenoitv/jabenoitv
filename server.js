@@ -44,6 +44,24 @@ fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
 
 console.log('Config ready. AgentId:', process.env.AGENT_ID);
 
+const PORT = Number(process.env.PORT || 3777);
+const CASHCLAW_PORT = PORT + 1;
+
+// Patch cashclaw's hardcoded port so it doesn't conflict with our server
+const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
+try {
+  let src = fs.readFileSync(cashclawDist, 'utf8');
+  if (src.includes('var PORT = 3777')) {
+    src = src.replace('var PORT = 3777;', `var PORT = ${CASHCLAW_PORT};`);
+    // Also patch any hardcoded localhost:3777 references
+    src = src.replace(/localhost:3777/g, `localhost:${CASHCLAW_PORT}`);
+    fs.writeFileSync(cashclawDist, src);
+    console.log(`Cashclaw parcheado: usará puerto ${CASHCLAW_PORT}`);
+  }
+} catch (e) {
+  console.log('No se pudo parchear cashclaw:', e.message);
+}
+
 const logs = [];
 const MAX_LOGS = 500;
 let tasksDetected = 0;
@@ -65,11 +83,10 @@ const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
 
 function startCashclaw() {
   cashclawStatus = 'running';
-  // Give cashclaw PORT+1 so it doesn't fight us for the main port
-  const PORT = Number(process.env.PORT || 3777);
-  const env = { ...process.env, PORT: String(PORT + 1) };
-
-  cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env });
+  cashclawProc = spawn(bin, [], {
+    stdio: ['inherit', 'pipe', 'pipe'],
+    env: process.env
+  });
 
   cashclawProc.stdout.on('data', d =>
     d.toString().split('\n').filter(l => l.trim()).forEach(l => {
@@ -86,17 +103,15 @@ function startCashclaw() {
   );
 
   cashclawProc.on('exit', (code, signal) => {
-    cashclawStatus = 'restarting';
     restartCount++;
-    const msg = `CashClaw salió (código ${code}, señal ${signal}) — reiniciando en 10s (intento #${restartCount})`;
+    const msg = `CashClaw salió (código ${code}) — reiniciando en 15s (#${restartCount})`;
     console.log(msg);
     addLog(msg, 'warn');
-    // Restart cashclaw after 10s — never kill the HTTP server
-    setTimeout(startCashclaw, 10000);
+    cashclawStatus = 'restarting';
+    setTimeout(startCashclaw, 15000);
   });
 }
 
-const PORT = Number(process.env.PORT || 3777);
 const startTime = Date.now();
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
@@ -126,7 +141,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .log:last-child{border-bottom:none}
     .log .t{color:#475569;white-space:nowrap;flex-shrink:0}
     .log .msg{color:#cbd5e1;word-break:break-all}
-    .log.err .msg{color:#fca5a5}.log.warn .msg{color:#fbbf24}
+    .log.error .msg{color:#fca5a5}.log.warn .msg{color:#fbbf24}
     .empty{padding:40px;text-align:center;color:#475569}
     .footer{text-align:center;padding:14px;color:#475569;font-size:.78em}
     .footer a{color:#38bdf8;text-decoration:none}
@@ -139,7 +154,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Agente ID</label><div class="val" id="aid">-</div></div>
     <div class="card"><label>Tiempo activo</label><div class="val" id="up">-</div></div>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
-    <div class="card"><label>Reinicios</label><div class="val" id="rc">-</div></div>
+    <div class="card"><label>Reinicios</label><div class="val" id="rc">0</div></div>
   </div>
   <div class="tags">
     <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">blog-writing</span>
@@ -156,16 +171,16 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   <script>
     function fmt(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;return h?h+'h '+m+'m':m?m+'m '+sec+'s':sec+'s'}
     function ftime(iso){return new Date(iso).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+    const dotClass={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
+    const colors={running:'#4ade80',restarting:'#fbbf24',starting:'#94a3b8',stopped:'#f87171'};
     async function load(){
       try{
         const [st,ls]=await Promise.all([fetch('/api/status').then(r=>r.json()),fetch('/api/logs').then(r=>r.json())]);
-        const colors={running:'#4ade80',restarting:'#fbbf24',starting:'#94a3b8',stopped:'#f87171'};
-        const dotClass={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
         document.getElementById('st').innerHTML='<span class="'+(dotClass[st.status]||'dot')+'"></span><span style="color:'+(colors[st.status]||'#fff')+'">'+(st.status||'-')+'</span>';
         document.getElementById('aid').textContent='#'+st.agent;
         document.getElementById('up').textContent=fmt(st.uptime);
         document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
-        document.getElementById('rc').textContent=st.restarts+' reinicios';
+        document.getElementById('rc').textContent=st.restarts;
         document.getElementById('cnt').textContent=ls.length+' eventos';
         const el=document.getElementById('list');
         el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join(''):'<div class="empty">Sin actividad aún — polling cada 30s</div>';
@@ -175,10 +190,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </script>
 </body></html>`;
 
-// Start HTTP server first, then launch cashclaw
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
-
   if (url === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({
@@ -191,12 +204,10 @@ const server = http.createServer((req, res) => {
       restarts: restartCount
     }));
   }
-
   if (url === '/api/logs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
-
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(DASHBOARD_HTML);
 });
@@ -207,6 +218,6 @@ server.listen(PORT, '0.0.0.0', () => {
 });
 
 server.on('error', err => {
-  console.error('Error servidor HTTP:', err.message);
+  console.error('Error servidor:', err.message);
   process.exit(1);
 });
