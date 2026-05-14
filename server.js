@@ -419,19 +419,24 @@ function updateEarnings(te){
   }
 }
 
-function updateMarket(mk){
-  if(!mk||!mk.median)return;
-  ourPrice=mk.ourPrice;
-  document.getElementById('mkt-med').textContent=mk.median.toFixed(6)+' ETH';
-  document.getElementById('mkt-our').textContent=mk.ourPrice.toFixed(6)+' ETH';
-  document.getElementById('prc-eth').textContent=mk.ourPrice.toFixed(6)+' ETH';
+function setPriceCards(p){
+  ourPrice=p;
+  document.getElementById('mkt-our').textContent=p.toFixed(6)+' ETH';
+  document.getElementById('prc-eth').textContent=p.toFixed(6)+' ETH';
   if(ethUsd){
-    document.getElementById('mkt-med-usd').textContent='$'+fN(mk.median*ethUsd,2)+' USD';
-    document.getElementById('mkt-our-usd').textContent='$'+fN(mk.ourPrice*ethUsd,2)+' USD';
-    document.getElementById('mkt-our-clp').textContent='$'+Math.round(mk.ourPrice*ethClp).toLocaleString('es-CL')+' CLP';
-    document.getElementById('prc-usd').textContent='$'+fN(mk.ourPrice*ethUsd,2)+' USD';
-    document.getElementById('prc-clp').textContent='$'+Math.round(mk.ourPrice*ethClp).toLocaleString('es-CL')+' CLP';
+    document.getElementById('mkt-our-usd').textContent='$'+fN(p*ethUsd,2)+' USD';
+    document.getElementById('mkt-our-clp').textContent='$'+Math.round(p*ethClp).toLocaleString('es-CL')+' CLP';
+    document.getElementById('prc-usd').textContent='$'+fN(p*ethUsd,2)+' USD';
+    document.getElementById('prc-clp').textContent='$'+Math.round(p*ethClp).toLocaleString('es-CL')+' CLP';
   }
+}
+
+function updateMarket(mk){
+  if(!mk)return;
+  if(mk.ourPrice)setPriceCards(mk.ourPrice);
+  if(!mk.median)return;
+  document.getElementById('mkt-med').textContent=mk.median.toFixed(6)+' ETH';
+  if(ethUsd)document.getElementById('mkt-med-usd').textContent='$'+fN(mk.median*ethUsd,2)+' USD';
   var pct=mk.median>0?Math.round((1-mk.ourPrice/mk.median)*100):0;
   var col=pct>=5?'#4ade80':pct>=0?'#fbbf24':'#f87171';
   var pctEl=document.getElementById('mkt-pct');
@@ -497,7 +502,7 @@ function connectSSE(){
   es.onmessage=function(ev){
     try{
       var d=JSON.parse(ev.data);
-      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());if(ourPrice>0){document.getElementById('mkt-our-usd').textContent='$'+fN(ourPrice*ethUsd,2)+' USD';document.getElementById('mkt-our-clp').textContent='$'+Math.round(ourPrice*ethClp).toLocaleString('es-CL')+' CLP';document.getElementById('prc-usd').textContent='$'+fN(ourPrice*ethUsd,2)+' USD';document.getElementById('prc-clp').textContent='$'+Math.round(ourPrice*ethClp).toLocaleString('es-CL')+' CLP';}}
+      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());if(ourPrice>0)setPriceCards(ourPrice);}
       if(d.type==='update')schedLoad();
       if(d.type==='market')updateMarket(d);
     }catch(ex){}
