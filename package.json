@@ -8,7 +8,7 @@
   },
   "scripts": {
     "setup": "cashclaw",
-    "start": "node -e \"const fs=require('fs'),os=require('os'),path=require('path'),spawn=require('child_process').spawn;const w=path.join(os.homedir(),'.workclaw'),m=path.join(os.homedir(),'.moltlaunch');fs.mkdirSync(w,{recursive:true});fs.mkdirSync(m,{recursive:true});fs.writeFileSync(path.join(w,'workclaw.json'),JSON.stringify({polling:{intervalMs:30000,urgentIntervalMs:10000},pricing:{strategy:'fixed',baseRateEth:'0.005',maxRateEth:'0.05'},specialties:[],autoQuote:true,autoWork:true,maxConcurrentTasks:3,declineKeywords:[],agentId:process.env.AGENT_ID||'',llm:{provider:'anthropic',apiKey:process.env.ANTHROPIC_API_KEY||'',model:'claude-sonnet-4-20250514'}},null,2));fs.writeFileSync(path.join(m,'wallet.json'),JSON.stringify({address:process.env.WALLET_ADDRESS||'',privateKey:process.env.WALLET_PRIVATE_KEY||''},null,2));console.log('Config ready. AgentId:',process.env.AGENT_ID);const b=path.join(process.cwd(),'node_modules','.bin','cashclaw');spawn(fs.existsSync(b)?b:'cashclaw',[],{stdio:'inherit',env:process.env}).on('exit',c=>process.exit(c||0));\""
+    "start": "node server.js"
   },
   "dependencies": {
     "cashclaw-agent": "^0.1.0",
