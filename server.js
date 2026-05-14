@@ -45,10 +45,12 @@ fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
 console.log('Config ready. AgentId:', process.env.AGENT_ID);
 
 const logs = [];
-const MAX_LOGS = 300;
+const MAX_LOGS = 500;
 let tasksDetected = 0;
 let lastActivity = null;
 let cashclawProc = null;
+let cashclawStatus = 'starting';
+let restartCount = 0;
 
 function addLog(line, type) {
   const entry = { time: new Date().toISOString(), msg: line.trim(), type };
@@ -56,6 +58,42 @@ function addLog(line, type) {
   if (logs.length > MAX_LOGS) logs.shift();
   lastActivity = entry.time;
   if (/task|job|work|tarea|earn|payment|paid/i.test(line)) tasksDetected++;
+}
+
+const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
+const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
+
+function startCashclaw() {
+  cashclawStatus = 'running';
+  // Give cashclaw PORT+1 so it doesn't fight us for the main port
+  const PORT = Number(process.env.PORT || 3777);
+  const env = { ...process.env, PORT: String(PORT + 1) };
+
+  cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env });
+
+  cashclawProc.stdout.on('data', d =>
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
+      process.stdout.write(l + '\n');
+      addLog(l, 'info');
+    })
+  );
+
+  cashclawProc.stderr.on('data', d =>
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
+      process.stderr.write(l + '\n');
+      addLog(l, 'error');
+    })
+  );
+
+  cashclawProc.on('exit', (code, signal) => {
+    cashclawStatus = 'restarting';
+    restartCount++;
+    const msg = `CashClaw salió (código ${code}, señal ${signal}) — reiniciando en 10s (intento #${restartCount})`;
+    console.log(msg);
+    addLog(msg, 'warn');
+    // Restart cashclaw after 10s — never kill the HTTP server
+    setTimeout(startCashclaw, 10000);
+  });
 }
 
 const PORT = Number(process.env.PORT || 3777);
@@ -78,6 +116,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .card .val{font-size:1.4em;font-weight:700;margin-top:6px;color:#f1f5f9}
     .card .val.mono{font-size:.85em;font-family:monospace;color:#94a3b8}
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px;animation:pulse 2s infinite}
+    .dot.warn{background:#f59e0b}.dot.off{background:#ef4444}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
     .tags{padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:8px}
     .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:4px 12px;font-size:.75em}
@@ -87,7 +126,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .log:last-child{border-bottom:none}
     .log .t{color:#475569;white-space:nowrap;flex-shrink:0}
     .log .msg{color:#cbd5e1;word-break:break-all}
-    .log.err .msg{color:#fca5a5}
+    .log.err .msg{color:#fca5a5}.log.warn .msg{color:#fbbf24}
     .empty{padding:40px;text-align:center;color:#475569}
     .footer{text-align:center;padding:14px;color:#475569;font-size:.78em}
     .footer a{color:#38bdf8;text-decoration:none}
@@ -100,15 +139,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Agente ID</label><div class="val" id="aid">-</div></div>
     <div class="card"><label>Tiempo activo</label><div class="val" id="up">-</div></div>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
-    <div class="card"><label>Última actividad</label><div class="val" id="la" style="font-size:.85em">-</div></div>
+    <div class="card"><label>Reinicios</label><div class="val" id="rc">-</div></div>
   </div>
   <div class="tags">
     <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">blog-writing</span>
-    <span class="tag">email-writing</span><span class="tag">social-media-content</span><span class="tag">technical-writing</span>
+    <span class="tag">email-writing</span><span class="tag">social-media-content</span>
     <span class="tag">research</span><span class="tag">web-research</span><span class="tag">data-analysis</span>
-    <span class="tag">coding</span><span class="tag">debugging</span><span class="tag">code-review</span>
-    <span class="tag">translation</span><span class="tag">web-scraping</span><span class="tag">brainstorming</span>
-    <span class="tag">consulting</span>
+    <span class="tag">coding</span><span class="tag">debugging</span><span class="tag">translation</span>
+    <span class="tag">brainstorming</span><span class="tag">consulting</span><span class="tag">+23 más</span>
   </div>
   <div class="logs">
     <div class="logs-hdr"><span>Actividad reciente</span><span id="cnt">-</span></div>
@@ -121,22 +159,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     async function load(){
       try{
         const [st,ls]=await Promise.all([fetch('/api/status').then(r=>r.json()),fetch('/api/logs').then(r=>r.json())]);
-        document.getElementById('st').innerHTML='<span class="dot"></span>'+(st.status==='running'?'<span style="color:#4ade80">Activo</span>':'<span style="color:#f87171">Detenido</span>');
+        const colors={running:'#4ade80',restarting:'#fbbf24',starting:'#94a3b8',stopped:'#f87171'};
+        const dotClass={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
+        document.getElementById('st').innerHTML='<span class="'+(dotClass[st.status]||'dot')+'"></span><span style="color:'+(colors[st.status]||'#fff')+'">'+(st.status||'-')+'</span>';
         document.getElementById('aid').textContent='#'+st.agent;
         document.getElementById('up').textContent=fmt(st.uptime);
         document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
-        document.getElementById('la').textContent=st.lastActivity?ftime(st.lastActivity):'Sin actividad aún';
+        document.getElementById('rc').textContent=st.restarts+' reinicios';
         document.getElementById('cnt').textContent=ls.length+' eventos';
         const el=document.getElementById('list');
-        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log'+(l.type==="error"?' err':'')+'" ><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join(''):'<div class="empty">Sin actividad aún — el agente hace polling cada 30 segundos</div>';
+        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join(''):'<div class="empty">Sin actividad aún — polling cada 30s</div>';
       }catch(e){}
     }
-    load();
-    setInterval(load,15000);
+    load();setInterval(load,15000);
   </script>
 </body></html>`;
 
-// Claim the port FIRST before spawning cashclaw
+// Start HTTP server first, then launch cashclaw
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
 
@@ -146,9 +185,10 @@ const server = http.createServer((req, res) => {
       agent: process.env.AGENT_ID,
       wallet: process.env.WALLET_ADDRESS,
       uptime: Math.floor((Date.now() - startTime) / 1000),
-      status: cashclawProc && cashclawProc.exitCode === null ? 'running' : 'stopped',
+      status: cashclawStatus,
       lastActivity,
-      tasksDetected
+      tasksDetected,
+      restarts: restartCount
     }));
   }
 
@@ -163,38 +203,10 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Dashboard listo en http://0.0.0.0:${PORT}`);
-
-  // Spawn cashclaw AFTER our server has the port
-  // Give cashclaw PORT+1 so it doesn't conflict if it starts its own server
-  const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
-  const env = { ...process.env, PORT: String(PORT + 1) };
-
-  cashclawProc = spawn(fs.existsSync(binPath) ? binPath : 'cashclaw', [], {
-    stdio: ['inherit', 'pipe', 'pipe'],
-    env
-  });
-
-  cashclawProc.stdout.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-      process.stdout.write(l + '\n');
-      addLog(l, 'info');
-    })
-  );
-
-  cashclawProc.stderr.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-      process.stderr.write(l + '\n');
-      addLog(l, 'error');
-    })
-  );
-
-  cashclawProc.on('exit', code => {
-    addLog(`CashClaw terminó con código ${code}`, 'error');
-    process.exit(code || 0);
-  });
+  startCashclaw();
 });
 
 server.on('error', err => {
-  console.error('Error del servidor:', err.message);
+  console.error('Error servidor HTTP:', err.message);
   process.exit(1);
 });
