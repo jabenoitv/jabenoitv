@@ -1,0 +1,109 @@
+name: Redeploy Railway
+
+on:
+  workflow_dispatch:
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: 8d85c544-1bd9-4fb9-8c6d-ee6f85067c92
+    steps:
+      - name: 1. List projects and services
+        id: list
+        run: |
+          set -e
+          echo "=== Querying Railway API ==="
+          RESPONSE=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ me { name email projects { edges { node { id name services { edges { node { id name } } } environments { edges { node { id name } } } } } } } }"}')
+          echo "$RESPONSE" > /tmp/list.json
+          echo "--- Full response ---"
+          python3 -m json.tool /tmp/list.json || cat /tmp/list.json
+
+          echo ""
+          echo "=== Extracting service IDs ==="
+          python3 <<'PYEOF'
+          import json, os
+          d = json.load(open('/tmp/list.json'))
+          if 'errors' in d:
+              print('GraphQL errors:', d['errors'])
+              exit(1)
+          if not d.get('data', {}).get('me'):
+              print('No user data — token invalid?')
+              print(json.dumps(d, indent=2))
+              exit(1)
+
+          found = None
+          for pe in d['data']['me']['projects']['edges']:
+              p = pe['node']
+              envs = p.get('environments', {}).get('edges', [])
+              for se in p['services']['edges']:
+                  s = se['node']
+                  name_lower = s['name'].lower()
+                  print(f"  Project: {p['name']} / Service: {s['name']} / ID: {s['id']}")
+                  if 'jabenoitv' in name_lower or 'cashclaw' in name_lower:
+                      env_id = envs[0]['node']['id'] if envs else ''
+                      found = (s['id'], env_id, s['name'], p['name'])
+          if not found:
+              print('\nNo jabenoitv/cashclaw service found!')
+              exit(1)
+          sid, eid, sname, pname = found
+          print(f"\nMATCHED: project={pname} service={sname}")
+          print(f"  service_id={sid}")
+          print(f"  environment_id={eid}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"service_id={sid}\n")
+              f.write(f"environment_id={eid}\n")
+              f.write(f"service_name={sname}\n")
+          PYEOF
+
+      - name: 2. List recent deployments (diagnostic)
+        run: |
+          echo "=== Last 10 deployments of ${{ steps.list.outputs.service_name }} ==="
+          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query($s:String!,$e:String!){ deployments(input:{serviceId:$s,environmentId:$e}, first:10){ edges{ node{ id status createdAt meta } } } }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}' \
+            | python3 -m json.tool
+
+      - name: 3. Trigger redeploy via serviceInstanceRedeploy
+        id: redeploy
+        continue-on-error: true
+        run: |
+          echo "=== Triggering serviceInstanceRedeploy ==="
+          RESPONSE=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"mutation($s:String!,$e:String!){ serviceInstanceRedeploy(serviceId:$s, environmentId:$e) }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}')
+          echo "$RESPONSE" | python3 -m json.tool
+          if echo "$RESPONSE" | grep -q '"errors"'; then
+            echo "::error::serviceInstanceRedeploy failed"
+            exit 1
+          fi
+          echo "::notice::Redeploy triggered successfully"
+
+      - name: 4. Fallback - deploymentTrigger with latest main commit
+        if: steps.redeploy.outcome == 'failure'
+        run: |
+          echo "=== Fallback: triggering new deploy from latest main commit ==="
+          COMMIT=$(curl -sS https://api.github.com/repos/jabenoitv/jabenoitv/commits/main | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'])")
+          echo "Latest commit: $COMMIT"
+
+          # Try deploymentTrigger
+          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation(\$s:String!,\$e:String!,\$c:String!){ deploymentTrigger(input:{serviceId:\$s,environmentId:\$e,commitSha:\$c}){ id status } }\",\"variables\":{\"s\":\"${{ steps.list.outputs.service_id }}\",\"e\":\"${{ steps.list.outputs.environment_id }}\",\"c\":\"$COMMIT\"}}" \
+            | python3 -m json.tool
+
+      - name: 5. Verify new deployment started
+        run: |
+          sleep 5
+          echo "=== Latest deployments after redeploy ==="
+          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query($s:String!,$e:String!){ deployments(input:{serviceId:$s,environmentId:$e}, first:3){ edges{ node{ id status createdAt meta } } } }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}' \
+            | python3 -m json.tool
