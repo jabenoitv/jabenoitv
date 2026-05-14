@@ -3,204 +3,192 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registrar Agente — jabenoitv</title>
+  <title>Agente jabenoitv — Moltlaunch</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .wrap { max-width: 440px; width: 100%; display: flex; flex-direction: column; gap: 20px; }
     .card { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 28px; }
-    h1 { font-size: 20px; margin-bottom: 6px; }
-    h2 { font-size: 17px; margin-bottom: 6px; }
+    h2 { font-size: 19px; margin-bottom: 6px; }
     .sub { color: #888; font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
     .info { background: #111; border-radius: 10px; padding: 14px; margin-bottom: 20px; font-size: 13px; }
     .info div { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #222; }
     .info div:last-child { border-bottom: none; }
     .info span:first-child { color: #888; }
-    input { display: block; width: 100%; padding: 13px 14px; background: #111; border: 1px solid #333; border-radius: 10px; color: #fff; font-size: 13px; margin-bottom: 10px; font-family: monospace; }
-    input::placeholder { color: #555; }
-    .btn { display: block; width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; background: #e2001a; color: #fff; }
+    .btn { display: block; width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-red { background: #e2001a; color: #fff; }
+    .btn-gray { background: #2a2a2a; border: 1px solid #444; color: #fff; margin-top: 8px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn.secondary { background: #2a2a2a; border: 1px solid #444; margin-top: 8px; }
-    .status { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; display: none; word-break: break-all; }
-    .status.ok { background: #0d2b0d; color: #4caf50; display: block; }
-    .status.err { background: #2b0d0d; color: #f44336; display: block; }
-    .status.info { background: #0d1f2b; color: #64b5f6; display: block; }
-    .agentid { font-size: 32px; font-weight: 700; text-align: center; margin: 10px 0; color: #4caf50; }
-    .link { color: #64b5f6; text-decoration: underline; }
-    .raw { font-size: 11px; color: #888; font-family: monospace; margin-top: 8px; border-top: 1px solid #1a3a1a; padding-top: 8px; }
+    .status { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 14px; line-height: 1.6; display: none; word-break: break-all; }
+    .ok { background: #0d2b0d; color: #4caf50; display: block; }
+    .err { background: #2b0d0d; color: #f44336; display: block; }
+    .info2 { background: #0d1f2b; color: #64b5f6; display: block; }
+    .big { font-size: 38px; font-weight: 800; text-align: center; display: block; margin: 10px 0 4px; color: #4caf50; }
+    .mono { font-family: monospace; font-size: 11px; color: #888; margin-top: 6px; border-top: 1px solid #1a3a1a; padding-top: 6px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
+<div class="wrap">
 
-    <!-- LOOKUP SECTION -->
-    <div class="card">
-      <h2>Buscar agentId por TX</h2>
-      <p class="sub">Si ya registraste, pegá el TX hash para ver tu agentId real.</p>
-      <input id="txInput" placeholder="0x... (TX hash de la transacción)" />
-      <button class="btn secondary" onclick="lookupTx()">Buscar agentId</button>
-      <div id="lookupStatus" class="status"></div>
-    </div>
-
-    <!-- REGISTER SECTION -->
-    <div class="card">
-      <h1>Registrar Agente</h1>
-      <p class="sub">Registra el agente <strong>jabenoitv</strong> en Moltlaunch. Cuesta ~$0.05 de gas en Base.</p>
-      <div class="info">
-        <div><span>Nombre</span><span>jabenoitv</span></div>
-        <div><span>Skills</span><span>writing, research, coding</span></div>
-        <div><span>Precio</span><span>0.001 ETH / tarea</span></div>
-        <div><span>Red</span><span>Base (8453)</span></div>
-      </div>
-      <button id="regBtn" class="btn" onclick="register()">Registrar Agente</button>
-      <div id="regStatus" class="status"></div>
-    </div>
-
+  <!-- AUTO VERIFY -->
+  <div class="card">
+    <h2>✅ Verificar mi registro</h2>
+    <p class="sub">Conectá tu wallet y encontramos tu agentId automáticamente. Sin necesitar TX hash.</p>
+    <button class="btn btn-gray" id="verifyBtn" onclick="verify()">Conectar wallet y buscar</button>
+    <div id="vs" class="status"></div>
   </div>
 
-  <script>
-    const CONTRACT = '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
-    const CHAIN_ID = '0x2105';
-    const CALLDATA = '0x8ea422860000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000ad646174613a6170706c69636174696f6e2f6a736f6e3b6261736536342c65794a755957316c496a6f69616d46695a57357661585232496977695a47567a59334a7063485270623234694f694a4264585276626d39746233567a4945464a4947466e5a57353049475a7663694233636d6c306157356e4c4342795a584e6c59584a6a614377675957356b49474e765a476c755a79423059584e7263794973496d6c745957646c496a6f69496e303d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000006736b696c6c730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002077726974696e672c72657365617263682c636f64696e672c616e616c79736973000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008656e64706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000087072696365576569000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000038d7ea4c68000';
-    const BASE_RPC = 'https://mainnet.base.org';
+  <!-- REGISTER -->
+  <div class="card">
+    <h2>Registrar Agente</h2>
+    <p class="sub">Si todavía no registraste, usá este botón. Cuesta ~$0.05 de gas en Base.</p>
+    <div class="info">
+      <div><span>Nombre</span><span>jabenoitv</span></div>
+      <div><span>Skills</span><span>writing, research, coding</span></div>
+      <div><span>Precio</span><span>0.001 ETH / tarea</span></div>
+      <div><span>Red</span><span>Base (8453)</span></div>
+    </div>
+    <button class="btn btn-red" id="regBtn" onclick="register()">Registrar Agente</button>
+    <div id="rs" class="status"></div>
+  </div>
 
-    function setStatus(id, msg, type) {
-      const el = document.getElementById(id);
-      el.className = 'status ' + type;
-      el.innerHTML = msg;
+</div>
+<script>
+const CONTRACT = '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
+const CHAIN_ID = '0x2105';
+const CALLDATA = '0x8ea422860000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000ad646174613a6170706c69636174696f6e2f6a736f6e3b6261736536342c65794a755957316c496a6f69616d46695a57357661585232496977695a47567a59334a7063485270623234694f694a4264585276626d39746233567a4945464a4947466e5a57353049475a7663694233636d6c306157356e4c4342795a584e6c59584a6a614377675957356b49474e765a476c755a79423059584e7263794973496d6c745957646c496a6f69496e303d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000006736b696c6c730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002077726974696e672c72657365617263682c636f64696e672c616e616c79736973000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008656e64706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000087072696365576569000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000038d7ea4c68000';
+const RPC = 'https://mainnet.base.org';
+
+function st(id, html, cls) { const e = document.getElementById(id); e.className = 'status ' + cls; e.innerHTML = html; }
+
+async function rpc(method, params) {
+  const r = await fetch(RPC, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({jsonrpc:'2.0',id:1,method,params}) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+
+function tryParseId(logs, ownerHex) {
+  for (const log of logs) {
+    if (log.address.toLowerCase() !== CONTRACT.toLowerCase()) continue;
+    const t = log.topics || [];
+    const d = log.data || '0x';
+    // Check if any topic matches owner address
+    const ownerTopic = '0x000000000000000000000000' + ownerHex.slice(2).toLowerCase();
+    const ownerIdx = t.findIndex(x => x && x.toLowerCase() === ownerTopic.toLowerCase());
+    if (ownerIdx === -1) continue;
+    // Look for a small uint256 in other topics or data
+    for (let i = 1; i < t.length; i++) {
+      if (i === ownerIdx) continue;
+      const v = BigInt(t[i]);
+      if (v > 0n && v < 100000000n) return { id: v.toString(), from: 'topic' };
     }
-
-    async function rpcCall(method, params) {
-      const res = await fetch(BASE_RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
-      });
-      const j = await res.json();
-      if (j.error) throw new Error(j.error.message);
-      return j.result;
+    // Try first 32 bytes of data
+    if (d.length >= 66) {
+      const v = BigInt('0x' + d.slice(2, 66));
+      if (v > 0n && v < 100000000n) return { id: v.toString(), from: 'data' };
     }
+    // Return raw
+    return { id: null, raw: t, data: d.slice(0,130) };
+  }
+  return null;
+}
 
-    function parseAgentId(logs) {
-      for (const log of logs) {
-        if (log.address.toLowerCase() !== CONTRACT.toLowerCase()) continue;
-        const topics = log.topics || [];
-        const data = log.data || '0x';
-        // Try topics[1] as agentId (if first indexed param is uint256)
-        if (topics[1] && topics[1] !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-          const val = BigInt(topics[1]);
-          if (val > 0n && val < 10000000n) return { agentId: val.toString(), source: 'topics[1]', raw: topics };
+async function verify() {
+  if (!window.ethereum) { st('vs', 'Wallet no detectada. Abrí esta página desde Brave o MetaMask.', 'err'); return; }
+  document.getElementById('verifyBtn').disabled = true;
+  st('vs', 'Conectando wallet...', 'info2');
+  try {
+    const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const owner = accts[0];
+    st('vs', 'Buscando en Base blockchain para <code>' + owner.slice(0,10) + '...</code>...', 'info2');
+
+    // Try ERC-721 tokenOfOwnerByIndex(owner, 0) selector 0x2f745c59
+    const callData = '0x2f745c59' + owner.slice(2).toLowerCase().padStart(64,'0') + '0'.padStart(64,'0');
+    try {
+      const res = await rpc('eth_call', [{ to: CONTRACT, data: callData }, 'latest']);
+      if (res && res !== '0x' && res.replace(/0x0*/,'') !== '') {
+        const id = BigInt(res);
+        if (id > 0n) {
+          showId('vs', id.toString(), owner);
+          return;
         }
-        // Try topics[2] as agentId
-        if (topics[2] && topics[2] !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-          const val = BigInt(topics[2]);
-          if (val > 0n && val < 10000000n) return { agentId: val.toString(), source: 'topics[2]', raw: topics };
-        }
-        // Try first 32 bytes of data as agentId
-        if (data && data.length >= 66) {
-          const val = BigInt('0x' + data.slice(2, 66));
-          if (val > 0n && val < 10000000n) return { agentId: val.toString(), source: 'data[0]', raw: topics };
-        }
-        // Return raw if found the right log but couldn't parse
-        if (topics.length > 0) return { agentId: null, source: 'unparseable', raw: topics, data: data.slice(0, 130) };
       }
-      return null;
-    }
+    } catch(_) {}
 
-    async function lookupTx() {
-      const txHash = document.getElementById('txInput').value.trim();
-      if (!txHash.startsWith('0x') || txHash.length < 60) {
-        setStatus('lookupStatus', 'Pegá un TX hash válido (empieza con 0x...)', 'err');
-        return;
-      }
-      setStatus('lookupStatus', 'Buscando en Base...', 'info');
+    // Scan recent events — try owner in topics[1] and topics[2]
+    const blockHex = await rpc('eth_blockNumber', []);
+    const latest = parseInt(blockHex, 16);
+    const from = '0x' + Math.max(0, latest - 500000).toString(16);
+    const ownerPadded = '0x000000000000000000000000' + owner.slice(2).toLowerCase();
+
+    for (const topicPos of [1, 2]) {
+      const filter = {
+        address: CONTRACT,
+        topics: Array(topicPos + 1).fill(null).map((_, i) => i === topicPos ? ownerPadded : null),
+        fromBlock: from,
+        toBlock: 'latest'
+      };
       try {
-        const receipt = await rpcCall('eth_getTransactionReceipt', [txHash]);
-        if (!receipt) { setStatus('lookupStatus', 'TX no encontrado o pendiente. Esperá y probá de nuevo.', 'err'); return; }
-        if (receipt.status === '0x0') { setStatus('lookupStatus', 'La transacción falló (status=0). No se registró el agente.', 'err'); return; }
-
-        const parsed = parseAgentId(receipt.logs);
-        if (parsed && parsed.agentId) {
-          setStatus('lookupStatus',
-            '✅ <strong>AgentId encontrado!</strong>' +
-            '<div class="agentid">' + parsed.agentId + '</div>' +
-            'Copiá ese número y pegalo en Claude Code.<br>' +
-            '<small class="raw">Fuente: ' + parsed.source + '<br>Topics: ' + (parsed.raw || []).join('<br>') + '</small>',
-            'ok');
-        } else if (parsed) {
-          const topicsStr = (parsed.raw || []).map((t,i) => 'topic['+i+']: '+t).join('<br>');
-          setStatus('lookupStatus',
-            '⚠️ TX confirmada pero no pude parsear el agentId automáticamente.<br><br>' +
-            '<strong>Datos crudos:</strong><br>' +
-            '<small class="raw">' + topicsStr + '<br>data: ' + (parsed.data || '') + '</small><br><br>' +
-            'Mandame los datos de arriba en Claude Code.',
-            'info');
-        } else {
-          const allLogs = receipt.logs.map((l,i) => 'log['+i+'] addr='+l.address+' topics='+JSON.stringify(l.topics)).join('<br>');
-          setStatus('lookupStatus',
-            '⚠️ TX confirmada pero no encontré log del contrato.<br>' +
-            '<small class="raw">' + allLogs + '</small>',
-            'info');
-        }
-      } catch(e) {
-        setStatus('lookupStatus', 'Error: ' + e.message, 'err');
-      }
-    }
-
-    async function register() {
-      const btn = document.getElementById('regBtn');
-      if (!window.ethereum) { setStatus('regStatus', 'Wallet no detectada. Abrí esta página desde MetaMask o Brave Wallet.', 'err'); return; }
-      try {
-        btn.disabled = true;
-        setStatus('regStatus', 'Conectando wallet...', 'info');
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const account = accounts[0];
-        setStatus('regStatus', 'Cambiando a Base...', 'info');
-        try {
-          await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
-        } catch (e) {
-          if (e.code === 4902) {
-            await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: CHAIN_ID, chainName: 'Base', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: [BASE_RPC], blockExplorerUrls: ['https://basescan.org'] }] });
+        const logs = await rpc('eth_getLogs', [filter]);
+        if (logs && logs.length > 0) {
+          const found = tryParseId(logs, owner);
+          if (found && found.id) { showId('vs', found.id, owner); return; }
+          if (found && found.raw) {
+            st('vs', '⚠️ Encontré tu TX pero no pude leer el agentId.<br><small>Topics: ' + found.raw.join('<br>') + '</small><br>Mandáme esta pantalla en Claude Code.', 'info2');
+            document.getElementById('verifyBtn').disabled = false;
+            return;
           }
         }
-        setStatus('regStatus', 'Confirmá en tu wallet...', 'info');
-        const txHash = await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: account, to: CONTRACT, data: CALLDATA, chainId: CHAIN_ID }] });
-        setStatus('regStatus', '⏳ Esperando confirmación...<br><small>' + txHash + '</small>', 'info');
-
-        let receipt = null;
-        for (let i = 0; i < 60; i++) {
-          await new Promise(r => setTimeout(r, 3000));
-          try {
-            receipt = await rpcCall('eth_getTransactionReceipt', [txHash]);
-          } catch(_) {
-            receipt = await window.ethereum.request({ method: 'eth_getTransactionReceipt', params: [txHash] });
-          }
-          if (receipt) break;
-        }
-
-        if (!receipt) { setStatus('regStatus', 'Timeout. TX hash: ' + txHash + '<br>Pegalo en el buscador de arriba.', 'info'); return; }
-        if (receipt.status === '0x0') { setStatus('regStatus', 'Transacción fallida. Gas insuficiente?', 'err'); btn.disabled = false; return; }
-
-        const parsed = parseAgentId(receipt.logs);
-        if (parsed && parsed.agentId) {
-          setStatus('regStatus',
-            '✅ <strong>Agente registrado!</strong>' +
-            '<div class="agentid">' + parsed.agentId + '</div>' +
-            'Copiá ese número y pegalo en Claude Code.',
-            'ok');
-        } else {
-          document.getElementById('txInput').value = txHash;
-          setStatus('regStatus',
-            '✅ TX confirmada! Hash: <small>' + txHash + '</small><br><br>' +
-            'Pegá el hash en el buscador de arriba para ver el agentId.',
-            'ok');
-        }
-      } catch (e) {
-        btn.disabled = false;
-        if (e.code === 4001) setStatus('regStatus', 'Cancelado.', 'err');
-        else setStatus('regStatus', 'Error: ' + (e.message || e), 'err');
-      }
+      } catch(_) {}
     }
-  </script>
+
+    // Not found — maybe not registered yet
+    st('vs', '⚠️ No encontré registro para <code>' + owner + '</code> en Base.<br><br>Puede que la TX haya fallado o que sea otra wallet. Probá con el botón de abajo para registrar.', 'info2');
+    document.getElementById('verifyBtn').disabled = false;
+  } catch(e) {
+    st('vs', 'Error: ' + e.message, 'err');
+    document.getElementById('verifyBtn').disabled = false;
+  }
+}
+
+function showId(id, agentId, owner) {
+  st(id, '✅ <strong>Agente registrado!</strong><span class="big">' + agentId + '</span>Copiá ese número y pegalo en Claude Code.<div class="mono">owner: ' + owner + '</div>', 'ok');
+}
+
+async function register() {
+  if (!window.ethereum) { st('rs', 'Wallet no detectada.', 'err'); return; }
+  const btn = document.getElementById('regBtn');
+  try {
+    btn.disabled = true;
+    st('rs', 'Conectando...', 'info2');
+    const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    st('rs', 'Cambiando a Base...', 'info2');
+    try {
+      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
+    } catch(e) {
+      if (e.code === 4902) await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: CHAIN_ID, chainName: 'Base', nativeCurrency: { name:'ETH', symbol:'ETH', decimals:18 }, rpcUrls: [RPC], blockExplorerUrls: ['https://basescan.org'] }] });
+    }
+    st('rs', 'Confirmá en tu wallet...', 'info2');
+    const txHash = await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: accts[0], to: CONTRACT, data: CALLDATA, chainId: CHAIN_ID }] });
+    st('rs', '⏳ Esperando confirmación... <br><small>' + txHash + '</small>', 'info2');
+    let receipt = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try { receipt = await rpc('eth_getTransactionReceipt', [txHash]); } catch(_) { receipt = await window.ethereum.request({ method: 'eth_getTransactionReceipt', params: [txHash] }); }
+      if (receipt) break;
+    }
+    if (!receipt) { st('rs', 'Timeout. TX: ' + txHash + '<br>Usá el botón de arriba para verificar.', 'info2'); return; }
+    if (receipt.status === '0x0') { st('rs', 'TX fallida. ¿Gas insuficiente?', 'err'); btn.disabled=false; return; }
+    const found = tryParseId(receipt.logs, accts[0]);
+    if (found && found.id) { showId('rs', found.id, accts[0]); }
+    else { st('rs', '✅ TX confirmada! Usá el botón de arriba para ver tu agentId.', 'ok'); }
+  } catch(e) {
+    btn.disabled = false;
+    if (e.code === 4001) st('rs', 'Cancelado.', 'err');
+    else st('rs', 'Error: ' + (e.message||e), 'err');
+  }
+}
+</script>
 </body>
 </html>
