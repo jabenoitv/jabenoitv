@@ -47,13 +47,11 @@ console.log('Config ready. AgentId:', process.env.AGENT_ID);
 const PORT = Number(process.env.PORT || 3777);
 const CASHCLAW_PORT = PORT + 1;
 
-// Patch cashclaw's hardcoded port so it doesn't conflict with our server
 const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
 try {
   let src = fs.readFileSync(cashclawDist, 'utf8');
   if (src.includes('var PORT = 3777')) {
     src = src.replace('var PORT = 3777;', `var PORT = ${CASHCLAW_PORT};`);
-    // Also patch any hardcoded localhost:3777 references
     src = src.replace(/localhost:3777/g, `localhost:${CASHCLAW_PORT}`);
     fs.writeFileSync(cashclawDist, src);
     console.log(`Cashclaw parcheado: usará puerto ${CASHCLAW_PORT}`);
@@ -83,10 +81,7 @@ const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
 
 function startCashclaw() {
   cashclawStatus = 'running';
-  cashclawProc = spawn(bin, [], {
-    stdio: ['inherit', 'pipe', 'pipe'],
-    env: process.env
-  });
+  cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: process.env });
 
   cashclawProc.stdout.on('data', d =>
     d.toString().split('\n').filter(l => l.trim()).forEach(l => {
@@ -94,15 +89,13 @@ function startCashclaw() {
       addLog(l, 'info');
     })
   );
-
   cashclawProc.stderr.on('data', d =>
     d.toString().split('\n').filter(l => l.trim()).forEach(l => {
       process.stderr.write(l + '\n');
       addLog(l, 'error');
     })
   );
-
-  cashclawProc.on('exit', (code, signal) => {
+  cashclawProc.on('exit', (code) => {
     restartCount++;
     const msg = `CashClaw salió (código ${code}) — reiniciando en 15s (#${restartCount})`;
     console.log(msg);
@@ -129,10 +122,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .card{background:#1e293b;border-radius:12px;padding:18px 20px;flex:1;min-width:150px;border:1px solid #334155}
     .card label{font-size:.72em;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
     .card .val{font-size:1.4em;font-weight:700;margin-top:6px;color:#f1f5f9}
+    .card .val.small{font-size:1em}
     .card .val.mono{font-size:.85em;font-family:monospace;color:#94a3b8}
+    .card .sub{font-size:.75em;color:#64748b;margin-top:3px}
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px;animation:pulse 2s infinite}
     .dot.warn{background:#f59e0b}.dot.off{background:#ef4444}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .divider{padding:0 24px 4px;font-size:.72em;color:#475569;text-transform:uppercase;letter-spacing:.5px}
     .tags{padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:8px}
     .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:4px 12px;font-size:.75em}
     .logs{margin:0 24px 24px;background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden}
@@ -149,6 +145,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <header><h1>⚡ CashClaw Dashboard</h1><p>Agente autónomo · Moltlaunch Marketplace</p></header>
+
   <div class="cards">
     <div class="card"><label>Estado</label><div class="val" id="st"><span class="dot"></span>...</div></div>
     <div class="card"><label>Agente ID</label><div class="val" id="aid">-</div></div>
@@ -156,6 +153,27 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
     <div class="card"><label>Reinicios</label><div class="val" id="rc">0</div></div>
   </div>
+
+  <div class="cards">
+    <div class="card">
+      <label>1 ETH en USD</label>
+      <div class="val small" id="eth-usd">...</div>
+    </div>
+    <div class="card">
+      <label>1 ETH en CLP</label>
+      <div class="val small" id="eth-clp">...</div>
+    </div>
+    <div class="card">
+      <label>Tarifa del agente</label>
+      <div class="val small" id="rate-usd">...</div>
+      <div class="sub" id="rate-clp"></div>
+    </div>
+    <div class="card">
+      <label>Precio actualizado</label>
+      <div class="val small" id="eth-time" style="font-size:.8em;color:#64748b">-</div>
+    </div>
+  </div>
+
   <div class="tags">
     <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">blog-writing</span>
     <span class="tag">email-writing</span><span class="tag">social-media-content</span>
@@ -163,30 +181,67 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <span class="tag">coding</span><span class="tag">debugging</span><span class="tag">translation</span>
     <span class="tag">brainstorming</span><span class="tag">consulting</span><span class="tag">+23 más</span>
   </div>
+
   <div class="logs">
     <div class="logs-hdr"><span>Actividad reciente</span><span id="cnt">-</span></div>
     <div id="list"><div class="empty">Cargando...</div></div>
   </div>
   <div class="footer">Actualización cada 15 seg · <a href="/">Actualizar ahora</a></div>
+
   <script>
     function fmt(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;return h?h+'h '+m+'m':m?m+'m '+sec+'s':sec+'s'}
     function ftime(iso){return new Date(iso).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+    function fmoney(n,sym){return sym+(n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?n.toLocaleString('es-CL',{maximumFractionDigits:0}):n.toFixed(2))}
     const dotClass={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
     const colors={running:'#4ade80',restarting:'#fbbf24',starting:'#94a3b8',stopped:'#f87171'};
+
+    let ethUsd=0,ethClp=0;
+
+    async function loadPrice(){
+      try{
+        const d=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp').then(r=>r.json());
+        ethUsd=d.ethereum.usd;
+        ethClp=d.ethereum.clp;
+        document.getElementById('eth-usd').textContent='$'+ethUsd.toLocaleString('en-US',{maximumFractionDigits:0})+' USD';
+        document.getElementById('eth-clp').textContent='$'+(ethClp).toLocaleString('es-CL',{maximumFractionDigits:0})+' CLP';
+        const rateEth=0.005;
+        document.getElementById('rate-usd').textContent='$'+(rateEth*ethUsd).toFixed(2)+' USD / trabajo';
+        document.getElementById('rate-clp').textContent='≈ $'+Math.round(rateEth*ethClp).toLocaleString('es-CL')+' CLP';
+        document.getElementById('eth-time').textContent='Última actualización: '+new Date().toLocaleTimeString('es');
+      }catch(e){
+        document.getElementById('eth-usd').textContent='No disponible';
+      }
+    }
+
     async function load(){
       try{
         const [st,ls]=await Promise.all([fetch('/api/status').then(r=>r.json()),fetch('/api/logs').then(r=>r.json())]);
-        document.getElementById('st').innerHTML='<span class="'+(dotClass[st.status]||'dot')+'"></span><span style="color:'+(colors[st.status]||'#fff')+'">'+(st.status||'-')+'</span>';
+        document.getElementById('st').innerHTML='<span class="'+(dotClass[st.status]||'dot')+'"></span><span style="color:'+(colors[st.status]||'#fff')+'">'+st.status+'</span>';
         document.getElementById('aid').textContent='#'+st.agent;
         document.getElementById('up').textContent=fmt(st.uptime);
         document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
         document.getElementById('rc').textContent=st.restarts;
         document.getElementById('cnt').textContent=ls.length+' eventos';
         const el=document.getElementById('list');
-        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join(''):'<div class="empty">Sin actividad aún — polling cada 30s</div>';
+        el.innerHTML=ls.length?[...ls].reverse().map(l=>{
+          let msg=l.msg.replace(/</g,'&lt;');
+          // Resaltar pagos con conversión
+          const ethMatch=msg.match(/([0-9.]+)\s*ETH/);
+          if(ethMatch&&ethUsd){
+            const eth=parseFloat(ethMatch[1]);
+            const usd='$'+(eth*ethUsd).toFixed(2)+' USD';
+            const clp='$'+Math.round(eth*ethClp).toLocaleString('es-CL')+' CLP';
+            msg=msg+' <span style="color:#4ade80;font-weight:bold">('+usd+' / '+clp+')</span>';
+          }
+          return '<div class="log '+(l.type||')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
+        }).join(''):'<div class="empty">Sin actividad aún — polling cada 30s</div>';
       }catch(e){}
     }
-    load();setInterval(load,15000);
+
+    loadPrice();
+    setInterval(loadPrice, 5*60*1000); // precio cada 5 min
+    load();
+    setInterval(load, 15000);
   </script>
 </body></html>`;
 
