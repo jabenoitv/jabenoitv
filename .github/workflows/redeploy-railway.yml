@@ -29,11 +29,11 @@ jobs:
               d = json.loads(resp.read())
 
           if 'errors' in d:
-              print('GraphQL errors:', d['errors']); sys.exit(1)
+              print('Errors:', d['errors']); sys.exit(1)
           if not d.get('data', {}).get('me'):
-              print('No user data - token invalid?'); print(d); sys.exit(1)
+              print('Token invalid?'); print(d); sys.exit(1)
 
-          print('Logged in as:', d['data']['me']['name'])
+          print('User:', d['data']['me']['name'])
           found = None
           for pe in d['data']['me']['projects']['edges']:
               p = pe['node']
@@ -41,37 +41,77 @@ jobs:
               for se in p['services']['edges']:
                   s = se['node']
                   nl = s['name'].lower()
-                  print(f"  Project: {p['name']} / Service: {s['name']} / ID: {s['id']}")
+                  print(f"  Project: {p['name']} ({p['id']}) / Service: {s['name']} ({s['id']})")
                   if any(k in nl for k in ['jabenoitv', 'cashclaw', 'workclaw', 'claw']):
                       env_id = envs[0]['node']['id'] if envs else ''
-                      found = (s['id'], env_id, s['name'], p['name'])
+                      found = (s['id'], env_id, s['name'], p['name'], p['id'])
 
           if not found:
-              print()
-              print('No matching service found. Trying first available service...')
+              print('No matching service — using first available:')
               for pe in d['data']['me']['projects']['edges']:
                   p = pe['node']
                   envs = p.get('environments', {}).get('edges', [])
                   for se in p['services']['edges']:
                       s = se['node']
                       env_id = envs[0]['node']['id'] if envs else ''
-                      found = (s['id'], env_id, s['name'], p['name'])
+                      found = (s['id'], env_id, s['name'], p['name'], p['id'])
                       break
-                  if found:
-                      break
+                  if found: break
 
           if not found:
-              print('No services found at all!'); sys.exit(1)
+              print('No services found!'); sys.exit(1)
 
-          sid, eid, sname, pname = found
-          print(f'\nUsing: project={pname}  service={sname}')
-          print(f'  service_id={sid}')
-          print(f'  environment_id={eid}')
+          sid, eid, sname, pname, pid = found
+          print(f'\nMatched: project={pname}  service={sname}')
+          print(f'  sid={sid}  eid={eid}  pid={pid}')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'sid={sid}\neid={eid}\nsname={sname}\n')
+              f.write(f'sid={sid}\neid={eid}\npid={pid}\nsname={sname}\n')
           PYEOF
 
-      - name: 2. Update start command via serviceInstanceUpdate
+      - name: 2. Disable Railpack cache via environment variables
+        id: set_nocache
+        continue-on-error: true
+        run: |
+          python3 <<'PYEOF'
+          import json, urllib.request, os, sys
+
+          token = os.environ['RAILWAY_TOKEN']
+          sid = os.environ['SID']
+          eid = os.environ['EID']
+          pid = os.environ['PID']
+
+          print(f'Setting cache-bust vars: sid={sid} eid={eid} pid={pid}')
+
+          payload = {
+              "query": """mutation($pid:String!,$s:String!,$e:String!,$vars:EnvironmentVariables!){
+                  variableCollectionUpsert(input:{projectId:$pid,serviceId:$s,environmentId:$e,variables:$vars})
+              }""",
+              "variables": {
+                  "pid": pid, "s": sid, "e": eid,
+                  "vars": {"NIXPACKS_NO_CACHE": "1", "RAILPACK_NO_CACHE": "1"}
+              }
+          }
+
+          req = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(payload).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req) as resp:
+              result = json.loads(resp.read())
+
+          print(json.dumps(result, indent=2))
+          if 'errors' in result:
+              print('variableCollectionUpsert failed:', result['errors'], file=sys.stderr)
+              sys.exit(1)
+          print('Cache-busting variables set successfully!')
+          PYEOF
+        env:
+          SID: ${{ steps.find.outputs.sid }}
+          EID: ${{ steps.find.outputs.eid }}
+          PID: ${{ steps.find.outputs.pid }}
+
+      - name: 3. Update start command (direct override)
         id: update_cmd
         continue-on-error: true
         run: |
@@ -82,7 +122,6 @@ jobs:
           sid = os.environ['SID']
           eid = os.environ['EID']
 
-          # Inline Node.js: writes config files from env vars, then spawns cashclaw
           cmd = (
               "node -e \""
               "const fs=require('fs'),os=require('os'),path=require('path'),"
@@ -124,18 +163,17 @@ jobs:
 
           print(json.dumps(result, indent=2))
           if 'errors' in result:
-              print('serviceInstanceUpdate errors:', file=sys.stderr)
-              for e in result['errors']:
-                  print(f"  {e.get('message', e)}", file=sys.stderr)
+              print('serviceInstanceUpdate errors:', result['errors'])
               sys.exit(1)
-          print('Start command updated successfully!')
+          print('Start command updated!')
           PYEOF
         env:
           SID: ${{ steps.find.outputs.sid }}
           EID: ${{ steps.find.outputs.eid }}
 
-      - name: 3. Trigger redeploy
+      - name: 4. Wait for var to propagate, then trigger redeploy
         run: |
+          sleep 5
           python3 <<'PYEOF'
           import json, urllib.request, os, sys
 
@@ -143,39 +181,28 @@ jobs:
           sid = os.environ['SID']
           eid = os.environ['EID']
 
-          attempts = [
-              ("serviceInstanceRedeploy",
-               "mutation($s:String!,$e:String!){serviceInstanceRedeploy(serviceId:$s,environmentId:$e)}",
-               {"s": sid, "e": eid}),
-          ]
-
-          success = False
-          for name, q, v in attempts:
-              print(f'\n=== Trying {name} ===')
-              payload = {"query": q, "variables": v}
-              req = urllib.request.Request(
-                  'https://backboard.railway.com/graphql/v2',
-                  data=json.dumps(payload).encode(),
-                  headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-              )
-              with urllib.request.urlopen(req) as resp:
-                  result = json.loads(resp.read())
-              print(json.dumps(result, indent=2))
-              if 'errors' not in result:
-                  print(f'Redeploy triggered via {name}!')
-                  success = True
-                  break
-              print(f'{name} failed: {result["errors"]}')
-
-          if not success:
-              print('All redeploy attempts failed', file=sys.stderr)
-              sys.exit(1)
+          payload = {
+              "query": "mutation($s:String!,$e:String!){serviceInstanceRedeploy(serviceId:$s,environmentId:$e)}",
+              "variables": {"s": sid, "e": eid}
+          }
+          req = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(payload).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req) as resp:
+              result = json.loads(resp.read())
+          print(json.dumps(result, indent=2))
+          if 'errors' not in result:
+              print('Redeploy triggered!')
+          else:
+              print('Redeploy error (non-fatal):', result.get('errors'))
           PYEOF
         env:
           SID: ${{ steps.find.outputs.sid }}
           EID: ${{ steps.find.outputs.eid }}
 
-      - name: 4. Verify deployment started
+      - name: 5. Verify latest deployments
         run: |
           sleep 8
           python3 <<'PYEOF'
@@ -196,7 +223,6 @@ jobs:
           )
           with urllib.request.urlopen(req) as resp:
               result = json.loads(resp.read())
-          print('=== Latest deployments ===')
           print(json.dumps(result, indent=2))
           PYEOF
         env:
