@@ -13,16 +13,32 @@ fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
   polling: { intervalMs: 30000, urgentIntervalMs: 10000 },
   pricing: { strategy: 'fixed', baseRateEth: '0.005', maxRateEth: '0.05' },
   specialties: [
-    'writing', 'copywriting', 'content-creation',
-    'coding', 'programming', 'debugging',
-    'research', 'web-research', 'data-analysis',
-    'translation', 'summarization', 'editing',
-    'question-answering', 'brainstorming', 'planning'
+    // Writing & Content
+    'writing', 'copywriting', 'content-creation', 'blog-writing',
+    'email-writing', 'social-media-content', 'product-descriptions',
+    'technical-writing', 'creative-writing', 'proofreading', 'editing',
+    // Research
+    'research', 'web-research', 'market-research', 'competitive-analysis',
+    'data-analysis', 'summarization', 'fact-checking',
+    // Code & Tech
+    'coding', 'programming', 'debugging', 'code-review',
+    'documentation', 'api-documentation',
+    // Business
+    'business-writing', 'report-writing', 'seo-content', 'customer-support-templates',
+    // Language
+    'translation', 'language-editing',
+    // Web / Browser (Playwright)
+    'web-scraping', 'data-extraction', 'website-analysis',
+    // General
+    'question-answering', 'brainstorming', 'planning', 'consulting'
   ],
   autoQuote: true,
   autoWork: true,
   maxConcurrentTasks: 3,
-  declineKeywords: [],
+  declineKeywords: [
+    'image-generation', 'video-creation', 'audio-generation',
+    'music-creation', 'nsfw', 'illegal'
+  ],
   agentId: process.env.AGENT_ID || '',
   llm: {
     provider: 'anthropic',
@@ -94,6 +110,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .card .val.mono{font-size:.85em;font-family:monospace;color:#94a3b8}
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px;animation:pulse 2s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .section-title{padding:0 24px 8px;font-size:.72em;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
     .tags{padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:8px}
     .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:4px 12px;font-size:.75em}
     .logs{margin:0 24px 24px;background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden}
@@ -122,12 +139,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Última actividad</label><div class="val" id="la" style="font-size:.85em">-</div></div>
   </div>
 
+  <div class="section-title">Especialidades activas (${36})</div>
   <div class="tags">
     <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">content-creation</span>
+    <span class="tag">blog-writing</span><span class="tag">email-writing</span><span class="tag">social-media-content</span>
+    <span class="tag">product-descriptions</span><span class="tag">technical-writing</span><span class="tag">creative-writing</span>
+    <span class="tag">proofreading</span><span class="tag">editing</span>
+    <span class="tag">research</span><span class="tag">web-research</span><span class="tag">market-research</span>
+    <span class="tag">competitive-analysis</span><span class="tag">data-analysis</span><span class="tag">summarization</span>
+    <span class="tag">fact-checking</span>
     <span class="tag">coding</span><span class="tag">programming</span><span class="tag">debugging</span>
-    <span class="tag">research</span><span class="tag">data-analysis</span><span class="tag">translation</span>
-    <span class="tag">summarization</span><span class="tag">editing</span><span class="tag">brainstorming</span>
-    <span class="tag">planning</span><span class="tag">question-answering</span>
+    <span class="tag">code-review</span><span class="tag">documentation</span><span class="tag">api-documentation</span>
+    <span class="tag">business-writing</span><span class="tag">report-writing</span><span class="tag">seo-content</span>
+    <span class="tag">customer-support-templates</span>
+    <span class="tag">translation</span><span class="tag">language-editing</span>
+    <span class="tag">web-scraping</span><span class="tag">data-extraction</span><span class="tag">website-analysis</span>
+    <span class="tag">question-answering</span><span class="tag">brainstorming</span><span class="tag">planning</span>
+    <span class="tag">consulting</span>
   </div>
 
   <div class="logs">
@@ -150,7 +178,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         document.getElementById('la').textContent=st.lastActivity?ftime(st.lastActivity):'Sin actividad aún';
         document.getElementById('cnt').textContent=ls.length+' eventos';
         const el=document.getElementById('list');
-        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log'+(l.type==="error"?' err':'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join('')
+        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log'+(l.type==="error"?' err':'')+'" ><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join('')
           :'<div class="empty">Sin actividad aún — el agente hace polling cada 30 segundos</div>';
       }catch(e){}
     }
