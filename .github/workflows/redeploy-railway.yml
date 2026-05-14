@@ -2,6 +2,9 @@ name: Redeploy Railway
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   redeploy:
@@ -47,7 +50,12 @@ jobs:
                       env_id = envs[0]['node']['id'] if envs else ''
                       found = (s['id'], env_id, s['name'], p['name'])
           if not found:
-              print('\nNo jabenoitv/cashclaw service found!')
+              print('\nNo jabenoitv/cashclaw service found — checking all services:')
+              for pe in d['data']['me']['projects']['edges']:
+                  p = pe['node']
+                  for se in p['services']['edges']:
+                      s = se['node']
+                      print(f"  AVAILABLE: {p['name']} / {s['name']}")
               exit(1)
           sid, eid, sname, pname = found
           print(f"\nMATCHED: project={pname} service={sname}")
@@ -91,7 +99,6 @@ jobs:
           COMMIT=$(curl -sS https://api.github.com/repos/jabenoitv/jabenoitv/commits/main | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'])")
           echo "Latest commit: $COMMIT"
 
-          # Try deploymentTrigger
           curl -sS -X POST https://backboard.railway.com/graphql/v2 \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
