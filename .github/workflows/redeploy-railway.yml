@@ -12,105 +12,193 @@ jobs:
     env:
       RAILWAY_TOKEN: 8d85c544-1bd9-4fb9-8c6d-ee6f85067c92
     steps:
-      - name: 1. List projects and services
-        id: list
+      - name: 1. Find Railway service
+        id: find
         run: |
-          set -e
-          echo "=== Querying Railway API ==="
-          RESPONSE=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"{ me { name email projects { edges { node { id name services { edges { node { id name } } } environments { edges { node { id name } } } } } } } }"}')
-          echo "$RESPONSE" > /tmp/list.json
-          echo "--- Full response ---"
-          python3 -m json.tool /tmp/list.json || cat /tmp/list.json
-
-          echo ""
-          echo "=== Extracting service IDs ==="
           python3 <<'PYEOF'
-          import json, os
-          d = json.load(open('/tmp/list.json'))
-          if 'errors' in d:
-              print('GraphQL errors:', d['errors'])
-              exit(1)
-          if not d.get('data', {}).get('me'):
-              print('No user data — token invalid?')
-              print(json.dumps(d, indent=2))
-              exit(1)
+          import json, urllib.request, os, sys
 
+          token = os.environ['RAILWAY_TOKEN']
+          query = {"query": "{ me { name projects { edges { node { id name services { edges { node { id name } } } environments { edges { node { id name } } } } } } } }"}
+          req = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(query).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req) as resp:
+              d = json.loads(resp.read())
+
+          if 'errors' in d:
+              print('GraphQL errors:', d['errors']); sys.exit(1)
+          if not d.get('data', {}).get('me'):
+              print('No user data - token invalid?'); print(d); sys.exit(1)
+
+          print('Logged in as:', d['data']['me']['name'])
           found = None
           for pe in d['data']['me']['projects']['edges']:
               p = pe['node']
               envs = p.get('environments', {}).get('edges', [])
               for se in p['services']['edges']:
                   s = se['node']
-                  name_lower = s['name'].lower()
+                  nl = s['name'].lower()
                   print(f"  Project: {p['name']} / Service: {s['name']} / ID: {s['id']}")
-                  if 'jabenoitv' in name_lower or 'cashclaw' in name_lower:
+                  if any(k in nl for k in ['jabenoitv', 'cashclaw', 'workclaw', 'claw']):
                       env_id = envs[0]['node']['id'] if envs else ''
                       found = (s['id'], env_id, s['name'], p['name'])
+
           if not found:
-              print('\nNo jabenoitv/cashclaw service found — checking all services:')
+              print()
+              print('No matching service found. Trying first available service...')
               for pe in d['data']['me']['projects']['edges']:
                   p = pe['node']
+                  envs = p.get('environments', {}).get('edges', [])
                   for se in p['services']['edges']:
                       s = se['node']
-                      print(f"  AVAILABLE: {p['name']} / {s['name']}")
-              exit(1)
+                      env_id = envs[0]['node']['id'] if envs else ''
+                      found = (s['id'], env_id, s['name'], p['name'])
+                      break
+                  if found:
+                      break
+
+          if not found:
+              print('No services found at all!'); sys.exit(1)
+
           sid, eid, sname, pname = found
-          print(f"\nMATCHED: project={pname} service={sname}")
-          print(f"  service_id={sid}")
-          print(f"  environment_id={eid}")
+          print(f'\nUsing: project={pname}  service={sname}')
+          print(f'  service_id={sid}')
+          print(f'  environment_id={eid}')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f"service_id={sid}\n")
-              f.write(f"environment_id={eid}\n")
-              f.write(f"service_name={sname}\n")
+              f.write(f'sid={sid}\neid={eid}\nsname={sname}\n')
           PYEOF
 
-      - name: 2. List recent deployments (diagnostic)
-        run: |
-          echo "=== Last 10 deployments of ${{ steps.list.outputs.service_name }} ==="
-          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"query($s:String!,$e:String!){ deployments(input:{serviceId:$s,environmentId:$e}, first:10){ edges{ node{ id status createdAt meta } } } }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}' \
-            | python3 -m json.tool
-
-      - name: 3. Trigger redeploy via serviceInstanceRedeploy
-        id: redeploy
+      - name: 2. Update start command via serviceInstanceUpdate
+        id: update_cmd
         continue-on-error: true
         run: |
-          echo "=== Triggering serviceInstanceRedeploy ==="
-          RESPONSE=$(curl -sS -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"mutation($s:String!,$e:String!){ serviceInstanceRedeploy(serviceId:$s, environmentId:$e) }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}')
-          echo "$RESPONSE" | python3 -m json.tool
-          if echo "$RESPONSE" | grep -q '"errors"'; then
-            echo "::error::serviceInstanceRedeploy failed"
-            exit 1
-          fi
-          echo "::notice::Redeploy triggered successfully"
+          python3 <<'PYEOF'
+          import json, urllib.request, os, sys
 
-      - name: 4. Fallback - deploymentTrigger with latest main commit
-        if: steps.redeploy.outcome == 'failure'
+          token = os.environ['RAILWAY_TOKEN']
+          sid = os.environ['SID']
+          eid = os.environ['EID']
+
+          # Inline Node.js: writes config files from env vars, then spawns cashclaw
+          cmd = (
+              "node -e \""
+              "const fs=require('fs'),os=require('os'),path=require('path'),"
+              "sp=require('child_process').spawn;"
+              "const w=path.join(os.homedir(),'.workclaw'),"
+              "m=path.join(os.homedir(),'.moltlaunch');"
+              "fs.mkdirSync(w,{recursive:true});"
+              "fs.mkdirSync(m,{recursive:true});"
+              "const wc={polling:{intervalMs:30000,urgentIntervalMs:10000},"
+              "pricing:{strategy:'fixed',baseRateEth:'0.005',maxRateEth:'0.05'},"
+              "specialties:[],autoQuote:true,autoWork:true,maxConcurrentTasks:3,"
+              "declineKeywords:[],"
+              "agentId:process.env.AGENT_ID||'',"
+              "llm:{provider:'anthropic',"
+              "apiKey:process.env.ANTHROPIC_API_KEY||'',"
+              "model:'claude-sonnet-4-20250514'}};"
+              "fs.writeFileSync(path.join(w,'workclaw.json'),JSON.stringify(wc,null,2));"
+              "const wl={address:process.env.WALLET_ADDRESS||'',"
+              "privateKey:process.env.WALLET_PRIVATE_KEY||''};"
+              "fs.writeFileSync(path.join(m,'wallet.json'),JSON.stringify(wl,null,2));"
+              "console.log('Config ready. AgentId:',process.env.AGENT_ID);"
+              "const b=path.join(process.cwd(),'node_modules','.bin','cashclaw');"
+              "sp(fs.existsSync(b)?b:'cashclaw',[],"
+              "{stdio:'inherit',env:process.env}).on('exit',c=>process.exit(c||0));\""
+          )
+
+          payload = {
+              "query": "mutation($s:String!,$e:String!,$c:String!){serviceInstanceUpdate(input:{serviceId:$s,environmentId:$e,startCommand:$c})}",
+              "variables": {"s": sid, "e": eid, "c": cmd}
+          }
+
+          req = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(payload).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req) as resp:
+              result = json.loads(resp.read())
+
+          print(json.dumps(result, indent=2))
+          if 'errors' in result:
+              print('serviceInstanceUpdate errors:', file=sys.stderr)
+              for e in result['errors']:
+                  print(f"  {e.get('message', e)}", file=sys.stderr)
+              sys.exit(1)
+          print('Start command updated successfully!')
+          PYEOF
+        env:
+          SID: ${{ steps.find.outputs.sid }}
+          EID: ${{ steps.find.outputs.eid }}
+
+      - name: 3. Trigger redeploy
         run: |
-          echo "=== Fallback: triggering new deploy from latest main commit ==="
-          COMMIT=$(curl -sS https://api.github.com/repos/jabenoitv/jabenoitv/commits/main | python3 -c "import json,sys; print(json.load(sys.stdin)['sha'])")
-          echo "Latest commit: $COMMIT"
+          python3 <<'PYEOF'
+          import json, urllib.request, os, sys
 
-          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\":\"mutation(\$s:String!,\$e:String!,\$c:String!){ deploymentTrigger(input:{serviceId:\$s,environmentId:\$e,commitSha:\$c}){ id status } }\",\"variables\":{\"s\":\"${{ steps.list.outputs.service_id }}\",\"e\":\"${{ steps.list.outputs.environment_id }}\",\"c\":\"$COMMIT\"}}" \
-            | python3 -m json.tool
+          token = os.environ['RAILWAY_TOKEN']
+          sid = os.environ['SID']
+          eid = os.environ['EID']
 
-      - name: 5. Verify new deployment started
+          attempts = [
+              ("serviceInstanceRedeploy",
+               "mutation($s:String!,$e:String!){serviceInstanceRedeploy(serviceId:$s,environmentId:$e)}",
+               {"s": sid, "e": eid}),
+          ]
+
+          success = False
+          for name, q, v in attempts:
+              print(f'\n=== Trying {name} ===')
+              payload = {"query": q, "variables": v}
+              req = urllib.request.Request(
+                  'https://backboard.railway.com/graphql/v2',
+                  data=json.dumps(payload).encode(),
+                  headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+              )
+              with urllib.request.urlopen(req) as resp:
+                  result = json.loads(resp.read())
+              print(json.dumps(result, indent=2))
+              if 'errors' not in result:
+                  print(f'Redeploy triggered via {name}!')
+                  success = True
+                  break
+              print(f'{name} failed: {result["errors"]}')
+
+          if not success:
+              print('All redeploy attempts failed', file=sys.stderr)
+              sys.exit(1)
+          PYEOF
+        env:
+          SID: ${{ steps.find.outputs.sid }}
+          EID: ${{ steps.find.outputs.eid }}
+
+      - name: 4. Verify deployment started
         run: |
-          sleep 5
-          echo "=== Latest deployments after redeploy ==="
-          curl -sS -X POST https://backboard.railway.com/graphql/v2 \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"query($s:String!,$e:String!){ deployments(input:{serviceId:$s,environmentId:$e}, first:3){ edges{ node{ id status createdAt meta } } } }","variables":{"s":"${{ steps.list.outputs.service_id }}","e":"${{ steps.list.outputs.environment_id }}"}}' \
-            | python3 -m json.tool
+          sleep 8
+          python3 <<'PYEOF'
+          import json, urllib.request, os
+
+          token = os.environ['RAILWAY_TOKEN']
+          sid = os.environ['SID']
+          eid = os.environ['EID']
+
+          payload = {
+              "query": "query($s:String!,$e:String!){deployments(input:{serviceId:$s,environmentId:$e},first:3){edges{node{id status createdAt}}}}",
+              "variables": {"s": sid, "e": eid}
+          }
+          req = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(payload).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req) as resp:
+              result = json.loads(resp.read())
+          print('=== Latest deployments ===')
+          print(json.dumps(result, indent=2))
+          PYEOF
+        env:
+          SID: ${{ steps.find.outputs.sid }}
+          EID: ${{ steps.find.outputs.eid }}
