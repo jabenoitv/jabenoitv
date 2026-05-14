@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Agente — jabenoitv</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 32px; max-width: 420px; width: 100%; }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .sub { color: #888; font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
+    .info { background: #111; border-radius: 10px; padding: 16px; margin-bottom: 24px; font-size: 13px; }
+    .info div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; }
+    .info div:last-child { border-bottom: none; }
+    .info span:first-child { color: #888; }
+    .info span:last-child { color: #fff; font-weight: 500; }
+    btn { display: block; width: 100%; padding: 16px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+    #btn { display: block; width: 100%; padding: 16px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; background: #e2001a; color: #fff; margin-top: 8px; }
+    #btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #status { margin-top: 20px; padding: 16px; border-radius: 10px; font-size: 14px; display: none; }
+    #status.ok { background: #0d2b0d; color: #4caf50; display: block; }
+    #status.err { background: #2b0d0d; color: #f44336; display: block; }
+    #status.info { background: #0d1f2b; color: #64b5f6; display: block; }
+    .agentid { font-size: 28px; font-weight: 700; text-align: center; margin-top: 8px; color: #4caf50; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Registrar Agente</h1>
+    <p class="sub">Registra el agente <strong>jabenoitv</strong> en el marketplace de Moltlaunch. Cuesta unos centavos de gas en Base.</p>
+
+    <div class="info">
+      <div><span>Nombre</span><span>jabenoitv</span></div>
+      <div><span>Skills</span><span>writing, research, coding</span></div>
+      <div><span>Precio</span><span>0.001 ETH por tarea</span></div>
+      <div><span>Red</span><span>Base (chain 8453)</span></div>
+      <div><span>Gas estimado</span><span>~$0.05</span></div>
+    </div>
+
+    <button id="btn" onclick="register()">Registrar Agente</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const CONTRACT = '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
+    const CHAIN_ID = '0x2105'; // 8453 in hex
+    const CALLDATA = '0x8ea422860000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000ad646174613a6170706c69636174696f6e2f6a736f6e3b6261736536342c65794a755957316c496a6f69616d46695a57357661585232496977695a47567a59334a7063485270623234694f694a4264585276626d39746233567a4945464a4947466e5a57353049475a7663694233636d6c306157356e4c4342795a584e6c59584a6a614377675957356b49474e765a476c755a79423059584e7263794973496d6c745957646c496a6f69496e303d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000006736b696c6c730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002077726974696e672c72657365617263682c636f64696e672c616e616c79736973000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000008656e64706f696e7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000087072696365576569000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000038d7ea4c68000';
+
+    const setStatus = (msg, type) => {
+      const el = document.getElementById('status');
+      el.className = type;
+      el.innerHTML = msg;
+    };
+
+    async function register() {
+      const btn = document.getElementById('btn');
+      if (!window.ethereum) {
+        setStatus('MetaMask no detectado. Abrí esta página desde el browser de MetaMask.', 'err');
+        return;
+      }
+      try {
+        btn.disabled = true;
+        setStatus('Conectando wallet...', 'info');
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const account = accounts[0];
+
+        // Switch to Base
+        setStatus('Cambiando a red Base...', 'info');
+        try {
+          await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN_ID }] });
+        } catch (e) {
+          if (e.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{ chainId: CHAIN_ID, chainName: 'Base', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://mainnet.base.org'], blockExplorerUrls: ['https://basescan.org'] }]
+            });
+          }
+        }
+
+        setStatus('Firmando transacción... (confirmá en MetaMask)', 'info');
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{ from: account, to: CONTRACT, data: CALLDATA, chainId: CHAIN_ID }]
+        });
+
+        setStatus('⏳ Transacción enviada! Esperando confirmación...<br><small>' + txHash + '</small>', 'info');
+
+        // Poll for receipt
+        let receipt = null;
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 3000));
+          receipt = await window.ethereum.request({ method: 'eth_getTransactionReceipt', params: [txHash] });
+          if (receipt) break;
+        }
+
+        if (!receipt) { setStatus('Timeout esperando recibo. Revisá basescan.org con el hash.', 'err'); return; }
+        if (receipt.status === '0x0') { setStatus('Transacción fallida. Insuficiente gas?', 'err'); return; }
+
+        // Parse Registered event: topic0 = keccak256("Registered(uint256,address,string)")
+        const registeredTopic = '0x' + [...'Registered(uint256,address,string)'].reduce((h, c) => h, '');
+        let agentId = null;
+        for (const log of receipt.logs) {
+          if (log.address.toLowerCase() === CONTRACT.toLowerCase() && log.topics && log.topics[1]) {
+            agentId = BigInt(log.topics[1]).toString();
+            break;
+          }
+        }
+
+        if (agentId) {
+          setStatus('✅ <strong>Agente registrado!</strong><div class="agentid">' + agentId + '</div><br>Copiá ese número y pegalo en Claude Code.', 'ok');
+        } else {
+          setStatus('✅ TX confirmada! Hash: ' + txHash + '<br>Revisá basescan.org para obtener el agentId.', 'ok');
+        }
+
+      } catch (e) {
+        btn.disabled = false;
+        if (e.code === 4001) { setStatus('Transacción cancelada.', 'err'); }
+        else { setStatus('Error: ' + (e.message || e), 'err'); }
+      }
+    }
+  </script>
+</body>
+</html>
