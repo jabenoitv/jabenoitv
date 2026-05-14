@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transferir Agente 51049</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 28px; max-width: 420px; width: 100%; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    .sub { color: #888; font-size: 13px; margin-bottom: 22px; line-height: 1.6; }
+    .info { background: #111; border-radius: 10px; padding: 14px; margin-bottom: 22px; font-size: 12px; font-family: monospace; }
+    .info div { padding: 5px 0; border-bottom: 1px solid #222; }
+    .info div:last-child { border-bottom: none; }
+    .info span { color: #888; display: block; margin-bottom: 2px; font-size: 11px; }
+    .btn { display: block; width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; background: #e2001a; color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; display: none; word-break: break-all; }
+    .ok { background: #0d2b0d; color: #4caf50; display: block; }
+    .err { background: #2b0d0d; color: #f44336; display: block; }
+    .inf { background: #0d1f2b; color: #64b5f6; display: block; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Transferir Agente a Railway</h1>
+  <p class="sub">Esto transfiere la propiedad del agente a la wallet del servidor. Solo cuesta unos centavos de gas. <strong>Hacelo una sola vez.</strong></p>
+  <div class="info">
+    <div><span>AgentId</span>51049</div>
+    <div><span>De (tu wallet actual)</span>0x8742b9D2288d33dAa1d480635ffc4cFa7b1FABE1</div>
+    <div><span>Para (wallet Railway)</span>0x00D707bf691A148de495eC4e020aD24F53e44537</div>
+    <div><span>Contrato</span>0x8004A169FB4a3325136EB29fA0ceB6D2e539a432</div>
+  </div>
+  <button class="btn" id="btn" onclick="transfer()">Transferir Agente</button>
+  <div id="st" class="status"></div>
+</div>
+<script>
+const CONTRACT = '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
+const FROM    = '0x8742b9D2288d33dAa1d480635ffc4cFa7b1FABE1';
+const TO      = '0x00D707bf691A148de495eC4e020aD24F53e44537';
+const TOKEN   = 51049; // 0xC769
+const CHAIN   = '0x2105';
+// transferFrom(address,address,uint256) selector = 0x23b872dd
+const CALLDATA = '0x23b872dd'
+  + '0000000000000000000000008742b9d2288d33daa1d480635ffc4cfa7b1fabe1'
+  + '00000000000000000000000000d707bf691a148de495ec4e020ad24f53e44537'
+  + '000000000000000000000000000000000000000000000000000000000000c769';
+
+const RPC = 'https://mainnet.base.org';
+function st(html, cls) { const e = document.getElementById('st'); e.className='status '+cls; e.innerHTML=html; }
+async function rpc(method, params) {
+  const r = await fetch(RPC, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+async function transfer() {
+  if (!window.ethereum) { st('Wallet no detectada. Abrí esta página desde Brave.', 'err'); return; }
+  const btn = document.getElementById('btn');
+  try {
+    btn.disabled = true;
+    st('Conectando wallet...', 'inf');
+    const accts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const account = accts[0];
+    if (account.toLowerCase() !== FROM.toLowerCase()) {
+      st('⚠️ Wallet conectada: ' + account + '<br><br>Necesitás conectar la wallet <strong>' + FROM + '</strong> (la que registró el agente).', 'err');
+      btn.disabled = false; return;
+    }
+    st('Cambiando a Base...', 'inf');
+    try {
+      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN }] });
+    } catch(e) {
+      if (e.code === 4902) await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: CHAIN, chainName: 'Base', nativeCurrency: {name:'ETH',symbol:'ETH',decimals:18}, rpcUrls:[RPC], blockExplorerUrls:['https://basescan.org'] }] });
+    }
+    st('Confirmá la transferencia en tu wallet...', 'inf');
+    const txHash = await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: account, to: CONTRACT, data: CALLDATA, chainId: CHAIN }] });
+    st('⏳ Esperando confirmación...<br><small>' + txHash + '</small>', 'inf');
+    let receipt = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      try { receipt = await rpc('eth_getTransactionReceipt', [txHash]); } catch(_) {}
+      if (receipt) break;
+    }
+    if (!receipt) { st('Timeout. TX: ' + txHash, 'inf'); return; }
+    if (receipt.status === '0x0') { st('❌ Transacción fallida.', 'err'); btn.disabled=false; return; }
+    st('✅ <strong>¡Agente transferido!</strong><br><br>El agente 51049 ahora pertenece a la wallet de Railway.<br><br>Avisá en Claude Code para activar el servidor.', 'ok');
+  } catch(e) {
+    btn.disabled = false;
+    if (e.code === 4001) st('Cancelado.', 'err');
+    else st('Error: ' + (e.message||e), 'err');
+  }
+}
+</script>
+</body>
+</html>
