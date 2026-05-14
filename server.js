@@ -26,9 +26,7 @@ fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
     'web-scraping','data-extraction','website-analysis',
     'question-answering','brainstorming','planning','consulting'
   ],
-  autoQuote: true,
-  autoWork: true,
-  maxConcurrentTasks: 3,
+  autoQuote: true, autoWork: true, maxConcurrentTasks: 3,
   declineKeywords: ['image-generation','video-creation','audio-generation','music-creation','nsfw','illegal'],
   agentId: process.env.AGENT_ID || '',
   llm: { provider: 'anthropic', apiKey: process.env.ANTHROPIC_API_KEY || '', model: 'claude-sonnet-4-20250514' }
@@ -55,28 +53,22 @@ try {
   }
 } catch (e) { console.log('No se pudo parchear cashclaw:', e.message); }
 
-// ETH price
-let ethPrice = { usd: 0, clp: 0, updatedAt: null };
-
 // SSE clients
 const sseClients = [];
-
 function broadcast(obj) {
   const msg = 'data: ' + JSON.stringify(obj) + '\n\n';
   for (let i = sseClients.length - 1; i >= 0; i--) {
-    try { sseClients[i].write(msg); }
-    catch (e) { sseClients.splice(i, 1); }
+    try { sseClients[i].write(msg); } catch (e) { sseClients.splice(i, 1); }
   }
 }
-
-// Keepalive para que Railway no cierre conexiones idle
 setInterval(() => {
   for (let i = sseClients.length - 1; i >= 0; i--) {
-    try { sseClients[i].write(':keepalive\n\n'); }
-    catch (e) { sseClients.splice(i, 1); }
+    try { sseClients[i].write(':keepalive\n\n'); } catch (e) { sseClients.splice(i, 1); }
   }
 }, 25000);
 
+// ETH price
+let ethPrice = { usd: 0, clp: 0, updatedAt: null };
 function fetchEthPrice() {
   https.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp',
     { headers: { 'User-Agent': 'cashclaw-dashboard/1.0' } }, res => {
@@ -97,6 +89,67 @@ function fetchEthPrice() {
 fetchEthPrice();
 setInterval(fetchEthPrice, 5 * 60 * 1000);
 
+// Inteligencia de mercado
+const PRICE_FLOOR = 0.0005;  // nunca trabajar con menos (cubre costo API)
+const PRICE_CEIL  = 0.02;    // techo razonable
+let marketData = { agents: 0, median: 0, ourPrice: 0.005, min: 0, max: 0, lastScan: null };
+
+function fetchMarketPrices() {
+  https.get('https://api.moltlaunch.com/api/agents',
+    { headers: { 'User-Agent': 'cashclaw-monitor/1.0' } }, res => {
+      let body = '';
+      res.on('data', d => { body += d; });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const agents = Array.isArray(data) ? data : (data.agents || []);
+          const myId = String(process.env.AGENT_ID || '51049');
+
+          const prices = agents
+            .filter(a => String(a.agentId) !== myId && a.priceWei)
+            .map(a => { try { return Number(a.priceWei) / 1e18; } catch(e) { return 0; } })
+            .filter(p => p >= 0.00001 && p <= 1);
+
+          if (prices.length === 0) {
+            console.log('Mercado: sin datos de precios en la respuesta');
+            return;
+          }
+
+          prices.sort((a, b) => a - b);
+          const median = prices[Math.floor(prices.length / 2)];
+          // 10% bajo la mediana, con piso y techo
+          const competitive = Math.max(PRICE_FLOOR, Math.min(PRICE_CEIL, median * 0.90));
+          const competitiveStr = competitive.toFixed(6);
+
+          // Actualizar workclaw.json con nuevo precio
+          const wcPath = path.join(os.homedir(), '.workclaw', 'workclaw.json');
+          try {
+            const cfg = JSON.parse(fs.readFileSync(wcPath, 'utf8'));
+            const old = cfg.pricing.baseRateEth;
+            cfg.pricing.baseRateEth = competitiveStr;
+            fs.writeFileSync(wcPath, JSON.stringify(cfg, null, 2));
+            if (old !== competitiveStr)
+              console.log('Precio ajustado: ' + old + ' -> ' + competitiveStr + ' ETH (mediana: ' + median.toFixed(6) + ', ' + prices.length + ' agentes)');
+          } catch(e) { console.log('Error actualizando precio:', e.message); }
+
+          marketData = {
+            agents: prices.length,
+            median: median,
+            ourPrice: competitive,
+            min: prices[0],
+            max: prices[prices.length - 1],
+            lastScan: new Date().toISOString()
+          };
+          broadcast({ type: 'market', ...marketData });
+          console.log('Mercado escaneado: ' + prices.length + ' agentes | mediana ' + median.toFixed(6) + ' ETH | nuestro precio ' + competitiveStr + ' ETH');
+        } catch(e) { console.log('Error escaneando mercado:', e.message); }
+      });
+    }).on('error', e => { console.log('Error API mercado:', e.message); });
+}
+fetchMarketPrices();
+setInterval(fetchMarketPrices, 30 * 60 * 1000);
+
+// Estado del agente
 const logs = [];
 const MAX_LOGS = 500;
 const jobs = [];
@@ -139,9 +192,7 @@ function addLog(line, type) {
   const prevEarned = totalEarnedEth;
   detectJobEvent(line, entry.time);
   broadcast({
-    type: 'update',
-    totalEarned: totalEarnedEth,
-    jobCount: jobs.length,
+    type: 'update', totalEarned: totalEarnedEth, jobCount: jobs.length,
     newJob: jobs.length > prevJobs ? jobs[0].description : null,
     newPayment: totalEarnedEth > prevEarned ? (totalEarnedEth - prevEarned).toFixed(6) : null
   });
@@ -171,7 +222,6 @@ function startCashclaw() {
 const startTime = Date.now();
 const AGENT_ID = process.env.AGENT_ID || '51049';
 
-// IMPORTANTE: no usar backticks dentro del bloque <script> de este template literal
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -209,6 +259,11 @@ header h1{font-size:1.1em;color:#38bdf8}
 .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:2px 9px;font-size:.7em}
 .sec{margin:12px 20px 0;background:#1e293b;border-radius:10px;border:1px solid #334155;overflow:hidden}
 .sec-h{padding:10px 16px;border-bottom:1px solid #334155;font-size:.78em;color:#94a3b8;display:flex;justify-content:space-between;align-items:center}
+.mkt-body{padding:12px 16px 14px;display:flex;gap:10px;flex-wrap:wrap}
+.mc{background:#0f172a;border-radius:8px;padding:10px 14px;flex:1;min-width:130px;border:1px solid #1e293b}
+.mc .ml{font-size:.64em;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.mc .mv{font-size:1em;font-weight:700;margin-top:4px;font-family:monospace;color:#f1f5f9}
+.mc .ms{font-size:.7em;color:#475569;margin-top:2px}
 .log{padding:5px 16px;border-bottom:1px solid #162032;font-family:monospace;font-size:.76em;display:flex;gap:10px;line-height:1.4}
 .log:last-child{border-bottom:none}
 .log .t{color:#475569;white-space:nowrap;flex-shrink:0}
@@ -220,8 +275,7 @@ header h1{font-size:1.1em;color:#38bdf8}
 .bdg.activo{background:#422006;color:#fbbf24;border:1px solid #92400e}
 .bdg.completado{background:#0c1a2e;color:#60a5fa;border:1px solid #1d4ed8}
 .bdg.pagado{background:#052e16;color:#4ade80;border:1px solid #166534}
-.jb{flex:1;min-width:0}
-.jd{color:#cbd5e1;word-break:break-word}
+.jb{flex:1;min-width:0}.jd{color:#cbd5e1;word-break:break-word}
 .jm{font-size:.7em;color:#475569;margin-top:2px}
 .je{color:#4ade80;font-weight:700;white-space:nowrap;font-family:monospace;flex-shrink:0;font-size:.8em;margin-top:1px}
 .ldot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;margin-right:5px;vertical-align:middle;transition:background .5s}
@@ -264,6 +318,34 @@ header h1{font-size:1.1em;color:#38bdf8}
   <span class="tag">brainstorming</span><span class="tag">consulting</span><span class="tag">+28 mas</span>
 </div>
 <div class="sec">
+  <div class="sec-h">
+    <span>Inteligencia de Mercado</span>
+    <span id="mkt-ts" style="color:#64748b">escaneando...</span>
+  </div>
+  <div class="mkt-body">
+    <div class="mc">
+      <div class="ml">Mediana mercado</div>
+      <div class="mv" id="mkt-med">-</div>
+      <div class="ms" id="mkt-med-usd"></div>
+    </div>
+    <div class="mc">
+      <div class="ml">Nuestro precio</div>
+      <div class="mv" style="color:#4ade80" id="mkt-our">-</div>
+      <div class="ms" id="mkt-our-usd"></div>
+    </div>
+    <div class="mc">
+      <div class="ml">Posicion</div>
+      <div class="mv" id="mkt-pct">-</div>
+      <div class="ms" id="mkt-nagents"></div>
+    </div>
+    <div class="mc">
+      <div class="ml">Rango mercado</div>
+      <div class="mv" style="font-size:.85em" id="mkt-range">-</div>
+      <div class="ms" id="mkt-next">escaneo: 30 min</div>
+    </div>
+  </div>
+</div>
+<div class="sec">
   <div class="sec-h"><span>Registro de Trabajos</span><span id="jcnt" style="color:#64748b">-</span></div>
   <div id="jlist"><div class="empty">Esperando primer trabajo del marketplace...</div></div>
 </div>
@@ -285,7 +367,6 @@ function fUsd(v){return '$ '+fN(v,2)+' USD';}
 function fClp(v){return '$ '+Math.round(v).toLocaleString('es-CL')+' CLP';}
 var dC={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
 
-// Restaurar localStorage al instante
 (function(){
   try{
     var s=JSON.parse(localStorage.getItem('claw')||'null');
@@ -298,7 +379,6 @@ var dC={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off
   }catch(e){}
 })();
 
-// Boton de notificaciones
 var nb=document.getElementById('nb');
 function setNOn(){notifOk=true;nb.textContent='Alertas ON';nb.classList.add('on');}
 if(window.Notification&&Notification.permission==='granted')setNOn();
@@ -309,44 +389,50 @@ nb.addEventListener('click',function(){
   Notification.requestPermission().then(function(p){if(p==='granted')setNOn();});
 });
 
-// Animacion de numero con requestAnimationFrame + ease-out cubico
 function animNum(el,from,to,dur,fmt){
   var t0=performance.now();
   function step(now){
-    var p=Math.min((now-t0)/dur,1);
-    var e=1-Math.pow(1-p,3);
+    var p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);
     el.textContent=fmt(from+(to-from)*e);
     if(p<1)requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
 }
 
-// Flash verde en banner de ganancias
 function flashBanner(){
   var b=document.getElementById('earn');
-  b.classList.remove('flash');
-  void b.offsetWidth;
-  b.classList.add('flash');
+  b.classList.remove('flash');void b.offsetWidth;b.classList.add('flash');
 }
 
-// Actualizar ganancias con animacion
 function updateEarnings(te){
   if(te!==prevEarned){
     animNum(document.getElementById('earn-eth'),prevEarned,te,800,fEth);
-    if(ethUsd){
-      animNum(document.getElementById('earn-usd'),prevEarned*ethUsd,te*ethUsd,800,fUsd);
-      animNum(document.getElementById('earn-clp'),prevEarned*ethClp,te*ethClp,800,fClp);
-    }
-    if(te>prevEarned){
-      flashBanner();
-      if(notifOk){var d=(te-prevEarned).toFixed(6);try{new Notification('Pago recibido',{body:d+' ETH',tag:'cp',requireInteraction:false});}catch(ex){}}
-    }
+    if(ethUsd){animNum(document.getElementById('earn-usd'),prevEarned*ethUsd,te*ethUsd,800,fUsd);animNum(document.getElementById('earn-clp'),prevEarned*ethClp,te*ethClp,800,fClp);}
+    if(te>prevEarned){flashBanner();if(notifOk){var d=(te-prevEarned).toFixed(6);try{new Notification('Pago recibido',{body:d+' ETH',tag:'cp',requireInteraction:false});}catch(ex){}}}
     prevEarned=te;
     try{localStorage.setItem('claw',JSON.stringify({eth:te,usd:ethUsd?(te*ethUsd).toFixed(2):'0.00',clp:ethClp?Math.round(te*ethClp).toString():'0'}));}catch(ex){}
   }else{
     document.getElementById('earn-eth').textContent=fEth(te);
     if(ethUsd){document.getElementById('earn-usd').textContent=fUsd(te*ethUsd);document.getElementById('earn-clp').textContent=fClp(te*ethClp);}
   }
+}
+
+function updateMarket(mk){
+  if(!mk||!mk.median)return;
+  document.getElementById('mkt-med').textContent=mk.median.toFixed(6)+' ETH';
+  document.getElementById('mkt-our').textContent=mk.ourPrice.toFixed(6)+' ETH';
+  if(ethUsd){
+    document.getElementById('mkt-med-usd').textContent='$'+fN(mk.median*ethUsd,2)+' USD';
+    document.getElementById('mkt-our-usd').textContent='$'+fN(mk.ourPrice*ethUsd,2)+' USD';
+  }
+  var pct=mk.median>0?Math.round((1-mk.ourPrice/mk.median)*100):0;
+  var col=pct>=5?'#4ade80':pct>=0?'#fbbf24':'#f87171';
+  var pctEl=document.getElementById('mkt-pct');
+  pctEl.textContent=(pct>0?'-':'')+pct+'% vs mediana';
+  pctEl.style.color=col;
+  document.getElementById('mkt-nagents').textContent=mk.agents+' agentes escaneados';
+  if(mk.min&&mk.max)document.getElementById('mkt-range').textContent=mk.min.toFixed(5)+' - '+mk.max.toFixed(5)+' ETH';
+  document.getElementById('mkt-ts').textContent='escan. '+ftime(mk.lastScan);
 }
 
 function ethLine(eth){
@@ -362,18 +448,15 @@ async function load(){
       fetch('/api/status').then(function(x){return x.json();}),
       fetch('/api/logs').then(function(x){return x.json();}),
       fetch('/api/jobs').then(function(x){return x.json();}),
-      fetch('/api/price').then(function(x){return x.json();})
+      fetch('/api/price').then(function(x){return x.json();}),
+      fetch('/api/market').then(function(x){return x.json();})
     ]);
-    var st=r[0],ls=r[1],jd=r[2],pr=r[3];
-    if(pr.usd>0){
-      ethUsd=pr.usd;ethClp=pr.clp;
-      document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());
-    }
+    var st=r[0],ls=r[1],jd=r[2],pr=r[3],mk=r[4];
+    if(pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
     updateEarnings(jd.totalEarned||0);
+    updateMarket(mk);
     var jcount=jd.count||0;
-    if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){
-      try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}
-    }
+    if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}}
     prevJC=jcount;
     document.getElementById('st').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status;
     document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime);
@@ -385,7 +468,7 @@ async function load(){
     var jel=document.getElementById('jlist');
     jel.innerHTML=jobs.length?jobs.map(function(j){
       var es=j.earnedEth?'<div class="je">'+ethLine(j.earnedEth)+'</div>':'';
-      return '<div class="jr"><span class="bdg '+j.status+'">'+j.status+'</span><div class="jb"><div class="jd">'+j.description.replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
+      return '<div class="jr"><span class="bdg '+j.status+'">' +j.status+'</span><div class="jb"><div class="jd">'+j.description.replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
     }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
     document.getElementById('lcnt').textContent=ls.length+' eventos';
     var lel=document.getElementById('llist');
@@ -393,14 +476,13 @@ async function load(){
       var msg=l.msg.replace(/</g,'&lt;');
       var em=msg.match(/([0-9.]+)\\s*ETH/);
       if(em&&ethUsd){var eth=parseFloat(em[1]);msg+=' <span style="color:#4ade80;font-weight:bold">($'+fN(eth*ethUsd,2)+' USD / $'+Math.round(eth*ethClp).toLocaleString('es-CL')+' CLP)</span>';}
-      return '<div class="log '+(l.type||'')+'">'+'<span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
+      return '<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
     }).join(''):'<div class="empty">Sin actividad aun</div>';
   }catch(e){}
 }
 
 function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
 
-// SSE
 var ldot=document.getElementById('ldot');
 function connectSSE(){
   var es=new EventSource('/events');
@@ -410,6 +492,7 @@ function connectSSE(){
       var d=JSON.parse(ev.data);
       if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
       if(d.type==='update')schedLoad();
+      if(d.type==='market')updateMarket(d);
     }catch(ex){}
   };
   es.onerror=function(){ldot.classList.remove('on');es.close();setTimeout(connectSSE,5000);};
@@ -421,15 +504,9 @@ load();
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
-
   if (url === '/events') {
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-      'Access-Control-Allow-Origin': '*'
-    });
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive', 'X-Accel-Buffering': 'no', 'Access-Control-Allow-Origin': '*' });
     res.write('data: {"type":"connected"}\n\n');
     sseClients.push(res);
     req.on('close', () => { const i = sseClients.indexOf(res); if (i >= 0) sseClients.splice(i, 1); });
@@ -444,6 +521,10 @@ const server = http.createServer((req, res) => {
   if (url === '/api/price') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(ethPrice));
+  }
+  if (url === '/api/market') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(marketData));
   }
   if (url === '/api/logs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
