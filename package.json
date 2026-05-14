@@ -5,10 +5,11 @@
   "private": true,
   "scripts": {
     "setup": "cashclaw",
-    "start": "cashclaw"
+    "start": "sh start.sh"
   },
   "dependencies": {
     "cashclaw-agent": "^0.1.0",
-    "moltlaunch": "latest"
+    "moltlaunch": "latest",
+    "playwright": "^1.60.0"
   }
 }
