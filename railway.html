@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Railway Redeploy — jabenoitv</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;padding:20px}
+.wrap{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:22px}
+h1{font-size:18px;margin-bottom:14px}
+h2{font-size:15px;margin-bottom:8px;color:#aaa}
+.sub{color:#888;font-size:13px;line-height:1.5;margin-bottom:14px}
+input{width:100%;padding:12px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;font-family:monospace;margin-bottom:10px}
+.btn{display:block;width:100%;padding:13px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;background:#9d4eff;color:#fff;margin-bottom:6px}
+.btn:disabled{opacity:.5}
+.btn-red{background:#e2001a}
+.btn-gray{background:#2a2a2a;border:1px solid #444}
+.log{background:#000;border:1px solid #222;border-radius:8px;padding:10px;font-family:monospace;font-size:11px;color:#0f0;max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:10px}
+.log.err{color:#f44}
+.svc{background:#111;border:1px solid #333;border-radius:8px;padding:12px;margin-bottom:8px}
+.svc .name{font-weight:600;font-size:14px;color:#9d4eff;margin-bottom:6px}
+.svc .id{font-family:monospace;font-size:10px;color:#666;margin-bottom:8px;word-break:break-all}
+.svc .status{font-size:11px;color:#aaa;margin-bottom:8px}
+.row{display:flex;gap:6px}
+.row .btn{margin-bottom:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🚂 Railway Redeploy</h1>
+    <p class="sub">Esta página usa la Railway API para redeployar tu servicio sin tocar la UI mobile.</p>
+    <h2>Railway API Token</h2>
+    <input id="token" placeholder="Bearer token" value="8d85c544-1bd9-4fb9-8c6d-ee6f85067c92">
+    <button class="btn" onclick="listServices()">Listar servicios</button>
+    <div id="log" class="log" style="display:none"></div>
+  </div>
+  <div id="services"></div>
+</div>
+<script>
+const API = 'https://backboard.railway.com/graphql/v2';
+
+function log(msg, isErr) {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  el.className = 'log' + (isErr ? ' err' : '');
+  el.textContent = (typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2));
+}
+
+async function gql(query, variables) {
+  const token = document.getElementById('token').value.trim();
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ query, variables })
+  });
+  const j = await res.json();
+  if (j.errors) throw new Error(JSON.stringify(j.errors));
+  return j.data;
+}
+
+async function listServices() {
+  try {
+    log('Conectando con Railway...');
+    const data = await gql(`{
+      me {
+        name
+        projects {
+          edges { node {
+            id name
+            services { edges { node { id name } } }
+            environments { edges { node { id name } } }
+          } }
+        }
+      }
+    }`);
+    log('Conectado como: ' + data.me.name);
+    const container = document.getElementById('services');
+    container.innerHTML = '';
+    for (const pe of data.me.projects.edges) {
+      const p = pe.node;
+      const envId = p.environments.edges[0]?.node.id;
+      for (const se of p.services.edges) {
+        const s = se.node;
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <div class="svc">
+            <div class="name">${p.name} / ${s.name}</div>
+            <div class="id">service: ${s.id}<br>env: ${envId}</div>
+            <div class="status" id="st-${s.id}">—</div>
+            <div class="row">
+              <button class="btn btn-gray" onclick="checkStatus('${s.id}','${envId}')">Estado</button>
+              <button class="btn btn-red" onclick="redeploy('${s.id}','${envId}','${s.name}')">Redeploy</button>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      }
+    }
+  } catch(e) { log('Error: ' + e.message, true); }
+}
+
+async function checkStatus(serviceId, environmentId) {
+  try {
+    log('Consultando deployments...');
+    const data = await gql(`query($serviceId: String!, $environmentId: String!) {
+      deployments(input: { serviceId: $serviceId, environmentId: $environmentId }, first: 5) {
+        edges { node { id status createdAt staticUrl meta } }
+      }
+    }`, { serviceId, environmentId });
+    const el = document.getElementById('st-'+serviceId);
+    const deps = data.deployments.edges.map(e => `${new Date(e.node.createdAt).toLocaleTimeString()}: ${e.node.status}`).join('\n');
+    el.textContent = deps || 'sin deployments';
+    log('OK\n' + deps);
+  } catch(e) { log('Error: ' + e.message, true); }
+}
+
+async function redeploy(serviceId, environmentId, name) {
+  if (!confirm('¿Redeployar ' + name + '?')) return;
+  try {
+    log('Triggering redeploy de ' + name + '...');
+    const data = await gql(`mutation($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+    }`, { serviceId, environmentId });
+    log('✅ Redeploy disparado!\n' + JSON.stringify(data, null, 2));
+    setTimeout(() => checkStatus(serviceId, environmentId), 2000);
+  } catch(e) {
+    // Fallback to deploymentTrigger
+    try {
+      log('Probando con deploymentTrigger...');
+      const d2 = await gql(`mutation($serviceId: String!, $environmentId: String!) {
+        deploymentRedeploy(id: $serviceId)
+      }`, { serviceId, environmentId });
+      log('✅ Disparado!\n' + JSON.stringify(d2, null, 2));
+    } catch(e2) { log('Error: ' + e.message + '\n\nFallback: ' + e2.message, true); }
+  }
+}
+</script>
+</body>
+</html>
