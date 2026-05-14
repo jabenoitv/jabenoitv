@@ -10,7 +10,7 @@ jobs:
   redeploy:
     runs-on: ubuntu-latest
     env:
-      RAILWAY_TOKEN: 8d85c544-1bd9-4fb9-8c6d-ee6f85067c92
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: 1. Find Railway service
         id: find
@@ -30,47 +30,28 @@ jobs:
 
           if 'errors' in d:
               print('Errors:', d['errors']); sys.exit(1)
-          if not d.get('data', {}).get('me'):
-              print('Token invalid?'); print(d); sys.exit(1)
 
-          print('User:', d['data']['me']['name'])
           found = None
           for pe in d['data']['me']['projects']['edges']:
               p = pe['node']
               envs = p.get('environments', {}).get('edges', [])
               for se in p['services']['edges']:
                   s = se['node']
-                  nl = s['name'].lower()
-                  print(f"  Project: {p['name']} ({p['id']}) / Service: {s['name']} ({s['id']})")
-                  if any(k in nl for k in ['jabenoitv', 'cashclaw', 'workclaw', 'claw']):
-                      env_id = envs[0]['node']['id'] if envs else ''
-                      found = (s['id'], env_id, s['name'], p['name'], p['id'])
-
-          if not found:
-              print('No matching service — using first available:')
-              for pe in d['data']['me']['projects']['edges']:
-                  p = pe['node']
-                  envs = p.get('environments', {}).get('edges', [])
-                  for se in p['services']['edges']:
-                      s = se['node']
-                      env_id = envs[0]['node']['id'] if envs else ''
-                      found = (s['id'], env_id, s['name'], p['name'], p['id'])
-                      break
-                  if found: break
+                  print(f"  Project: {p['name']} / Service: {s['name']}")
+                  env_id = envs[0]['node']['id'] if envs else ''
+                  if not found:
+                      found = (s['id'], env_id, p['id'])
 
           if not found:
               print('No services found!'); sys.exit(1)
 
-          sid, eid, sname, pname, pid = found
-          print(f'\nMatched: project={pname}  service={sname}')
-          print(f'  sid={sid}  eid={eid}  pid={pid}')
+          sid, eid, pid = found
+          print(f'Using: sid={sid} eid={eid} pid={pid}')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write(f'sid={sid}\neid={eid}\npid={pid}\nsname={sname}\n')
+              f.write(f'sid={sid}\neid={eid}\npid={pid}\n')
           PYEOF
 
-      - name: 2. Disable Railpack cache via environment variables
-        id: set_nocache
-        continue-on-error: true
+      - name: 2. Set NIXPACKS_NO_CACHE and correct start command
         run: |
           python3 <<'PYEOF'
           import json, urllib.request, os, sys
@@ -80,8 +61,7 @@ jobs:
           eid = os.environ['EID']
           pid = os.environ['PID']
 
-          print(f'Setting cache-bust vars: sid={sid} eid={eid} pid={pid}')
-
+          # Set cache-busting env vars
           payload = {
               "query": """mutation($pid:String!,$s:String!,$e:String!,$vars:EnvironmentVariables!){
                   variableCollectionUpsert(input:{projectId:$pid,serviceId:$s,environmentId:$e,variables:$vars})
@@ -91,7 +71,6 @@ jobs:
                   "vars": {"NIXPACKS_NO_CACHE": "1", "RAILPACK_NO_CACHE": "1"}
               }
           }
-
           req = urllib.request.Request(
               'https://backboard.railway.com/graphql/v2',
               data=json.dumps(payload).encode(),
@@ -99,83 +78,32 @@ jobs:
           )
           with urllib.request.urlopen(req) as resp:
               result = json.loads(resp.read())
+          print('Vars:', json.dumps(result))
 
-          print(json.dumps(result, indent=2))
-          if 'errors' in result:
-              print('variableCollectionUpsert failed:', result['errors'], file=sys.stderr)
-              sys.exit(1)
-          print('Cache-busting variables set successfully!')
+          # Set correct start command to node server.js
+          payload2 = {
+              "query": "mutation($s:String!,$e:String!,$c:String){serviceInstanceUpdate(input:{serviceId:$s,environmentId:$e,startCommand:$c})}",
+              "variables": {"s": sid, "e": eid, "c": "node server.js"}
+          }
+          req2 = urllib.request.Request(
+              'https://backboard.railway.com/graphql/v2',
+              data=json.dumps(payload2).encode(),
+              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+          )
+          with urllib.request.urlopen(req2) as resp2:
+              result2 = json.loads(resp2.read())
+          print('Start command set:', json.dumps(result2))
           PYEOF
         env:
           SID: ${{ steps.find.outputs.sid }}
           EID: ${{ steps.find.outputs.eid }}
           PID: ${{ steps.find.outputs.pid }}
 
-      - name: 3. Update start command (direct override)
-        id: update_cmd
-        continue-on-error: true
+      - name: 3. Trigger redeploy
         run: |
+          sleep 3
           python3 <<'PYEOF'
-          import json, urllib.request, os, sys
-
-          token = os.environ['RAILWAY_TOKEN']
-          sid = os.environ['SID']
-          eid = os.environ['EID']
-
-          cmd = (
-              "node -e \""
-              "const fs=require('fs'),os=require('os'),path=require('path'),"
-              "sp=require('child_process').spawn;"
-              "const w=path.join(os.homedir(),'.workclaw'),"
-              "m=path.join(os.homedir(),'.moltlaunch');"
-              "fs.mkdirSync(w,{recursive:true});"
-              "fs.mkdirSync(m,{recursive:true});"
-              "const wc={polling:{intervalMs:30000,urgentIntervalMs:10000},"
-              "pricing:{strategy:'fixed',baseRateEth:'0.005',maxRateEth:'0.05'},"
-              "specialties:[],autoQuote:true,autoWork:true,maxConcurrentTasks:3,"
-              "declineKeywords:[],"
-              "agentId:process.env.AGENT_ID||'',"
-              "llm:{provider:'anthropic',"
-              "apiKey:process.env.ANTHROPIC_API_KEY||'',"
-              "model:'claude-sonnet-4-20250514'}};"
-              "fs.writeFileSync(path.join(w,'workclaw.json'),JSON.stringify(wc,null,2));"
-              "const wl={address:process.env.WALLET_ADDRESS||'',"
-              "privateKey:process.env.WALLET_PRIVATE_KEY||''};"
-              "fs.writeFileSync(path.join(m,'wallet.json'),JSON.stringify(wl,null,2));"
-              "console.log('Config ready. AgentId:',process.env.AGENT_ID);"
-              "const b=path.join(process.cwd(),'node_modules','.bin','cashclaw');"
-              "sp(fs.existsSync(b)?b:'cashclaw',[],"
-              "{stdio:'inherit',env:process.env}).on('exit',c=>process.exit(c||0));\""
-          )
-
-          payload = {
-              "query": "mutation($s:String!,$e:String!,$c:String!){serviceInstanceUpdate(input:{serviceId:$s,environmentId:$e,startCommand:$c})}",
-              "variables": {"s": sid, "e": eid, "c": cmd}
-          }
-
-          req = urllib.request.Request(
-              'https://backboard.railway.com/graphql/v2',
-              data=json.dumps(payload).encode(),
-              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-          )
-          with urllib.request.urlopen(req) as resp:
-              result = json.loads(resp.read())
-
-          print(json.dumps(result, indent=2))
-          if 'errors' in result:
-              print('serviceInstanceUpdate errors:', result['errors'])
-              sys.exit(1)
-          print('Start command updated!')
-          PYEOF
-        env:
-          SID: ${{ steps.find.outputs.sid }}
-          EID: ${{ steps.find.outputs.eid }}
-
-      - name: 4. Wait for var to propagate, then trigger redeploy
-        run: |
-          sleep 5
-          python3 <<'PYEOF'
-          import json, urllib.request, os, sys
+          import json, urllib.request, os
 
           token = os.environ['RAILWAY_TOKEN']
           sid = os.environ['SID']
@@ -192,38 +120,7 @@ jobs:
           )
           with urllib.request.urlopen(req) as resp:
               result = json.loads(resp.read())
-          print(json.dumps(result, indent=2))
-          if 'errors' not in result:
-              print('Redeploy triggered!')
-          else:
-              print('Redeploy error (non-fatal):', result.get('errors'))
-          PYEOF
-        env:
-          SID: ${{ steps.find.outputs.sid }}
-          EID: ${{ steps.find.outputs.eid }}
-
-      - name: 5. Verify latest deployments
-        run: |
-          sleep 8
-          python3 <<'PYEOF'
-          import json, urllib.request, os
-
-          token = os.environ['RAILWAY_TOKEN']
-          sid = os.environ['SID']
-          eid = os.environ['EID']
-
-          payload = {
-              "query": "query($s:String!,$e:String!){deployments(input:{serviceId:$s,environmentId:$e},first:3){edges{node{id status createdAt}}}}",
-              "variables": {"s": sid, "e": eid}
-          }
-          req = urllib.request.Request(
-              'https://backboard.railway.com/graphql/v2',
-              data=json.dumps(payload).encode(),
-              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-          )
-          with urllib.request.urlopen(req) as resp:
-              result = json.loads(resp.read())
-          print(json.dumps(result, indent=2))
+          print('Redeploy:', json.dumps(result))
           PYEOF
         env:
           SID: ${{ steps.find.outputs.sid }}
