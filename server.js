@@ -13,23 +13,16 @@ fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
   polling: { intervalMs: 30000, urgentIntervalMs: 10000 },
   pricing: { strategy: 'fixed', baseRateEth: '0.005', maxRateEth: '0.05' },
   specialties: [
-    // Writing & Content
     'writing', 'copywriting', 'content-creation', 'blog-writing',
     'email-writing', 'social-media-content', 'product-descriptions',
     'technical-writing', 'creative-writing', 'proofreading', 'editing',
-    // Research
     'research', 'web-research', 'market-research', 'competitive-analysis',
     'data-analysis', 'summarization', 'fact-checking',
-    // Code & Tech
     'coding', 'programming', 'debugging', 'code-review',
     'documentation', 'api-documentation',
-    // Business
     'business-writing', 'report-writing', 'seo-content', 'customer-support-templates',
-    // Language
     'translation', 'language-editing',
-    // Web / Browser (Playwright)
     'web-scraping', 'data-extraction', 'website-analysis',
-    // General
     'question-answering', 'brainstorming', 'planning', 'consulting'
   ],
   autoQuote: true,
@@ -92,6 +85,41 @@ cashclaw.on('exit', code => {
   process.exit(code || 0);
 });
 
+// Static assets from cashclaw's own built-in dashboard
+const CASHCLAW_DIST = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist');
+const MIME = {
+  '.js':   'application/javascript',
+  '.mjs':  'application/javascript',
+  '.css':  'text/css',
+  '.html': 'text/html',
+  '.json': 'application/json',
+  '.png':  'image/png',
+  '.svg':  'image/svg+xml',
+  '.ico':  'image/x-icon',
+  '.map':  'application/json'
+};
+
+function serveStatic(req, res) {
+  const urlPath = req.url.split('?')[0];
+  const filePath = path.join(CASHCLAW_DIST, urlPath);
+  // Prevent path traversal
+  if (!filePath.startsWith(CASHCLAW_DIST)) {
+    res.writeHead(403); return res.end();
+  }
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const ext = path.extname(filePath);
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    return res.end(fs.readFileSync(filePath));
+  }
+  // SPA fallback: serve cashclaw's index.html for unknown routes
+  const indexPath = path.join(CASHCLAW_DIST, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end(fs.readFileSync(indexPath));
+  }
+  return null; // caller will serve our custom dashboard
+}
+
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -130,7 +158,6 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <h1>⚡ CashClaw Dashboard</h1>
     <p>Agente autónomo · Moltlaunch Marketplace</p>
   </header>
-
   <div class="cards">
     <div class="card"><label>Estado</label><div class="val" id="st"><span class="dot"></span>...</div></div>
     <div class="card"><label>Agente ID</label><div class="val" id="aid">-</div></div>
@@ -138,8 +165,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
     <div class="card"><label>Última actividad</label><div class="val" id="la" style="font-size:.85em">-</div></div>
   </div>
-
-  <div class="section-title">Especialidades activas (${36})</div>
+  <div class="section-title">Especialidades activas (36)</div>
   <div class="tags">
     <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">content-creation</span>
     <span class="tag">blog-writing</span><span class="tag">email-writing</span><span class="tag">social-media-content</span>
@@ -157,14 +183,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <span class="tag">question-answering</span><span class="tag">brainstorming</span><span class="tag">planning</span>
     <span class="tag">consulting</span>
   </div>
-
   <div class="logs">
     <div class="logs-hdr"><span>Actividad reciente</span><span id="cnt">-</span></div>
     <div id="list"><div class="empty">Cargando...</div></div>
   </div>
-
   <div class="footer">Actualización cada 15 seg · <a href="/">Actualizar ahora</a></div>
-
   <script>
     function fmt(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=s%60;return h?h+'h '+m+'m':m?m+'m '+sec+'s':sec+'s'}
     function ftime(iso){return new Date(iso).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
@@ -191,8 +214,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 const PORT = process.env.PORT || 3777;
 const startTime = Date.now();
 
-http.createServer((req, res) => {
-  if (req.url === '/api/status') {
+const server = http.createServer((req, res) => {
+  const urlPath = req.url.split('?')[0];
+
+  if (urlPath === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({
       agent: process.env.AGENT_ID,
@@ -203,12 +228,41 @@ http.createServer((req, res) => {
       tasksDetected
     }));
   }
-  if (req.url === '/api/logs') {
+
+  if (urlPath === '/api/logs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
+
+  // Try to serve cashclaw's built-in static assets first
+  if (urlPath.startsWith('/assets/') || urlPath.startsWith('/icons/') || urlPath.endsWith('.js') || urlPath.endsWith('.css')) {
+    if (serveStatic(req, res) !== null) return;
+  }
+
+  // Root: serve our custom dashboard
+  if (urlPath === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end(DASHBOARD_HTML);
+  }
+
+  // Try static for anything else (SPA fallback)
+  if (serveStatic(req, res) !== null) return;
+
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(DASHBOARD_HTML);
-}).listen(PORT, '0.0.0.0', () => {
+});
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Puerto ${PORT} ocupado — cashclaw puede estar usándolo. Intentando puerto ${Number(PORT) + 1}...`);
+    server.listen(Number(PORT) + 1, '0.0.0.0', () => {
+      console.log(`Dashboard: http://0.0.0.0:${Number(PORT) + 1}`);
+    });
+  } else {
+    throw err;
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Dashboard: http://0.0.0.0:${PORT}`);
 });
