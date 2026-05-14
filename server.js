@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -60,6 +61,29 @@ try {
   console.log('No se pudo parchear cashclaw:', e.message);
 }
 
+// Precio ETH cacheado en servidor
+let ethPrice = { usd: 0, clp: 0, updatedAt: null };
+
+function fetchEthPrice() {
+  const url = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp';
+  https.get(url, { headers: { 'User-Agent': 'cashclaw-dashboard/1.0' } }, res => {
+    let body = '';
+    res.on('data', d => body += d);
+    res.on('end', () => {
+      try {
+        const d = JSON.parse(body);
+        if (d.ethereum) {
+          ethPrice = { usd: d.ethereum.usd, clp: d.ethereum.clp, updatedAt: new Date().toISOString() };
+          console.log(`Precio ETH: $${ethPrice.usd} USD`);
+        }
+      } catch (e) { console.log('Error precio ETH:', e.message); }
+    });
+  }).on('error', e => console.log('No se pudo obtener precio ETH:', e.message));
+}
+
+fetchEthPrice();
+setInterval(fetchEthPrice, 5 * 60 * 1000);
+
 const logs = [];
 const MAX_LOGS = 500;
 const jobs = [];
@@ -72,7 +96,6 @@ let cashclawStatus = 'starting';
 let restartCount = 0;
 
 function detectJobEvent(line, time) {
-  // Nuevo trabajo recibido / aceptado
   if (/task.*receiv|receiv.*task|new.*task|job.*receiv|receiv.*job|assigned|accept.*offer|offer.*accept|new.*job/i.test(line)) {
     const dm = line.match(/["']([^"']{8,80})["']/) || line.match(/task[:\s]+(.{8,60})/i);
     jobs.unshift({
@@ -85,18 +108,10 @@ function detectJobEvent(line, time) {
     });
     if (jobs.length > MAX_JOBS) jobs.pop();
   }
-
-  // Trabajo completado / entregado
   if (/complet|finish|done.*task|task.*done|submit|deliver/i.test(line)) {
     const active = jobs.find(j => j.status === 'activo');
-    if (active) {
-      active.status = 'completado';
-      active.completedTime = time;
-      completedJobsCount++;
-    }
+    if (active) { active.status = 'completado'; active.completedTime = time; completedJobsCount++; }
   }
-
-  // Pago recibido
   const ethMatch = line.match(/([0-9]+\.[0-9]+)\s*ETH/i);
   if (ethMatch && /earn|pay|receiv|reward|profit|transfer|sent/i.test(line)) {
     const eth = parseFloat(ethMatch[1]);
@@ -122,24 +137,16 @@ const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
 function startCashclaw() {
   cashclawStatus = 'running';
   cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: process.env });
-
   cashclawProc.stdout.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-      process.stdout.write(l + '\n');
-      addLog(l, 'info');
-    })
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stdout.write(l + '\n'); addLog(l, 'info'); })
   );
   cashclawProc.stderr.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-      process.stderr.write(l + '\n');
-      addLog(l, 'error');
-    })
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stderr.write(l + '\n'); addLog(l, 'error'); })
   );
   cashclawProc.on('exit', (code) => {
     restartCount++;
     const msg = `CashClaw salió (código ${code}) — reiniciando en 15s (#${restartCount})`;
-    console.log(msg);
-    addLog(msg, 'warn');
+    console.log(msg); addLog(msg, 'warn');
     cashclawStatus = 'restarting';
     setTimeout(startCashclaw, 15000);
   });
@@ -172,6 +179,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:4px 12px;font-size:.75em}
     .section{margin:16px 24px 0;background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden}
     .section-hdr{padding:14px 20px;border-bottom:1px solid #334155;font-size:.82em;color:#94a3b8;display:flex;justify-content:space-between;align-items:center}
+    .conv-wrap{padding:20px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .conv-input{background:#0f172a;border:1px solid #475569;color:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:1.1em;width:170px;outline:none;transition:border .2s}
+    .conv-input:focus{border-color:#38bdf8}
+    .conv-eq{color:#475569;font-size:1em}
+    .conv-result{display:flex;flex-direction:column;gap:4px}
+    .conv-usd{color:#f1f5f9;font-size:1.2em;font-weight:700}
+    .conv-clp{color:#94a3b8;font-size:.9em}
+    .conv-hint{color:#475569;font-size:.75em;margin-top:6px}
     .log{padding:7px 20px;border-bottom:1px solid #162032;font-family:monospace;font-size:.8em;display:flex;gap:14px;line-height:1.5}
     .log:last-child{border-bottom:none}
     .log .t{color:#475569;white-space:nowrap;flex-shrink:0}
@@ -202,14 +217,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Estado</label><div class="val" id="st"><span class="dot"></span>...</div></div>
     <div class="card"><label>Tiempo activo</label><div class="val" id="up">-</div></div>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
-    <div class="card"><label>Reinicios</label><div class="val" id="rc">0</div></div>
+    <div class="card"><label>Total ganado</label><div class="val small" id="total-eth" style="color:#4ade80">0 ETH</div><div class="sub" id="total-usd">esperando pagos...</div></div>
   </div>
 
-  <div class="cards" style="padding:14px 24px 0">
-    <div class="card"><label>1 ETH en USD</label><div class="val small" id="eth-usd">...</div></div>
-    <div class="card"><label>1 ETH en CLP</label><div class="val small" id="eth-clp">...</div></div>
-    <div class="card"><label>Tarifa del agente</label><div class="val small" id="rate-usd">...</div><div class="sub" id="rate-clp"></div></div>
-    <div class="card"><label>Total ganado</label><div class="val small" id="total-eth" style="color:#4ade80">0 ETH</div><div class="sub" id="total-usd">esperando pagos...</div></div>
+  <div class="section" style="margin-top:20px">
+    <div class="section-hdr">
+      <span>💱 Convertidor ETH</span>
+      <span id="price-ts" style="color:#475569;font-size:.78em">cargando precio...</span>
+    </div>
+    <div class="conv-wrap">
+      <input class="conv-input" type="number" id="eth-input" placeholder="0.005" step="0.001" min="0">
+      <span class="conv-eq">ETH =</span>
+      <div class="conv-result">
+        <span class="conv-usd" id="conv-usd">escribe una cantidad</span>
+        <span class="conv-clp" id="conv-clp"></span>
+      </div>
+    </div>
+    <div style="padding:0 24px 16px"><span class="conv-hint" id="conv-hint"></span></div>
   </div>
 
   <div class="tags">
@@ -248,20 +272,16 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     let ethUsd=0,ethClp=0;
 
-    async function loadPrice(){
-      try{
-        const d=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp').then(r=>r.json());
-        ethUsd=d.ethereum.usd;
-        ethClp=d.ethereum.clp;
-        document.getElementById('eth-usd').textContent='$'+ethUsd.toLocaleString('en-US',{maximumFractionDigits:0})+' USD';
-        document.getElementById('eth-clp').textContent='$'+(ethClp).toLocaleString('es-CL',{maximumFractionDigits:0})+' CLP';
-        const rateEth=0.005;
-        document.getElementById('rate-usd').textContent='$'+(rateEth*ethUsd).toFixed(2)+' USD / trabajo';
-        document.getElementById('rate-clp').textContent='≈ $'+Math.round(rateEth*ethClp).toLocaleString('es-CL')+' CLP';
-      }catch(e){
-        document.getElementById('eth-usd').textContent='No disponible';
-      }
+    function recalcConv(){
+      const val=parseFloat(document.getElementById('eth-input').value);
+      if(!ethUsd){document.getElementById('conv-usd').textContent='cargando precio...';return;}
+      if(isNaN(val)||val<0){document.getElementById('conv-usd').textContent='escribe una cantidad';document.getElementById('conv-clp').textContent='';document.getElementById('conv-hint').textContent='1 ETH = $'+ethUsd.toLocaleString('en-US',{maximumFractionDigits:0})+' USD';return;}
+      document.getElementById('conv-usd').textContent='$'+(val*ethUsd).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' USD';
+      document.getElementById('conv-clp').textContent='$'+Math.round(val*ethClp).toLocaleString('es-CL')+' CLP';
+      document.getElementById('conv-hint').textContent='1 ETH = $'+ethUsd.toLocaleString('en-US',{maximumFractionDigits:0})+' USD / $'+ethClp.toLocaleString('es-CL',{maximumFractionDigits:0})+' CLP';
     }
+
+    document.getElementById('eth-input').addEventListener('input', recalcConv);
 
     function ethLine(eth){
       if(!eth||eth<=0)return'';
@@ -272,34 +292,37 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     async function load(){
       try{
-        const [st,ls,jd]=await Promise.all([
+        const [st,ls,jd,pr]=await Promise.all([
           fetch('/api/status').then(r=>r.json()),
           fetch('/api/logs').then(r=>r.json()),
-          fetch('/api/jobs').then(r=>r.json())
+          fetch('/api/jobs').then(r=>r.json()),
+          fetch('/api/price').then(r=>r.json())
         ]);
+
+        if(pr.usd>0){
+          const prev=ethUsd;
+          ethUsd=pr.usd; ethClp=pr.clp;
+          document.getElementById('price-ts').textContent='1 ETH = $'+pr.usd.toLocaleString('en-US',{maximumFractionDigits:0})+' USD · actualizado '+ftime(pr.updatedAt);
+          if(prev!==ethUsd) recalcConv();
+        }
 
         document.getElementById('st').innerHTML='<span class="'+(dotClass[st.status]||'dot')+'"></span><span style="color:'+(colors[st.status]||'#fff')+'">'+st.status+'</span>';
         document.getElementById('up').textContent=fmt(st.uptime);
         document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
-        document.getElementById('rc').textContent=st.restarts;
 
         const te=jd.totalEarned||0;
         document.getElementById('total-eth').textContent=te>0?te.toFixed(6)+' ETH':'0 ETH';
-        if(ethUsd&&te>0){
-          document.getElementById('total-usd').textContent='$'+(te*ethUsd).toFixed(2)+' USD / $'+Math.round(te*ethClp).toLocaleString('es-CL')+' CLP';
-        }
+        if(ethUsd&&te>0) document.getElementById('total-usd').textContent='$'+(te*ethUsd).toFixed(2)+' USD / $'+Math.round(te*ethClp).toLocaleString('es-CL')+' CLP';
 
         const jobs=jd.jobs||[];
-        const completed=jd.completed||0;
-        document.getElementById('jobs-cnt').textContent=jobs.length?completed+' completados · '+jobs.length+' total':'Sin trabajos aún';
+        document.getElementById('jobs-cnt').textContent=jobs.length?(jd.completed||0)+' completados · '+jobs.length+' total':'Sin trabajos aún';
         const jel=document.getElementById('jobs-list');
         jel.innerHTML=jobs.length?jobs.map(j=>{
           const earnStr=j.earnedEth?'<div class="job-earn">'+ethLine(j.earnedEth)+'</div>':'';
-          const dur=fdur(j.startTime,j.completedTime);
           return '<div class="job-row">'+
             '<span class="badge '+j.status+'">'+j.status+'</span>'+
             '<div class="job-body"><div class="job-desc">'+j.description.replace(/</g,'&lt;')+'</div>'+
-            '<div class="job-meta">'+fdate(j.startTime)+' · '+dur+'</div></div>'+
+            '<div class="job-meta">'+fdate(j.startTime)+' · '+fdur(j.startTime,j.completedTime)+'</div></div>'+
             earnStr+'</div>';
         }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
 
@@ -307,20 +330,13 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         const el=document.getElementById('log-list');
         el.innerHTML=ls.length?[...ls].reverse().map(l=>{
           let msg=l.msg.replace(/</g,'&lt;');
-          const ethMatch=msg.match(/([0-9.]+)\s*ETH/);
-          if(ethMatch&&ethUsd){
-            const eth=parseFloat(ethMatch[1]);
-            const usd='$'+(eth*ethUsd).toFixed(2)+' USD';
-            const clp='$'+Math.round(eth*ethClp).toLocaleString('es-CL')+' CLP';
-            msg=msg+' <span style="color:#4ade80;font-weight:bold">('+usd+' / '+clp+')</span>';
-          }
-          return '<div class="log '+(l.type||'')+'">'+'<span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
+          const em=msg.match(/([0-9.]+)\s*ETH/);
+          if(em&&ethUsd){const eth=parseFloat(em[1]);msg+=` <span style="color:#4ade80;font-weight:bold">($${(eth*ethUsd).toFixed(2)} USD / $${Math.round(eth*ethClp).toLocaleString('es-CL')} CLP)</span>`;}
+          return '<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
         }).join(''):'<div class="empty">Sin actividad aún — polling cada 30s</div>';
       }catch(e){}
     }
 
-    loadPrice();
-    setInterval(loadPrice,5*60*1000);
     load();
     setInterval(load,15000);
   </script>
@@ -342,18 +358,17 @@ const server = http.createServer((req, res) => {
       restarts: restartCount
     }));
   }
+  if (url === '/api/price') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify(ethPrice));
+  }
   if (url === '/api/logs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
   if (url === '/api/jobs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    return res.end(JSON.stringify({
-      jobs,
-      totalEarned: totalEarnedEth,
-      completed: completedJobsCount,
-      count: jobs.length
-    }));
+    return res.end(JSON.stringify({ jobs, totalEarned: totalEarnedEth, completed: completedJobsCount, count: jobs.length }));
   }
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(DASHBOARD_HTML);
