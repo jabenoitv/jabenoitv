@@ -90,8 +90,8 @@ fetchEthPrice();
 setInterval(fetchEthPrice, 5 * 60 * 1000);
 
 // Inteligencia de mercado
-const PRICE_FLOOR = 0.0005;  // nunca trabajar con menos (cubre costo API)
-const PRICE_CEIL  = 0.02;    // techo razonable
+const PRICE_FLOOR = 0.0005;
+const PRICE_CEIL  = 0.02;
 let marketData = { agents: 0, median: 0, ourPrice: 0.005, min: 0, max: 0, lastScan: null };
 
 function fetchMarketPrices() {
@@ -117,11 +117,9 @@ function fetchMarketPrices() {
 
           prices.sort((a, b) => a - b);
           const median = prices[Math.floor(prices.length / 2)];
-          // 10% bajo la mediana, con piso y techo
           const competitive = Math.max(PRICE_FLOOR, Math.min(PRICE_CEIL, median * 0.90));
           const competitiveStr = competitive.toFixed(6);
 
-          // Actualizar workclaw.json con nuevo precio
           const wcPath = path.join(os.homedir(), '.workclaw', 'workclaw.json');
           try {
             const cfg = JSON.parse(fs.readFileSync(wcPath, 'utf8'));
@@ -247,6 +245,8 @@ header h1{font-size:1.1em;color:#38bdf8}
 .earn-fiat span{font-size:1.1em;font-weight:600;color:#bbf7d0}
 .sep{color:#166534}
 .earn-ts{font-size:.7em;color:#4ade80;opacity:.55;margin-top:6px}
+.prc-fiat{display:flex;flex-direction:column;gap:1px;margin-top:4px}
+.prc-fiat span{font-size:.68em;color:#94a3b8;font-family:monospace}
 .cards{display:flex;gap:12px;padding:14px 20px 0;flex-wrap:wrap}
 .card{background:#1e293b;border-radius:10px;padding:13px 16px;flex:1;min-width:120px;border:1px solid #334155}
 .card label{font-size:.66em;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
@@ -311,6 +311,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="card"><label>Activo</label><div class="v" id="up">-</div></div>
   <div class="card"><label>Trabajos</label><div class="v" id="jbadge">0</div></div>
   <div class="card"><label>Wallet</label><div class="v mo" id="wal">-</div></div>
+  <div class="card"><label>Precio cobrado</label><div class="v mo" id="prc-eth">-</div><div class="prc-fiat"><span id="prc-usd"></span><span id="prc-clp"></span></div></div>
 </div>
 <div class="tags">
   <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">research</span>
@@ -332,6 +333,7 @@ header h1{font-size:1.1em;color:#38bdf8}
       <div class="ml">Nuestro precio</div>
       <div class="mv" style="color:#4ade80" id="mkt-our">-</div>
       <div class="ms" id="mkt-our-usd"></div>
+      <div class="ms" id="mkt-our-clp"></div>
     </div>
     <div class="mc">
       <div class="ml">Posicion</div>
@@ -355,7 +357,7 @@ header h1{font-size:1.1em;color:#38bdf8}
 </div>
 <div class="footer"><a href="/">Refrescar</a></div>
 <script>
-var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null;
+var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 
 function fmt(s){var h=Math.floor(s/3600),m=Math.floor(s%3600/60),sc=s%60;return h?h+'h '+m+'m':m?m+'m '+sc+'s':sc+'s';}
 function ftime(iso){return new Date(iso).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
@@ -419,11 +421,16 @@ function updateEarnings(te){
 
 function updateMarket(mk){
   if(!mk||!mk.median)return;
+  ourPrice=mk.ourPrice;
   document.getElementById('mkt-med').textContent=mk.median.toFixed(6)+' ETH';
   document.getElementById('mkt-our').textContent=mk.ourPrice.toFixed(6)+' ETH';
+  document.getElementById('prc-eth').textContent=mk.ourPrice.toFixed(6)+' ETH';
   if(ethUsd){
     document.getElementById('mkt-med-usd').textContent='$'+fN(mk.median*ethUsd,2)+' USD';
     document.getElementById('mkt-our-usd').textContent='$'+fN(mk.ourPrice*ethUsd,2)+' USD';
+    document.getElementById('mkt-our-clp').textContent='$'+Math.round(mk.ourPrice*ethClp).toLocaleString('es-CL')+' CLP';
+    document.getElementById('prc-usd').textContent='$'+fN(mk.ourPrice*ethUsd,2)+' USD';
+    document.getElementById('prc-clp').textContent='$'+Math.round(mk.ourPrice*ethClp).toLocaleString('es-CL')+' CLP';
   }
   var pct=mk.median>0?Math.round((1-mk.ourPrice/mk.median)*100):0;
   var col=pct>=5?'#4ade80':pct>=0?'#fbbf24':'#f87171';
@@ -490,7 +497,7 @@ function connectSSE(){
   es.onmessage=function(ev){
     try{
       var d=JSON.parse(ev.data);
-      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
+      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());if(ourPrice>0){document.getElementById('mkt-our-usd').textContent='$'+fN(ourPrice*ethUsd,2)+' USD';document.getElementById('mkt-our-clp').textContent='$'+Math.round(ourPrice*ethClp).toLocaleString('es-CL')+' CLP';document.getElementById('prc-usd').textContent='$'+fN(ourPrice*ethUsd,2)+' USD';document.getElementById('prc-clp').textContent='$'+Math.round(ourPrice*ethClp).toLocaleString('es-CL')+' CLP';}}
       if(d.type==='update')schedLoad();
       if(d.type==='market')updateMarket(d);
     }catch(ex){}
