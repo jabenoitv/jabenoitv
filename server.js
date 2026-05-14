@@ -28,10 +28,7 @@ fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
   autoQuote: true,
   autoWork: true,
   maxConcurrentTasks: 3,
-  declineKeywords: [
-    'image-generation', 'video-creation', 'audio-generation',
-    'music-creation', 'nsfw', 'illegal'
-  ],
+  declineKeywords: ['image-generation', 'video-creation', 'audio-generation', 'music-creation', 'nsfw', 'illegal'],
   agentId: process.env.AGENT_ID || '',
   llm: {
     provider: 'anthropic',
@@ -51,6 +48,7 @@ const logs = [];
 const MAX_LOGS = 300;
 let tasksDetected = 0;
 let lastActivity = null;
+let cashclawProc = null;
 
 function addLog(line, type) {
   const entry = { time: new Date().toISOString(), msg: line.trim(), type };
@@ -60,65 +58,8 @@ function addLog(line, type) {
   if (/task|job|work|tarea|earn|payment|paid/i.test(line)) tasksDetected++;
 }
 
-const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
-const cashclaw = spawn(fs.existsSync(binPath) ? binPath : 'cashclaw', [], {
-  stdio: ['inherit', 'pipe', 'pipe'],
-  env: process.env
-});
-
-cashclaw.stdout.on('data', d =>
-  d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-    process.stdout.write(l + '\n');
-    addLog(l, 'info');
-  })
-);
-
-cashclaw.stderr.on('data', d =>
-  d.toString().split('\n').filter(l => l.trim()).forEach(l => {
-    process.stderr.write(l + '\n');
-    addLog(l, 'error');
-  })
-);
-
-cashclaw.on('exit', code => {
-  addLog(`CashClaw terminó con código ${code}`, 'error');
-  process.exit(code || 0);
-});
-
-// Static assets from cashclaw's own built-in dashboard
-const CASHCLAW_DIST = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist');
-const MIME = {
-  '.js':   'application/javascript',
-  '.mjs':  'application/javascript',
-  '.css':  'text/css',
-  '.html': 'text/html',
-  '.json': 'application/json',
-  '.png':  'image/png',
-  '.svg':  'image/svg+xml',
-  '.ico':  'image/x-icon',
-  '.map':  'application/json'
-};
-
-function serveStatic(req, res) {
-  const urlPath = req.url.split('?')[0];
-  const filePath = path.join(CASHCLAW_DIST, urlPath);
-  // Prevent path traversal
-  if (!filePath.startsWith(CASHCLAW_DIST)) {
-    res.writeHead(403); return res.end();
-  }
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    return res.end(fs.readFileSync(filePath));
-  }
-  // SPA fallback: serve cashclaw's index.html for unknown routes
-  const indexPath = path.join(CASHCLAW_DIST, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    return res.end(fs.readFileSync(indexPath));
-  }
-  return null; // caller will serve our custom dashboard
-}
+const PORT = Number(process.env.PORT || 3777);
+const startTime = Date.now();
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="es">
@@ -138,7 +79,6 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .card .val.mono{font-size:.85em;font-family:monospace;color:#94a3b8}
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px;animation:pulse 2s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-    .section-title{padding:0 24px 8px;font-size:.72em;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
     .tags{padding:0 24px 20px;display:flex;flex-wrap:wrap;gap:8px}
     .tag{background:#0f3460;color:#38bdf8;border:1px solid #1e4d8c;border-radius:20px;padding:4px 12px;font-size:.75em}
     .logs{margin:0 24px 24px;background:#1e293b;border-radius:12px;border:1px solid #334155;overflow:hidden}
@@ -154,10 +94,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <header>
-    <h1>⚡ CashClaw Dashboard</h1>
-    <p>Agente autónomo · Moltlaunch Marketplace</p>
-  </header>
+  <header><h1>⚡ CashClaw Dashboard</h1><p>Agente autónomo · Moltlaunch Marketplace</p></header>
   <div class="cards">
     <div class="card"><label>Estado</label><div class="val" id="st"><span class="dot"></span>...</div></div>
     <div class="card"><label>Agente ID</label><div class="val" id="aid">-</div></div>
@@ -165,22 +102,12 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="card"><label>Wallet</label><div class="val mono" id="wal">-</div></div>
     <div class="card"><label>Última actividad</label><div class="val" id="la" style="font-size:.85em">-</div></div>
   </div>
-  <div class="section-title">Especialidades activas (36)</div>
   <div class="tags">
-    <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">content-creation</span>
-    <span class="tag">blog-writing</span><span class="tag">email-writing</span><span class="tag">social-media-content</span>
-    <span class="tag">product-descriptions</span><span class="tag">technical-writing</span><span class="tag">creative-writing</span>
-    <span class="tag">proofreading</span><span class="tag">editing</span>
-    <span class="tag">research</span><span class="tag">web-research</span><span class="tag">market-research</span>
-    <span class="tag">competitive-analysis</span><span class="tag">data-analysis</span><span class="tag">summarization</span>
-    <span class="tag">fact-checking</span>
-    <span class="tag">coding</span><span class="tag">programming</span><span class="tag">debugging</span>
-    <span class="tag">code-review</span><span class="tag">documentation</span><span class="tag">api-documentation</span>
-    <span class="tag">business-writing</span><span class="tag">report-writing</span><span class="tag">seo-content</span>
-    <span class="tag">customer-support-templates</span>
-    <span class="tag">translation</span><span class="tag">language-editing</span>
-    <span class="tag">web-scraping</span><span class="tag">data-extraction</span><span class="tag">website-analysis</span>
-    <span class="tag">question-answering</span><span class="tag">brainstorming</span><span class="tag">planning</span>
+    <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">blog-writing</span>
+    <span class="tag">email-writing</span><span class="tag">social-media-content</span><span class="tag">technical-writing</span>
+    <span class="tag">research</span><span class="tag">web-research</span><span class="tag">data-analysis</span>
+    <span class="tag">coding</span><span class="tag">debugging</span><span class="tag">code-review</span>
+    <span class="tag">translation</span><span class="tag">web-scraping</span><span class="tag">brainstorming</span>
     <span class="tag">consulting</span>
   </div>
   <div class="logs">
@@ -201,68 +128,73 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         document.getElementById('la').textContent=st.lastActivity?ftime(st.lastActivity):'Sin actividad aún';
         document.getElementById('cnt').textContent=ls.length+' eventos';
         const el=document.getElementById('list');
-        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log'+(l.type==="error"?' err':'')+'" ><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join('')
-          :'<div class="empty">Sin actividad aún — el agente hace polling cada 30 segundos</div>';
+        el.innerHTML=ls.length?[...ls].reverse().map(l=>'<div class="log'+(l.type==="error"?' err':'')+'" ><span class="t">'+ftime(l.time)+'</span><span class="msg">'+l.msg.replace(/</g,'&lt;')+'</span></div>').join(''):'<div class="empty">Sin actividad aún — el agente hace polling cada 30 segundos</div>';
       }catch(e){}
     }
     load();
     setInterval(load,15000);
   </script>
-</body>
-</html>`;
+</body></html>`;
 
-const PORT = process.env.PORT || 3777;
-const startTime = Date.now();
-
+// Claim the port FIRST before spawning cashclaw
 const server = http.createServer((req, res) => {
-  const urlPath = req.url.split('?')[0];
+  const url = req.url.split('?')[0];
 
-  if (urlPath === '/api/status') {
+  if (url === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({
       agent: process.env.AGENT_ID,
       wallet: process.env.WALLET_ADDRESS,
       uptime: Math.floor((Date.now() - startTime) / 1000),
-      status: cashclaw.exitCode === null ? 'running' : 'stopped',
+      status: cashclawProc && cashclawProc.exitCode === null ? 'running' : 'stopped',
       lastActivity,
       tasksDetected
     }));
   }
 
-  if (urlPath === '/api/logs') {
+  if (url === '/api/logs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
-
-  // Try to serve cashclaw's built-in static assets first
-  if (urlPath.startsWith('/assets/') || urlPath.startsWith('/icons/') || urlPath.endsWith('.js') || urlPath.endsWith('.css')) {
-    if (serveStatic(req, res) !== null) return;
-  }
-
-  // Root: serve our custom dashboard
-  if (urlPath === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    return res.end(DASHBOARD_HTML);
-  }
-
-  // Try static for anything else (SPA fallback)
-  if (serveStatic(req, res) !== null) return;
 
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(DASHBOARD_HTML);
 });
 
-server.on('error', err => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Puerto ${PORT} ocupado — cashclaw puede estar usándolo. Intentando puerto ${Number(PORT) + 1}...`);
-    server.listen(Number(PORT) + 1, '0.0.0.0', () => {
-      console.log(`Dashboard: http://0.0.0.0:${Number(PORT) + 1}`);
-    });
-  } else {
-    throw err;
-  }
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Dashboard listo en http://0.0.0.0:${PORT}`);
+
+  // Spawn cashclaw AFTER our server has the port
+  // Give cashclaw PORT+1 so it doesn't conflict if it starts its own server
+  const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
+  const env = { ...process.env, PORT: String(PORT + 1) };
+
+  cashclawProc = spawn(fs.existsSync(binPath) ? binPath : 'cashclaw', [], {
+    stdio: ['inherit', 'pipe', 'pipe'],
+    env
+  });
+
+  cashclawProc.stdout.on('data', d =>
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
+      process.stdout.write(l + '\n');
+      addLog(l, 'info');
+    })
+  );
+
+  cashclawProc.stderr.on('data', d =>
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => {
+      process.stderr.write(l + '\n');
+      addLog(l, 'error');
+    })
+  );
+
+  cashclawProc.on('exit', code => {
+    addLog(`CashClaw terminó con código ${code}`, 'error');
+    process.exit(code || 0);
+  });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Dashboard: http://0.0.0.0:${PORT}`);
+server.on('error', err => {
+  console.error('Error del servidor:', err.message);
+  process.exit(1);
 });
