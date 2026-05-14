@@ -25,22 +25,36 @@ input{width:100%;padding:12px;background:#111;border:1px solid #333;border-radiu
 .svc .status{font-size:11px;color:#aaa;margin-bottom:8px}
 .row{display:flex;gap:6px}
 .row .btn{margin-bottom:0}
+select{width:100%;padding:10px;background:#111;border:1px solid #333;border-radius:8px;color:#fff;font-size:13px;margin-bottom:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
     <h1>🚂 Railway Redeploy</h1>
-    <p class="sub">Esta página usa la Railway API para redeployar tu servicio sin tocar la UI mobile.</p>
+    <p class="sub">Esta página usa la Railway API vía un proxy CORS para redeployar tu servicio.</p>
     <h2>Railway API Token</h2>
     <input id="token" placeholder="Bearer token" value="8d85c544-1bd9-4fb9-8c6d-ee6f85067c92">
+    <h2>Proxy CORS</h2>
+    <select id="proxy">
+      <option value="https://corsproxy.io/?url=">corsproxy.io</option>
+      <option value="https://api.codetabs.com/v1/proxy?quest=">codetabs.com</option>
+      <option value="https://thingproxy.freeboard.io/fetch/">thingproxy</option>
+      <option value="">Sin proxy (intento directo)</option>
+    </select>
     <button class="btn" onclick="listServices()">Listar servicios</button>
     <div id="log" class="log" style="display:none"></div>
   </div>
   <div id="services"></div>
 </div>
 <script>
-const API = 'https://backboard.railway.com/graphql/v2';
+const REAL_API = 'https://backboard.railway.com/graphql/v2';
+
+function api() {
+  const p = document.getElementById('proxy').value;
+  if (!p) return REAL_API;
+  return p + encodeURIComponent(REAL_API);
+}
 
 function log(msg, isErr) {
   const el = document.getElementById('log');
@@ -51,19 +65,21 @@ function log(msg, isErr) {
 
 async function gql(query, variables) {
   const token = document.getElementById('token').value.trim();
-  const res = await fetch(API, {
+  const res = await fetch(api(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ query, variables })
   });
-  const j = await res.json();
+  const text = await res.text();
+  let j;
+  try { j = JSON.parse(text); } catch(_) { throw new Error('Respuesta no-JSON: ' + text.slice(0, 300)); }
   if (j.errors) throw new Error(JSON.stringify(j.errors));
   return j.data;
 }
 
 async function listServices() {
   try {
-    log('Conectando con Railway...');
+    log('Conectando con Railway via proxy...');
     const data = await gql(`{
       me {
         name
@@ -107,7 +123,7 @@ async function checkStatus(serviceId, environmentId) {
     log('Consultando deployments...');
     const data = await gql(`query($serviceId: String!, $environmentId: String!) {
       deployments(input: { serviceId: $serviceId, environmentId: $environmentId }, first: 5) {
-        edges { node { id status createdAt staticUrl meta } }
+        edges { node { id status createdAt staticUrl } }
       }
     }`, { serviceId, environmentId });
     const el = document.getElementById('st-'+serviceId);
@@ -127,14 +143,7 @@ async function redeploy(serviceId, environmentId, name) {
     log('✅ Redeploy disparado!\n' + JSON.stringify(data, null, 2));
     setTimeout(() => checkStatus(serviceId, environmentId), 2000);
   } catch(e) {
-    // Fallback to deploymentTrigger
-    try {
-      log('Probando con deploymentTrigger...');
-      const d2 = await gql(`mutation($serviceId: String!, $environmentId: String!) {
-        deploymentRedeploy(id: $serviceId)
-      }`, { serviceId, environmentId });
-      log('✅ Disparado!\n' + JSON.stringify(d2, null, 2));
-    } catch(e2) { log('Error: ' + e.message + '\n\nFallback: ' + e2.message, true); }
+    log('Error: ' + e.message, true);
   }
 }
 </script>
