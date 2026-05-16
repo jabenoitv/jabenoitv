@@ -1,0 +1,3078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viaje USA 🇺🇸 - Javier & Cami</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
+    <link rel="icon" type="image/png" sizes="180x180" href="data:image/png;base64,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">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Viaje USA">
+    <meta name="theme-color" content="#4ECDC4">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        header {
+            margin-bottom: 24px;
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+        }
+        h1 {
+            font-size: 26px;
+            margin-bottom: 6px;
+            background: linear-gradient(90deg, #FFD700 0%, #FF6B6B 50%, #4ECDC4 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .subtitle { font-size: 14px; color: #FFD700; margin-bottom: 6px; font-weight: 500; }
+        .date-info { font-size: 12px; color: #94a3b8; }
+        .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 24px; padding-bottom: 8px; }
+        .tab-btn {
+            padding: 8px 14px; border: none;
+            background: rgba(71, 85, 105, 0.4);
+            color: #cbd5e1; border-radius: 8px;
+            cursor: pointer; font-size: 12px;
+            font-weight: 500; white-space: nowrap;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #4ECDC4 0%, #44A8A0 100%);
+            color: white;
+            box-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+        }
+        .tab-content {
+            display: none;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            animation: fadeIn 0.3s;
+        }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .search-box { margin-bottom: 20px; }
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(71, 85, 105, 0.3);
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #4ECDC4;
+        }
+        .search-result {
+            background: rgba(78, 205, 196, 0.1);
+            border-left: 4px solid #4ECDC4;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .search-result h4 { color: #FFD700; margin-bottom: 6px; font-size: 14px; }
+        .search-result p { color: #cbd5e1; margin-bottom: 4px; white-space: pre-line; line-height: 1.5; }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .dashboard-card {
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.15) 0%, rgba(78, 205, 196, 0.05) 100%);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            padding: 14px 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .dashboard-card h3 {
+            font-size: 10px; color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .dashboard-card .value {
+            font-size: 22px; font-weight: 800; color: #4ECDC4;
+        }
+        .dashboard-widget {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 14px;
+        }
+        .dashboard-widget h3 { font-size: 14px; margin-bottom: 12px; color: #FFD700; }
+        .quick-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+        .quick-item:last-child { border-bottom: none; }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(71, 85, 105, 0.3);
+            border: 1px solid rgba(78, 205, 196, 0.2);
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+        input::placeholder, textarea::placeholder { color: rgba(203, 213, 225, 0.5); }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #4ECDC4; }
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #4ECDC4 0%, #44A8A0 100%);
+            color: white; border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 8px;
+            transition: all 0.3s;
+        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-row input, .form-row select { margin-bottom: 0; }
+        .item {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #4ECDC4;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .item.gift { border-left-color: #FFD700; }
+        .item.gift.bought { 
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        .item.incident { 
+            border-left-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .item.contact { border-left-color: #06b6d4; }
+        .item.reservation { border-left-color: #a855f7; }
+        .item-info h4 { font-size: 14px; margin-bottom: 4px; color: white; }
+        .item-info p { font-size: 12px; color: #94a3b8; margin-bottom: 2px; }
+        .item-value { font-weight: bold; color: #4ade80; text-align: right; }
+        .delete-btn {
+            background: #ef4444;
+            padding: 4px 10px;
+            font-size: 11px;
+            width: auto;
+            margin: 0;
+            border: none;
+        }
+        .check-btn {
+            background: #10b981;
+            padding: 4px 10px;
+            font-size: 11px;
+            width: auto;
+            margin: 0 4px 0 0;
+            border: none;
+        }
+        .receipt-upload {
+            background: rgba(78, 205, 196, 0.05);
+            border: 2px dashed rgba(78, 205, 196, 0.4);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+        .receipt-upload:hover {
+            border-color: #4ECDC4;
+            background: rgba(78, 205, 196, 0.1);
+        }
+        .receipt-upload input { display: none; }
+        .receipt-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 16px;
+            color: #4ECDC4;
+            font-size: 13px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 3px solid rgba(78, 205, 196, 0.3);
+            border-top-color: #4ECDC4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .city-tag {
+            display: inline-block;
+            background: rgba(78, 205, 196, 0.2);
+            border: 1px solid rgba(78, 205, 196, 0.4);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 4px 4px 4px 0;
+            cursor: pointer;
+        }
+        .city-tag:hover { background: rgba(78, 205, 196, 0.3); }
+        .tip-card {
+            background: rgba(255, 215, 0, 0.08);
+            border-left: 4px solid #FFD700;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        h2 { font-size: 20px; margin-bottom: 16px; color: #FFD700; }
+        h3 { font-size: 14px; margin-bottom: 12px; color: #4ECDC4; }
+        .priority-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .priority-tag.high { background: #ef4444; color: white; }
+        .priority-tag.medium { background: #f97316; color: white; }
+        .priority-tag.low { background: #10b981; color: white; }
+
+        .filter-btn {
+            white-space: nowrap;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+        .filter-btn.active {
+            opacity: 1;
+            box-shadow: 0 0 12px rgba(78, 205, 196, 0.5);
+            transform: scale(1.02);
+        }
+        .gift-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .gift-status.pending { background: rgba(255, 107, 107, 0.2); color: #FF6B6B; }
+        .gift-status.bought { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .add-city-form { display: flex; gap: 8px; margin-bottom: 16px; }
+        .add-city-form input { flex: 1; margin-bottom: 0; }
+        .add-city-form button { width: auto; padding: 10px 16px; margin: 0; }
+        .nav-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .home-btn {
+            background: rgba(78, 205, 196, 0.15);
+            border: 1px solid rgba(78, 205, 196, 0.4);
+            color: #4ECDC4;
+            padding: 8px 14px;
+            font-size: 12px;
+            margin-bottom: 16px;
+            width: auto;
+            display: inline-block;
+            margin-top: 0;
+        }
+
+        .home-btn:hover {
+            background: rgba(78, 205, 196, 0.25);
+            box-shadow: none;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🇺🇸 Viaje USA</h1>
+            <p class="subtitle">Javier & Cami ✈️</p>
+            <p class="date-info">15 - 29 Mayo 2026</p>
+        </header>
+
+        <div class="tabs" style="display: none;"></div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="tab-content active">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar: auto, seguro, hotel, regalo..." onkeyup="handleSearch()">
+            </div>
+
+            <div id="searchResults"></div>
+
+            <div id="dashboardContent">
+                <!-- ASISTENTE IA - DESTACADO -->
+                <button onclick="goToTab('aiassistant')" style="width: 100%; padding: 24px; background: linear-gradient(135deg, #FFD700 0%, #4ECDC4 50%, #a855f7 100%); color: #1a1a2e; font-weight: 800; font-size: 17px; border: none; border-radius: 14px; margin-bottom: 22px; box-shadow: 0 6px 20px rgba(78, 205, 196, 0.3); display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span style="font-size: 30px;">🤖</span>
+                    <span>Hablar con Asistente IA</span>
+                </button>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <button onclick="goToTab('summary')" class="nav-card" style="padding: 24px 10px; background: rgba(78, 205, 196, 0.15); border: 1px solid rgba(78, 205, 196, 0.5); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">📈</span>
+                        <span style="font-size: 13px; font-weight: 600;">Mi Viaje</span>
+                    </button>
+                    <button onclick="goToTab('flights')" class="nav-card" style="padding: 24px 10px; background: rgba(255, 215, 0, 0.12); border: 1px solid rgba(255, 215, 0, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">✈️</span>
+                        <span style="font-size: 13px; font-weight: 600;">Reservas</span>
+                    </button>
+                    <button onclick="goToTab('nearby')" class="nav-card" style="padding: 24px 10px; background: rgba(6, 182, 212, 0.12); border: 1px solid rgba(6, 182, 212, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">🗺️</span>
+                        <span style="font-size: 13px; font-weight: 600;">Cerca de Nosotros</span>
+                    </button>
+                    <button onclick="goToTab('askme')" class="nav-card" style="padding: 24px 10px; background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">🧠</span>
+                        <span style="font-size: 13px; font-weight: 600;">Pregúntame</span>
+                    </button>
+                    <button onclick="goToTab('calc')" class="nav-card" style="padding: 24px 10px; background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">💱</span>
+                        <span style="font-size: 12px; font-weight: 600;">Calc USD/CLP</span>
+                    </button>
+                    <button onclick="goToTab('tips')" class="nav-card" style="padding: 24px 10px; background: rgba(255, 107, 107, 0.12); border: 1px solid rgba(255, 107, 107, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">💡</span>
+                        <span style="font-size: 13px; font-weight: 600;">Tips</span>
+                    </button>
+                    <button onclick="goToTab('citiesVisited')" class="nav-card" style="padding: 24px 10px; background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px; grid-column: span 2;">
+                        <span style="font-size: 32px;">🏙️</span>
+                        <span style="font-size: 13px; font-weight: 600;">Ciudades Visitadas</span>
+                    </button>
+                </div>
+                
+                <button onclick="goToTab('settings')" style="margin-top: 16px; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.4); color: #cbd5e1; padding: 10px; font-size: 13px;">
+                    ⚙️ Configuración
+                </button>
+            </div>
+        </div>
+
+        <!-- SUMMARY (Mi Viaje) -->
+        <div id="summary" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>📈 Mi Viaje</h2>
+            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">Todo lo que has registrado</p>
+            
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3>Gastos</h3>
+                    <div class="value">$<span id="dashTotalExpenses">0</span></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Comidas</h3>
+                    <div class="value"><span id="dashRestCount">0</span></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Regalos</h3>
+                    <div class="value"><span id="dashGiftsPending">0</span></div>
+                </div>
+            </div>
+
+            <!-- PRESUPUESTO -->
+            <div id="budgetWidget" class="dashboard-widget" style="margin-top: 16px; background: linear-gradient(135deg, rgba(74, 222, 128, 0.08) 0%, rgba(78, 205, 196, 0.05) 100%); border: 1px solid rgba(74, 222, 128, 0.3);">
+                <h3>💵 Presupuesto Conjunto</h3>
+                <div id="budgetContent"></div>
+            </div>
+
+            <h3 style="margin-top: 24px;">📋 Categorías</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px;">
+                <button onclick="goToTab('expenses')" style="padding: 16px 10px; background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 24px;">💰</span>
+                    <span style="font-size: 12px;">Gastos</span>
+                </button>
+                <button onclick="goToTab('restaurants')" style="padding: 16px 10px; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 24px;">🍽️</span>
+                    <span style="font-size: 12px;">Comida</span>
+                </button>
+                <button onclick="goToTab('orders')" style="padding: 16px 10px; background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 24px;">📦</span>
+                    <span style="font-size: 12px;">Encargos</span>
+                </button>
+                <button onclick="goToTab('gifts')" style="padding: 16px 10px; background: rgba(255, 107, 107, 0.12); border: 1px solid rgba(255, 107, 107, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 24px;">🎁</span>
+                    <span style="font-size: 12px;">Regalos</span>
+                </button>
+                <button onclick="goToTab('notes')" style="padding: 16px 10px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 6px; grid-column: span 2;">
+                    <span style="font-size: 24px;">📝</span>
+                    <span style="font-size: 12px;">Notas</span>
+                </button>
+            </div>
+
+            <div class="dashboard-widget">
+                <h3>💰 Últimos Gastos</h3>
+                <div id="dashExpenses"></div>
+            </div>
+
+            <div class="dashboard-widget">
+                <h3>🎁 Regalos Pendientes</h3>
+                <div id="dashGifts"></div>
+            </div>
+        </div>
+
+        <!-- FLIGHTS / RESERVAS -->
+        <div id="flights" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>✈️ Reservas de Viaje</h2>
+            <div id="flightsList"></div>
+        </div>
+
+        <!-- EXPENSES -->
+        <div id="expenses" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>💰 Gastos</h2>
+            
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar gasto con IA →
+            </button>
+
+            <div id="expensesList"></div>
+        </div>
+
+        <!-- RESTAURANTS -->
+        <div id="restaurants" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🍽️ Restaurantes</h2>
+            
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar restaurante con IA →
+            </button>
+
+            <div id="restaurantsList"></div>
+        </div>
+
+        <!-- GIFTS -->
+        <div id="gifts" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🎁 Lista de Regalos</h2>
+            
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar regalo con IA →
+            </button>
+
+            <h3>Por Comprar</h3>
+            <div id="giftsListPending"></div>
+            
+            <h3 style="margin-top: 20px;">✅ Comprados</h3>
+            <div id="giftsListBought"></div>
+        </div>
+
+        <!-- ORDERS / ENCARGOS -->
+        <div id="orders" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>📦 Encargos para Traer</h2>
+            
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar encargo con IA →
+            </button>
+
+            <!-- CONTADORES -->
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3>Por Comprar</h3>
+                    <div class="value" style="color: #f97316;"><span id="countToBuy">0</span></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Por Cobrar</h3>
+                    <div class="value" style="color: #FF6B6B;">$<span id="totalOwed">0</span></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Ya Cobrado</h3>
+                    <div class="value" style="color: #10b981;">$<span id="totalPaid">0</span></div>
+                </div>
+            </div>
+
+            <!-- FILTROS RÁPIDOS -->
+            <div style="display: flex; gap: 6px; margin-top: 20px; margin-bottom: 12px; overflow-x: auto;">
+                <button onclick="filterOrders('all')" id="filter-all" class="filter-btn active" style="width: auto; padding: 8px 14px; font-size: 12px; margin: 0;">Todos</button>
+                <button onclick="filterOrders('toBuy')" id="filter-toBuy" class="filter-btn" style="width: auto; padding: 8px 14px; font-size: 12px; margin: 0; background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4); color: #f97316;">🛒 Por Comprar</button>
+                <button onclick="filterOrders('toCharge')" id="filter-toCharge" class="filter-btn" style="width: auto; padding: 8px 14px; font-size: 12px; margin: 0; background: rgba(255, 107, 107, 0.2); border: 1px solid rgba(255, 107, 107, 0.4); color: #FF6B6B;">💸 Por Cobrar</button>
+                <button onclick="filterOrders('done')" id="filter-done" class="filter-btn" style="width: auto; padding: 8px 14px; font-size: 12px; margin: 0; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981;">✅ Listos</button>
+            </div>
+
+            <button onclick="shareOrdersList()" style="background: rgba(37, 211, 102, 0.2); border: 1px solid rgba(37, 211, 102, 0.5); color: #25D366; padding: 10px; margin-bottom: 16px;">
+                📱 Compartir Lista por WhatsApp
+            </button>
+
+            <div id="ordersList"></div>
+        </div>
+
+        <!-- CALCULATOR -->
+        <div id="calc" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>💱 Calculadora USD/CLP + Tax</h2>
+            
+            <div style="background: rgba(78, 205, 196, 0.08); border: 1px solid rgba(78, 205, 196, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h3 style="margin: 0;">📊 Tasa Actual</h3>
+                    <button onclick="updateExchangeRate()" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;">🔄 Actualizar</button>
+                </div>
+                <p style="font-size: 22px; font-weight: 800; color: #4ECDC4;">
+                    1 USD = <span id="currentRate">--</span> CLP
+                </p>
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 4px;">
+                    Última actualización: <span id="rateUpdated">--</span>
+                </p>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.04); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3>💰 Calcular Precio Final</h3>
+                
+                <label style="font-size: 12px; color: #94a3b8;">Precio en USD (sin tax):</label>
+                <input type="number" id="calcPrice" placeholder="0.00" step="0.01" oninput="calculateTax()">
+                
+                <label style="font-size: 12px; color: #94a3b8;">Ciudad / Estado:</label>
+                <select id="calcCity" onchange="calculateTax()">
+                    <option value="6">Washington DC (6%)</option>
+                    <option value="6">Maryland (6%)</option>
+                    <option value="6">Filadelfia, PA (6%)</option>
+                    <option value="8.875">Nueva York City (8.875%)</option>
+                    <option value="6.25">Boston, MA (6.25%)</option>
+                    <option value="0">Sin tax (0%)</option>
+                    <option value="custom">Otro % (custom)</option>
+                </select>
+
+                <div id="customTaxDiv" style="display: none;">
+                    <label style="font-size: 12px; color: #94a3b8;">Tax custom (%):</label>
+                    <input type="number" id="customTax" placeholder="Ej: 7.5" step="0.01" oninput="calculateTax()">
+                </div>
+            </div>
+
+            <div id="calcResult" style="background: linear-gradient(135deg, rgba(78, 205, 196, 0.15), rgba(255, 215, 0, 0.1)); border: 1px solid rgba(78, 205, 196, 0.4); padding: 20px; border-radius: 10px;">
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                    <p style="font-size: 12px; color: #94a3b8;">Precio base USD</p>
+                    <p style="font-size: 18px; color: white;">$<span id="resBase">0.00</span></p>
+                </div>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                    <p style="font-size: 12px; color: #94a3b8;">+ Tax (<span id="resTaxPercent">0</span>%)</p>
+                    <p style="font-size: 16px; color: #FF6B6B;">$<span id="resTax">0.00</span></p>
+                </div>
+                <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                    <p style="font-size: 12px; color: #94a3b8;">Total USD</p>
+                    <p style="font-size: 22px; font-weight: 700; color: #FFD700;">$<span id="resTotalUSD">0.00</span></p>
+                </div>
+                <div>
+                    <p style="font-size: 12px; color: #94a3b8;">Total CLP 🇨🇱</p>
+                    <p style="font-size: 26px; font-weight: 800; color: #4ECDC4;">$<span id="resTotalCLP">0</span></p>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; padding: 12px; background: rgba(255, 215, 0, 0.05); border-left: 3px solid #FFD700; border-radius: 6px; font-size: 12px; color: #cbd5e1;">
+                💡 <strong>Tip:</strong> Si no actualiza la tasa automáticamente, puedes editarla manualmente abajo:<br>
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                    <input type="number" id="manualRate" placeholder="Ej: 950" style="margin-bottom: 0;" step="0.01">
+                    <button onclick="setManualRate()" style="width: auto; padding: 8px 12px; margin: 0;">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTES -->
+        <div id="notes" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>📝 Notas e Incidentes</h2>
+            
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar nota con IA →
+            </button>
+
+            <div id="notesList"></div>
+        </div>
+
+        <!-- TIPS -->
+        <div id="tips" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>💡 Tips por Ciudad</h2>
+            <h3>Selecciona ciudad:</h3>
+            <div id="citiesForTips" style="margin-bottom: 16px;"></div>
+            <div id="tipsList"></div>
+        </div>
+
+        <!-- AI ASSISTANT (CHAT) -->
+        <div id="aiassistant" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🤖 Asistente IA</h2>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Habla con la IA. Si falta info, te pregunta. Cuando esté completo, lo agrega.</p>
+            
+            <div style="background: rgba(255, 215, 0, 0.06); border: 1px solid rgba(255, 215, 0, 0.2); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                <p style="font-size: 11px; color: #FFD700; margin-bottom: 4px;">💡 PUEDES DECIR:</p>
+                <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+                    • "Regalo Alejandro" → te pregunta qué y cuánto<br>
+                    • "Gasté 30 dólares en almuerzo NYC"<br>
+                    • "Encargo Pedro tenis Nike 42"<br>
+                    • 📸 Foto de cartel "Welcome to..." → ciudad visitada<br>
+                    • 📸 Foto de boleta → gasto automático<br>
+                    • Tip: usa el dictado del teclado iPhone 🎙️
+                </div>
+            </div>
+
+            <!-- CHAT MESSAGES -->
+            <div id="chatMessages" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px; min-height: 200px; max-height: 400px; overflow-y: auto; margin-bottom: 12px; font-size: 13px;">
+                <div style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px 0;">
+                    💬 Empieza escribiendo algo...
+                </div>
+            </div>
+
+            <!-- INPUT AREA -->
+            <textarea id="aiInput" placeholder="Escribe o usa el dictado del teclado iPhone (🎙️)..." rows="3" style="margin-bottom: 8px;"></textarea>
+            
+            <button onclick="document.getElementById('aiImage').click()" style="background: rgba(168, 85, 247, 0.2); border: 1px solid #a855f7; color: #a855f7; margin: 0; padding: 10px; font-size: 13px; margin-bottom: 8px;">
+                📸 Adjuntar foto
+            </button>
+            
+            <input type="file" id="aiImage" accept="image/*" style="display: none;">
+            <img id="aiImagePreview" style="display: none; max-width: 100%; max-height: 100px; border-radius: 6px; margin-bottom: 8px;">
+            
+            <button onclick="sendChatMessage()" id="aiProcessBtn" style="background: linear-gradient(135deg, #FFD700 0%, #4ECDC4 100%); color: #1a1a2e; font-weight: 700;">
+                ➤ Enviar
+            </button>
+            
+            <button onclick="clearChat()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 11px; padding: 6px; margin-top: 8px;">
+                🗑️ Reiniciar conversación
+            </button>
+        </div>
+
+        <!-- NEARBY (GPS) -->
+        <div id="nearby" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🗺️ Cerca de Nosotros</h2>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Recomendaciones según su ubicación actual</p>
+            
+            <div style="margin-bottom: 16px;">
+                <p style="font-size: 12px; color: #FFD700; margin-bottom: 8px;">¿Qué buscas?</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <button onclick="findNearby('restaurantes')" style="margin: 0; padding: 12px; background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #f97316;">🍽️ Restaurantes</button>
+                    <button onclick="findNearby('atracciones')" style="margin: 0; padding: 12px; background: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; color: #FFD700;">🎭 Atracciones</button>
+                    <button onclick="findNearby('cafeterias')" style="margin: 0; padding: 12px; background: rgba(168, 85, 247, 0.15); border: 1px solid #a855f7; color: #a855f7;">☕ Cafeterías</button>
+                    <button onclick="findNearby('compras')" style="margin: 0; padding: 12px; background: rgba(78, 205, 196, 0.15); border: 1px solid #4ECDC4; color: #4ECDC4;">🛍️ Compras</button>
+                </div>
+                <input type="text" id="nearbyCustom" placeholder="O escribe lo que buscas (ej: pizza barata, museos)...">
+                <button onclick="findNearbyCustom()" style="margin-top: 0;">🔍 Buscar</button>
+            </div>
+
+            <div id="nearbyLoading" style="display: none;" class="loading">
+                <span class="spinner"></span> <span id="nearbyLoadingText">Obteniendo ubicación...</span>
+            </div>
+
+            <div id="nearbyResult" style="display: none; padding: 16px; background: rgba(78, 205, 196, 0.08); border-radius: 8px; margin-top: 16px;"></div>
+        </div>
+
+        <!-- ASK ME (MEMORIA) -->
+        <div id="askme" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🧠 Pregúntame</h2>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">La IA conoce TODOS tus datos del viaje. Pregúntale lo que quieras.</p>
+            
+            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); padding: 14px; border-radius: 8px; margin-bottom: 16px;">
+                <p style="font-size: 12px; color: #a855f7; margin-bottom: 6px;">💡 EJEMPLOS:</p>
+                <div style="font-size: 12px; color: #cbd5e1; line-height: 1.7;">
+                    • "¿Dónde comí la hamburguesa más rica?"<br>
+                    • "¿Cuánto he gastado en transporte?"<br>
+                    • "¿Qué regalos me faltan comprar?"<br>
+                    • "¿Cuál fue mi día más caro?"<br>
+                    • "Hazme un resumen del viaje"
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <textarea id="askInput" placeholder="¿Qué quieres saber?" rows="3"></textarea>
+                <button onclick="askAI()" style="background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);">
+                    🧠 Preguntar
+                </button>
+            </div>
+
+            <div id="askLoading" style="display: none;" class="loading">
+                <span class="spinner"></span> Pensando...
+            </div>
+
+            <div id="askResult" style="display: none; padding: 16px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; margin-top: 16px; white-space: pre-line; line-height: 1.6;"></div>
+
+            <div id="askHistory" style="margin-top: 24px;"></div>
+        </div>
+
+        <!-- CIUDADES VISITADAS -->
+        <div id="citiesVisited" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🏙️ Ciudades Visitadas</h2>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">Las ciudades por donde han pasado</p>
+            
+            <!-- MAPA -->
+            <div id="mapContainer" style="margin-bottom: 16px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(168, 85, 247, 0.3); display: none;">
+                <div id="travelMap" style="width: 100%; height: 280px;"></div>
+            </div>
+
+            <button onclick="goToTab('aiassistant')" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(78, 205, 196, 0.15) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: #FFD700; font-size: 12px; padding: 10px; margin-bottom: 16px;">
+                🤖 Agregar ciudad (o foto de cartel) →
+            </button>
+
+            <div id="citiesVisitedList"></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="settings" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>⚙️ Configuración</h2>
+            
+            <div style="background: rgba(78, 205, 196, 0.08); border: 1px solid rgba(78, 205, 196, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                <h3>🔑 API Key de Anthropic</h3>
+                <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">Para OCR de recibos con IA</p>
+                
+                <div id="apiStatusDisplay" style="padding: 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="apiStatusText">🔴 No configurada</span>
+                    <button onclick="resetAPIKey()" style="width: auto; padding: 6px 12px; font-size: 12px; margin: 0;">Cambiar</button>
+                </div>
+
+                <input type="password" id="apiKeyInput" placeholder="Pega tu API key aquí" style="display: none;">
+                <button id="saveApiBtn" onclick="saveAPIKey()" style="display: none;">Guardar</button>
+                
+                <small style="color: #94a3b8; display: block; margin-top: 8px;">
+                    ✅ Se guarda solo en tu navegador<br>
+                    ✅ No se envía a servidores externos
+                </small>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.04); padding: 16px; border-radius: 8px;">
+                <h3>📍 Ciudades del Viaje</h3>
+                <div class="add-city-form">
+                    <input type="text" id="newCityInput" placeholder="Nueva ciudad...">
+                    <button onclick="addCity()">+</button>
+                </div>
+                <div id="citiesList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
+
+            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                <h3>🧠 Modelo de IA</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">Elige según tu plan:</p>
+                
+                <select id="modelSelect" style="margin-bottom: 8px;">
+                    <option value="claude-haiku-4-5-20251001">⚡ Haiku 4.5 - Más barato (5x menos costo)</option>
+                    <option value="claude-sonnet-4-6">🧠 Sonnet 4.6 - Mejor calidad</option>
+                </select>
+                <button onclick="saveModel()" style="background: #a855f7; color: white;">Guardar Modelo</button>
+                
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
+                    💡 Si te dio "quota exceeded", cambia a Haiku
+                </p>
+                <p id="currentModel" style="font-size: 11px; color: #FFD700; margin-top: 6px;"></p>
+            </div>
+
+            <div style="background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                <h3>💵 Presupuesto del Viaje</h3>
+                <p style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">Total disponible para gastos comunes (Javier + Camila)</p>
+                
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 18px; color: #4ade80;">$</span>
+                    <input type="number" id="budgetInput" placeholder="Ej: 3000" step="100" style="margin-bottom: 0;">
+                    <span style="font-size: 12px; color: #94a3b8;">USD</span>
+                </div>
+                <button onclick="saveBudget()" style="background: #4ade80; color: #1a1a2e; font-weight: 700;">Guardar</button>
+                
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 10px;">
+                    💡 Si lo dejas en 0 o vacío, se desactiva
+                </p>
+            </div>
+
+            <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); padding: 16px; border-radius: 8px; margin-top: 24px;">
+                <h3>💾 Backup de Datos</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+                    Guarda una copia de todos tus datos (gastos, comidas, regalos, encargos, notas).
+                </p>
+                <button onclick="downloadBackup()" style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #1a1a2e; font-weight: 700;">⬇️ Descargar Backup</button>
+                
+                <div style="margin-top: 12px;">
+                    <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">📥 Restaurar desde backup:</p>
+                    <input type="file" id="backupFile" accept=".json" onchange="restoreBackup()" style="font-size: 12px; padding: 8px; background: rgba(71, 85, 105, 0.3); border: 1px dashed rgba(78, 205, 196, 0.4); cursor: pointer;">
+                </div>
+                
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 12px;">
+                    💡 Recomendado: Descarga backup cada 2-3 días y guárdalo en iCloud/Drive
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+        let restaurants = JSON.parse(localStorage.getItem('restaurants')) || [];
+        let gifts = JSON.parse(localStorage.getItem('gifts')) || [];
+        let orders = JSON.parse(localStorage.getItem('orders')) || [];
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+        let citiesVisited = JSON.parse(localStorage.getItem('citiesVisited')) || [];
+        let flightOverrides = JSON.parse(localStorage.getItem('flightOverrides')) || {};
+        let cities = JSON.parse(localStorage.getItem('cities')) || ['Washington DC', 'Maryland', 'Filadelfia', 'Nueva York', 'Boston'];
+        let apiKey = localStorage.getItem('apiKey') || '';
+        let selectedModel = localStorage.getItem('selectedModel') || 'claude-haiku-4-5-20251001';
+        let budgetTotal = parseFloat(localStorage.getItem('budgetTotal')) || 0;
+        let exchangeRate = parseFloat(localStorage.getItem('exchangeRate')) || 900;
+        let rateUpdated = localStorage.getItem('rateUpdated') || 'Aún no actualizado';
+
+        const searchableData = [
+            // VUELOS - Tramo 1
+            { keywords: ['vuelo', 'avion', 'flight', 'santiago', 'panama', 'copa', 'ida', 'cm277'], type: '✈️ Vuelo Ida 1', title: 'Santiago → Panamá', details: `🛫 Vuelo: Copa Airlines CM277
+📅 Fecha: 15 mayo 2026 (HOY)
+⏰ Salida: 11:17 AM (SCL)
+⏰ Llegada: 5:11 PM (PTY)
+⏱️ Duración: 5h 35m
+✈️ Terminal: 2 (Santiago)
+🚪 Puerta cierra: 11:07 AM
+👥 Grupo: 2
+💺 Asiento Javier: 06B
+💺 Asiento Camila: 06A
+🎫 Aerolínea: Copa Airlines` },
+
+            // VUELOS - Tramo 2
+            { keywords: ['vuelo', 'avion', 'flight', 'panama', 'washington', 'dulles', 'cm444', 'ida'], type: '✈️ Vuelo Ida 2', title: 'Panamá → Washington', details: `🛫 Vuelo: Copa Airlines CM444
+📅 Fecha: 15 mayo 2026 (HOY)
+⏰ Salida: tarde noche (PTY)
+⏰ Llegada: Washington Dulles (IAD)
+💺 Asiento Javier: 06E
+💺 Asiento Camila: 06F
+🎫 Aerolínea: Copa Airlines
+🏛️ Aeropuerto: Dulles International (IAD)` },
+
+            // VUELO VUELTA (29 mayo)
+            { keywords: ['vuelo', 'regreso', 'vuelta', 'washington', 'santiago', 'cm277', 'cm444'], type: '✈️ Vuelo Vuelta', title: 'Washington → Panamá → Santiago', details: `🛫 VUELTA - 2 tramos
+📅 Fecha: Viernes 29 mayo 2026
+
+✈️ TRAMO 1 - Copa CM444:
+⏰ Washington IAD: 4:38 PM
+⏰ Panamá PTY: 8:35 PM
+⏱️ Duración: 4h 57m
+
+⏸️ Escala 1h 0m en Panamá
+
+✈️ TRAMO 2 - Copa CM277:
+⏰ Panamá PTY: 9:35 PM (vie 29)
+⏰ Santiago SCL: 5:10 AM (sáb 30)
+⏱️ Duración: 5h 35m
+🌙 Vuelo nocturno` },
+
+            // AUTO RENTAL COMPLETO
+            { keywords: ['auto', 'car', 'carro', 'rental', 'dollar', 'nissan', 'rogue', 'suv'], type: '🚗 Auto Rental', title: 'Nissan Rogue SUV - Dollar Rental', details: `🚙 Vehículo: Nissan Rogue SUV
+📋 Tipo: SUV - 5 plazas - Automático
+📍 Recogida: Washington Dulles Aeropuerto
+📍 Dirección: 23540 Autopilot Dr., Washington VA 20166
+📞 Teléfono: +1 866 434 2226
+🔢 Referencia: 760655112
+📅 Recogida: 15 mayo (al llegar)
+📅 Devolución: 29 mayo (14 días)
+🛣️ Millaje: ILIMITADO
+💵 Depósito: $273.98 - $684.96 USD
+💳 Pago: Tarjeta de crédito física (Visa/MasterCard con chip)
+
+🛡️ SEGUROS INCLUIDOS:
+✅ CDW sin franquicia (daños)
+✅ Robo sin franquicia
+✅ TPL (responsabilidad terceros)
+
+🚌 Bus cortesía: Dollar/Thrifty en parada 2D
+
+📄 REQUISITOS:
+- Pasaporte
+- Licencia de conducir física
+- Boleto de vuelta
+- Tarjeta de crédito con chip` },
+
+            // HOTEL NUEVA YORK COMPLETO
+            { keywords: ['hotel', 'nueva york', 'ny', 'hyatt', 'times square', 'nyc'], type: '🏨 Hotel Nueva York', title: 'Hyatt Place Times Square', details: `🏨 Hotel: Hyatt Place New York City - Times Square
+📍 Dirección: 350 West 39th St, Midtown West, NY 10018
+📞 Teléfono: +1 212 904 1811
+🗺️ GPS: N 40°45.358', W 73°59.622'
+🔢 Confirmación: 6460.394.251
+🔐 PIN: 9381
+
+📅 Check-in: 21 mayo (jueves) desde 15:00
+📅 Check-out: 23 mayo (sábado) hasta 11:00
+🌙 Noches: 2
+👥 Huéspedes: 2 adultos
+🛏️ Habitación: Estándar cama extragrande
+
+💵 Precio total: USD 542.68
+☕ INCLUYE DESAYUNO
+💵 Depósito daños: USD 100 al llegar
+↩️ Devolución depósito: 7 días post checkout
+
+🅿️ Parking cercano: $60/día (no incluido)
+
+⚠️ CANCELACIÓN:
+✅ Gratuita hasta 23:59 del 18 mayo
+⚠️ Desde 19 mayo: reembolso parcial $267.84` },
+
+            // ALOJAMIENTO MARYLAND
+            { keywords: ['hotel', 'casa', 'maryland', 'laurel', 'tia', 'camila', 'marianely'], type: '🏠 Alojamiento Maryland', title: 'Casa de Tía Camila - Maryland', details: `🏠 Tipo: Casa familiar
+📍 Dirección: 14203 Crumlin Ct, Laurel, Maryland
+👤 Contacto: Marianely Johnson (tía de Camila)
+📞 Teléfono: +1 301 806 8918
+
+🗓️ Estadía: 15 mayo en adelante (base del viaje)
+🚗 Distancia a DC: ~40 minutos
+🚗 Distancia a NYC: ~4 horas
+
+💡 Ideal como base para visitar Washington DC y Filadelfia` },
+
+            // SEGUROS COMPLETOS
+            { keywords: ['seguro', 'assist', 'insurance', 'medical', 'emergencia', '365', 'world cover'], type: '🏥 Seguros de Viaje', title: 'ASSIST 365 - WORLD COVER', details: `🏥 Proveedor: ASSIST 365 - WORLD COVER
+📅 Vigencia: 15-05-2026 a 30-05-2026
+🌍 Cobertura: Norteamérica
+🇨🇱 País residencia: Chile (no cubre)
+
+📞 EMERGENCIAS 24/7:
+- Tel principal: +1 (863) 204-5126
+- Tel alternativo: +1-800-456-5870
+- Email: assistance@wtabyhas.com
+
+🎫 VOUCHERS:
+- Javier Benoit: 365CLWTE14D61
+  Doc/Pasaporte: 160194014
+- Camila Barrios: 365CLWTC8B4C6
+  Doc/Pasaporte: 17601007k
+
+💵 COBERTURAS PRINCIPALES:
+- Asistencia médica enfermedad: USD 50.000
+- Asistencia médica accidente: USD 50.000
+- Asistencia médica COVID-19: USD 50.000
+- Repatriación sanitaria: USD 50.000
+- Repatriación funeraria: USD 50.000
+- Pérdida equipaje: USD 500
+- Vuelo cancelado: USD 400
+- Demora equipaje: USD 400
+- Demora vuelo: USD 50
+- Med. ambulatorios: USD 200
+- Urgencia odontológica: USD 250
+- Preexistencias: USD 1.000
+
+✅ INCLUIDO:
+- Soporte emocional (telepsicología)
+- Médico online 24h
+- Días por internación (hasta 8)
+- Traslado familiar por hospitalización
+- Práctica recreativa deportes: USD 3.000
+- Sala VIP por demora de vuelo
+
+⚠️ IMPORTANTE:
+Reportar incidentes DENTRO de 24 horas` },
+
+            // PASAPORTES Y DOCUMENTOS
+            { keywords: ['pasaporte', 'passport', 'documento', 'esta', 'id', 'identificacion'], type: '📄 Documentos', title: 'Pasaportes y Documentos', details: `👤 JAVIER BENOIT:
+- Pasaporte Chile: vence 11 sept 2030
+- ID Chile: 160194014
+- Ciudadanía adicional: Francia
+- Nacimiento: 20 sept 1985
+
+👤 CAMILA BARRIOS ESQUIVEL:
+- Pasaporte: P10412399
+- ID: 17601007k
+- Nacimiento: 31 oct 1990
+- ESTA: APROBADA, vence 31 mar 2028
+
+⚠️ Lleva fotocopias y originales` },
+
+            // CONTACTO JAVIER
+            { keywords: ['contacto', 'telefono', 'javier', 'benoit', 'email'], type: '📞 Contacto Javier', title: 'Javier Benoit', details: `👤 Javier Benoit
+📞 Teléfono: +56 981394953
+📧 Email: jabenoitv@gmail.com
+🏠 Dirección Chile: La Riojana 384, Rancagua
+🏢 Empresa: Bombas Braun S.A.
+💼 Cargo: Gerente de Operaciones / Commercial Engineer
+🌍 Ciudadanía: Chilena + Francesa` },
+
+            // CONTACTO MARIANELY
+            { keywords: ['contacto', 'tia', 'marianely', 'maryland', 'johnson'], type: '📞 Contacto Maryland', title: 'Marianely Johnson (Tía Camila)', details: `👤 Marianely Johnson
+📞 Teléfono: +1 301 806 8918
+🏠 Dirección: 14203 Crumlin Ct, Laurel, Maryland
+👥 Relación: Tía de Camila
+🚗 Distancia a Washington DC: ~40 min` },
+
+            // ITINERARIO GENERAL
+            { keywords: ['itinerario', 'plan', 'cronograma', 'fechas'], type: '📅 Itinerario', title: 'Plan del Viaje', details: `📅 15 mayo (HOY): Vuelo Santiago → Washington (vía Panamá)
+🏠 15 mayo en adelante: Base en Maryland (casa tía Camila)
+🏛️ Días iniciales: Explorar Washington DC (40 min)
+🚗 Lunes o martes: Viaje a Filadelfia
+🗽 21-23 mayo (?): Nueva York (Hyatt Times Square)
+🦞 Pendiente: Boston (fechas y hotel a confirmar)
+✈️ 29 mayo: Devolución auto + Vuelo vuelta` },
+
+            // VIAJEROS
+            { keywords: ['viajero', 'persona', 'javier', 'cami', 'camila'], type: '👥 Viajeros', title: 'Información Viajeros', details: `👨 JAVIER BENOIT
+- Nacimiento: 20 sept 1985
+- Pasaporte CHL: vence 11 sept 2030
+- Ciudadanía: Chilena + Francesa
+- Email: jabenoitv@gmail.com
+- Tel: +56 981394953
+
+👩 CAMILA BARRIOS ESQUIVEL
+- Nacimiento: 31 oct 1990
+- Pasaporte: P10412399
+- ESTA: vence 31 mar 2028` },
+        ];
+
+        const flightsData = [
+            { 
+                id: 'flight1',
+                icon: '✈️', date: '15 mayo', time: '11:17 AM', 
+                from: 'Santiago (SCL)', to: 'Panamá (PTY)', 
+                flight: 'Copa CM277', duration: '5h 35m',
+                details: `🛫 Vuelo: Copa Airlines CM277
+📅 Fecha: 15 mayo 2026 (HOY)
+⏰ Salida: 11:17 AM (SCL)
+⏰ Llegada: 5:11 PM (PTY)
+⏱️ Duración: 5h 35m
+✈️ Terminal: 2 (Santiago)
+🚪 Puerta cierra: 11:07 AM
+👥 Grupo: 2
+💺 Asiento Javier: 06B
+💺 Asiento Camila: 06A`
+            },
+            { 
+                id: 'flight2',
+                icon: '✈️', date: '15 mayo', time: 'tarde', 
+                from: 'Panamá (PTY)', to: 'Washington (IAD)', 
+                flight: 'Copa CM444', duration: '4h 57m',
+                details: `🛫 Vuelo: Copa Airlines CM444
+📅 Fecha: 15 mayo 2026 (HOY)
+⏰ Salida: tarde (PTY)
+⏰ Llegada: Washington Dulles (IAD)
+💺 Asiento Javier: 06E
+💺 Asiento Camila: 06F
+🏛️ Aeropuerto: Dulles International (IAD)`
+            },
+            { 
+                id: 'flightReturn1',
+                icon: '✈️', date: 'Vie 29 may', time: '4:38 PM', 
+                from: 'Washington (IAD)', to: 'Panamá (PTY)', 
+                flight: 'Copa CM444', duration: '4h 57m',
+                details: `🛫 VUELTA - Tramo 1: Copa CM444
+📅 Fecha: Viernes 29 mayo 2026
+
+⏰ Salida: 4:38 PM (IAD)
+⏰ Llegada: 8:35 PM (PTY)
+⏱️ Duración: 4h 57m
+🏛️ Origen: Washington Dulles (IAD)
+🏛️ Destino: Tocumen Panamá (PTY)
+
+⏸️ Después: Escala 1h 0m en Panamá`
+            },
+            { 
+                id: 'flightReturn2',
+                icon: '✈️', date: 'Vie 29 may', time: '9:35 PM', 
+                from: 'Panamá (PTY)', to: 'Santiago (SCL)', 
+                flight: 'Copa CM277', duration: '5h 35m',
+                details: `🛫 VUELTA - Tramo 2: Copa CM277
+📅 Salida: Viernes 29 mayo 2026
+📅 Llegada: Sábado 30 mayo 2026
+
+⏰ Salida: 9:35 PM (PTY)
+⏰ Llegada: 5:10 AM (SCL)
+⏱️ Duración: 5h 35m
+🌙 Vuelo nocturno
+
+🏛️ Origen: Tocumen Panamá (PTY)
+🏛️ Destino: Santiago de Chile (SCL)`
+            },
+            { 
+                id: 'hotelNY',
+                icon: '🏨', date: '21-23 mayo', time: '15:00', 
+                from: 'Hyatt Place', to: 'Times Square NY', 
+                flight: '$542.68', duration: '2 noches',
+                details: `🏨 Hotel: Hyatt Place New York City - Times Square
+📍 Dirección: 350 West 39th St, Midtown West, NY 10018
+📞 Teléfono: +1 212 904 1811
+🗺️ GPS: N 40°45.358', W 73°59.622'
+🔢 Confirmación: 6460.394.251
+🔐 PIN: 9381
+
+📅 Check-in: 21 mayo (jueves) desde 15:00
+📅 Check-out: 23 mayo (sábado) hasta 11:00
+🛏️ Habitación: Estándar cama extragrande
+👥 2 adultos, 2 noches
+
+💵 Precio total: USD 542.68
+☕ INCLUYE DESAYUNO
+💵 Depósito daños: USD 100 al llegar
+↩️ Devolución depósito: 7 días post checkout
+
+🅿️ Parking cercano: $60/día (no incluido)
+
+⚠️ CANCELACIÓN:
+✅ Gratuita hasta 23:59 del 18 mayo
+⚠️ Desde 19 mayo: reembolso parcial $267.84`
+            },
+            { 
+                id: 'autoRental',
+                icon: '🚗', date: '15 - 29 mayo', time: '15:00', 
+                from: 'Dollar Rental', to: 'Nissan Rogue SUV', 
+                flight: 'Ref: 760655112', duration: '14 días',
+                details: `🚙 Vehículo: Nissan Rogue SUV
+📋 Tipo: SUV - 5 plazas - Automático
+📍 Recogida: Washington Dulles Aeropuerto
+📍 Dirección: 23540 Autopilot Dr., Washington VA 20166
+📞 Teléfono: +1 866 434 2226
+🔢 Referencia: 760655112
+📅 Recogida: 15 mayo (al llegar)
+📅 Devolución: 29 mayo (14 días)
+🛣️ Millaje: ILIMITADO
+💵 Depósito: $273.98 - $684.96 USD
+💳 Pago: Tarjeta de crédito física con chip
+
+🛡️ SEGUROS INCLUIDOS:
+✅ CDW sin franquicia (daños)
+✅ Robo sin franquicia
+✅ TPL (responsabilidad terceros)
+
+🚌 Bus cortesía: Dollar/Thrifty en parada 2D
+
+📄 REQUISITOS:
+- Pasaporte
+- Licencia de conducir física
+- Boleto de vuelta
+- Tarjeta de crédito con chip`
+            },
+            { 
+                id: 'seguros',
+                icon: '🏥', date: '15-30 mayo', time: '', 
+                from: 'ASSIST 365', to: 'WORLD COVER', 
+                flight: 'Ambos viajeros', duration: 'Seguros médicos',
+                details: `🏥 Proveedor: ASSIST 365 - WORLD COVER
+📅 Vigencia: 15-05-2026 a 30-05-2026
+🌍 Cobertura: Norteamérica (no Chile)
+
+📞 EMERGENCIAS 24/7:
+- Tel principal: +1 (863) 204-5126
+- Tel alternativo: +1-800-456-5870
+- Email: assistance@wtabyhas.com
+
+🎫 VOUCHERS:
+👨 Javier Benoit: 365CLWTE14D61
+👩 Camila Barrios: 365CLWTC8B4C6
+
+💵 COBERTURAS:
+- Médica enfermedad/accidente: USD 50.000
+- Médica COVID-19: USD 50.000
+- Repatriación sanitaria: USD 50.000
+- Repatriación funeraria: USD 50.000
+- Pérdida equipaje: USD 500
+- Vuelo cancelado: USD 400
+- Demora equipaje: USD 400
+- Demora vuelo: USD 50
+- Medicamentos ambulatorios: USD 200
+- Urgencia odontológica: USD 250
+- Preexistencias: USD 1.000
+
+✅ INCLUIDO:
+- Médico online 24h
+- Soporte emocional
+- Días por internación (hasta 8)
+- Sala VIP por demora vuelo
+- Práctica recreativa deportes: USD 3.000
+
+⚠️ IMPORTANTE: Reportar incidentes DENTRO de 24h`
+            },
+        ];
+
+        const tipsByCity = {
+            'Washington DC': ['🏛️ Capitolio y Smithsonian (GRATIS)', '🌸 National Mall al atardecer', '🍽️ Chinatown - barato y bueno', '🚇 Metro mejor que Uber'],
+            'Maryland': ['🦀 Cangrejos de Chesapeake Bay', '🏞️ Solomons Island (playas)', '🎭 Laurel Mills Historic Site'],
+            'Filadelfia': ['🔔 Liberty Bell & Independence Hall', '🍕 Reading Terminal Market', '🎨 Murales (free tour)', '🏛️ Museo de Arte (donativo)'],
+            'Nueva York': ['🗽 Estatua Libertad (ferry Battery Park)', '🌃 Times Square día y noche', '🍔 Food carts económicos', '🚌 MetroCard para subway', '🎭 TKTS para teatro'],
+            'Boston': ['🧁 Freedom Trail (3.5 km)', '🦞 Marisco en Neptune Oyster', '🎓 Tour Harvard (gratis)', '🍺 Pubs en Beacon Hill'],
+        };
+
+        function switchTab(event, tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            
+            if (tab === 'dashboard') renderDashboard();
+            if (tab === 'summary') renderDashboard();
+            if (tab === 'flights') renderFlights();
+            if (tab === 'expenses') renderExpenses();
+            if (tab === 'restaurants') renderRestaurants();
+            if (tab === 'gifts') renderGifts();
+            if (tab === 'orders') renderOrders();
+            if (tab === 'calc') renderCalc();
+            if (tab === 'notes') renderNotes();
+            if (tab === 'tips') renderTips();
+            if (tab === 'citiesVisited') renderCitiesVisited();
+            if (tab === 'aiassistant') renderAIAssistant();
+            if (tab === 'nearby') { /* nada por defecto */ }
+            if (tab === 'askme') renderAskHistory();
+            if (tab === 'settings') renderSettings();
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function goToTab(tab) {
+            switchTab(null, tab);
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const resultsDiv = document.getElementById('searchResults');
+            const dashboardContent = document.getElementById('dashboardContent');
+            
+            if (!query) {
+                resultsDiv.innerHTML = '';
+                dashboardContent.style.display = 'block';
+                return;
+            }
+            
+            dashboardContent.style.display = 'none';
+            
+            const results = searchableData.filter(item => 
+                item.keywords.some(k => k.includes(query) || query.includes(k))
+            );
+            
+            const expenseResults = expenses.filter(e => 
+                (e.desc || '').toLowerCase().includes(query) || 
+                e.city.toLowerCase().includes(query) ||
+                e.category.toLowerCase().includes(query)
+            ).map(e => ({ type: '💰 Gasto', title: e.desc || e.category, details: `${e.city} | $${e.amount.toFixed(2)} | ${new Date(e.datetime).toLocaleDateString('es-ES')}` }));
+            
+            const restResults = restaurants.filter(r => 
+                r.name.toLowerCase().includes(query) || 
+                r.city.toLowerCase().includes(query) ||
+                (r.food || '').toLowerCase().includes(query)
+            ).map(r => ({ type: '🍽️ Restaurante', title: r.name, details: `${r.city} | ${r.food || ''} | ${'⭐'.repeat(r.rating)}` }));
+            
+            const giftResults = gifts.filter(g => 
+                g.person.toLowerCase().includes(query) || 
+                g.idea.toLowerCase().includes(query)
+            ).map(g => ({ type: '🎁 Regalo', title: `${g.idea} para ${g.person}`, details: `${g.bought ? '✅ Comprado' : '⏳ Pendiente'} | ${g.notes || ''}` }));
+            
+            const orderResults = orders.filter(o => 
+                o.person.toLowerCase().includes(query) || 
+                o.item.toLowerCase().includes(query)
+            ).map(o => {
+                const boughtStatus = o.bought ? '✅ Comprado' : '🛒 Por comprar';
+                const paidStatus = o.paid ? '✅ Me pagó' : '💸 Por cobrar';
+                return { 
+                    type: '📦 Encargo', 
+                    title: `${o.item} para ${o.person}`, 
+                    details: `${boughtStatus} | ${paidStatus}\n💵 Costo: $${o.costUSD} USD\n💰 Cobrar: $${o.chargeCLP.toLocaleString('es-CL')} CLP${o.notes ? '\n📝 ' + o.notes : ''}` 
+                };
+            });
+            
+            const noteResults = notes.filter(n => 
+                n.title.toLowerCase().includes(query) || 
+                n.content.toLowerCase().includes(query)
+            ).map(n => ({ type: '📝 Nota', title: n.title, details: n.content.substring(0, 100) }));
+            
+            const all = [...results, ...expenseResults, ...restResults, ...giftResults, ...orderResults, ...noteResults];
+            
+            if (all.length === 0) {
+                resultsDiv.innerHTML = '<div class="empty-state">Sin resultados para "' + query + '"</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = all.map(r => `
+                <div class="search-result">
+                    <h4>${r.type}: ${r.title}</h4>
+                    <p>${r.details}</p>
+                </div>
+            `).join('');
+        }
+
+        function addGift() {
+            const person = document.getElementById('giftPerson').value;
+            const idea = document.getElementById('giftIdea').value;
+            const budget = document.getElementById('giftBudget').value;
+            const priority = document.getElementById('giftPriority').value;
+            const giftNotes = document.getElementById('giftNotes').value;
+            if (!person || !idea) { alert('Completa al menos persona y regalo'); return; }
+            gifts.push({ id: Date.now(), person, idea, budget, priority, notes: giftNotes, bought: false });
+            localStorage.setItem('gifts', JSON.stringify(gifts));
+            document.getElementById('giftPerson').value = '';
+            document.getElementById('giftIdea').value = '';
+            document.getElementById('giftBudget').value = '';
+            document.getElementById('giftNotes').value = '';
+            renderGifts();
+            renderDashboard();
+        }
+
+        function toggleGift(id) {
+            const gift = gifts.find(g => g.id === id);
+            if (gift) {
+                gift.bought = !gift.bought;
+                localStorage.setItem('gifts', JSON.stringify(gifts));
+                renderGifts();
+                renderDashboard();
+            }
+        }
+
+        function deleteGift(id) {
+            gifts = gifts.filter(g => g.id !== id);
+            localStorage.setItem('gifts', JSON.stringify(gifts));
+            renderGifts();
+            renderDashboard();
+        }
+
+        function renderGifts() {
+            const pending = gifts.filter(g => !g.bought);
+            const bought = gifts.filter(g => g.bought);
+            
+            document.getElementById('giftsListPending').innerHTML = pending.length === 0 
+                ? '<div class="empty-state">Sin regalos pendientes</div>'
+                : pending.map(g => `
+                    <div class="item gift">
+                        <div class="item-info">
+                            <h4>${g.idea} para ${g.person}<span class="priority-tag ${g.priority}">${g.priority === 'high' ? 'ALTA' : g.priority === 'medium' ? 'MEDIA' : 'BAJA'}</span></h4>
+                            ${g.budget ? `<p>💰 Presupuesto: $${g.budget}</p>` : ''}
+                            ${g.notes ? `<p style="font-style: italic;">${g.notes}</p>` : ''}
+                            <span class="gift-status pending">PENDIENTE</span>
+                        </div>
+                        <div>
+                            <button class="check-btn" onclick="toggleGift(${g.id})">✓</button>
+                            <button class="delete-btn" onclick="deleteGift(${g.id})">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            
+            document.getElementById('giftsListBought').innerHTML = bought.length === 0
+                ? '<div class="empty-state">Aún no compraste</div>'
+                : bought.map(g => `
+                    <div class="item gift bought">
+                        <div class="item-info">
+                            <h4>✅ ${g.idea} para ${g.person}</h4>
+                            ${g.budget ? `<p>💰 $${g.budget}</p>` : ''}
+                            <span class="gift-status bought">COMPRADO</span>
+                        </div>
+                        <div>
+                            <button class="check-btn" onclick="toggleGift(${g.id})">↺</button>
+                            <button class="delete-btn" onclick="deleteGift(${g.id})">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function addNote() {
+            const type = document.getElementById('noteType').value;
+            const title = document.getElementById('noteTitle').value;
+            const content = document.getElementById('noteContent').value;
+            if (!title) { alert('Agrega un título'); return; }
+            notes.push({ id: Date.now(), type, title, content, date: new Date().toISOString() });
+            localStorage.setItem('notes', JSON.stringify(notes));
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteContent').value = '';
+            renderNotes();
+        }
+
+        function deleteNote(id) {
+            notes = notes.filter(n => n.id !== id);
+            localStorage.setItem('notes', JSON.stringify(notes));
+            renderNotes();
+        }
+
+        function renderNotes() {
+            const list = document.getElementById('notesList');
+            if (notes.length === 0) { list.innerHTML = '<div class="empty-state">Sin notas aún</div>'; return; }
+            const typeIcons = { note: '📝', incident: '⚠️', contact: '📞', reservation: '📅' };
+            const typeNames = { note: 'Nota', incident: 'Incidente', contact: 'Contacto', reservation: 'Reserva' };
+            list.innerHTML = notes.slice().reverse().map(n => `
+                <div class="item ${n.type}">
+                    <div class="item-info">
+                        <h4>${typeIcons[n.type]} ${n.title}</h4>
+                        <p>${typeNames[n.type]} • ${new Date(n.date).toLocaleString('es-ES')}</p>
+                        ${n.content ? `<p style="margin-top: 8px; color: #cbd5e1;">${n.content}</p>` : ''}
+                    </div>
+                    <button class="delete-btn" onclick="deleteNote(${n.id})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function processReceipt() {
+            const file = document.getElementById('receiptInput').files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const img = e.target.result;
+                document.getElementById('receiptPreview').src = img;
+                document.getElementById('receiptPreview').style.display = 'block';
+                document.getElementById('ocrLoading').style.display = 'block';
+
+                if (!apiKey) {
+                    alert('⚠️ Configura tu API Key en ⚙️');
+                    document.getElementById('ocrLoading').style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const base64 = img.split(',')[1];
+                    const response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+                        body: JSON.stringify({
+                            model: selectedModel,
+                            max_tokens: 300,
+                            messages: [{
+                                role: 'user',
+                                content: [
+                                    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+                                    { type: 'text', text: 'Extrae del recibo: monto total (solo número), descripción corta. Responde JSON: {"amount": X, "description": "Y"}' },
+                                ],
+                            }],
+                        }),
+                    });
+                    const data = await response.json();
+                    if (data.content && data.content[0].text) {
+                        const jsonStr = data.content[0].text.match(/\{.*\}/s)[0];
+                        const ocr = JSON.parse(jsonStr);
+                        document.getElementById('expenseAmount').value = ocr.amount || '';
+                        document.getElementById('expenseDesc').value = ocr.description || '';
+                        document.getElementById('expenseCategory').value = 'food';
+                        document.getElementById('expenseDateTime').value = new Date().toISOString().slice(0, 16);
+                        document.getElementById('ocrLoading').style.display = 'none';
+                    }
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                    document.getElementById('ocrLoading').style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function addExpense() {
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const category = document.getElementById('expenseCategory').value;
+            const city = document.getElementById('expenseCity').value;
+            const desc = document.getElementById('expenseDesc').value;
+            const datetime = document.getElementById('expenseDateTime').value;
+            if (!amount || !city) { alert('Completa monto y ciudad'); return; }
+            expenses.push({ id: Date.now(), amount, category, city, desc, datetime: datetime || new Date().toISOString() });
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            document.getElementById('expenseAmount').value = '';
+            document.getElementById('expenseDesc').value = '';
+            renderExpenses();
+            renderDashboard();
+        }
+
+        function deleteExpense(id) {
+            expenses = expenses.filter(e => e.id !== id);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            renderExpenses();
+            renderDashboard();
+        }
+
+        function renderExpenses() {
+            const list = document.getElementById('expensesList');
+            if (expenses.length === 0) { list.innerHTML = '<div class="empty-state">Sin gastos aún</div>'; return; }
+            list.innerHTML = expenses.slice().reverse().map(e => `
+                <div class="item">
+                    <div class="item-info">
+                        <h4>${e.desc || e.category}</h4>
+                        <p>${e.city} • ${new Date(e.datetime).toLocaleDateString('es-ES')}</p>
+                    </div>
+                    <div>
+                        <div class="item-value">$${e.amount.toFixed(2)}</div>
+                        <button class="delete-btn" onclick="deleteExpense(${e.id})">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addRestaurant() {
+            const name = document.getElementById('restName').value;
+            const city = document.getElementById('restCity').value;
+            const food = document.getElementById('restFood').value;
+            const cost = document.getElementById('restCost').value;
+            const rating = document.getElementById('restRating').value;
+            const mealType = document.getElementById('restMealType').value;
+            const restNotes = document.getElementById('restNotes').value;
+            if (!name || !city) { alert('Completa nombre y ciudad'); return; }
+            restaurants.push({ id: Date.now(), name, city, food, cost, rating, mealType, notes: restNotes });
+            localStorage.setItem('restaurants', JSON.stringify(restaurants));
+            document.getElementById('restName').value = '';
+            document.getElementById('restFood').value = '';
+            document.getElementById('restCost').value = '';
+            document.getElementById('restNotes').value = '';
+            renderRestaurants();
+            renderDashboard();
+        }
+
+        function deleteRestaurant(id) {
+            restaurants = restaurants.filter(r => r.id !== id);
+            localStorage.setItem('restaurants', JSON.stringify(restaurants));
+            renderRestaurants();
+            renderDashboard();
+        }
+
+        function renderRestaurants() {
+            const list = document.getElementById('restaurantsList');
+            if (restaurants.length === 0) { list.innerHTML = '<div class="empty-state">Sin restaurantes aún</div>'; return; }
+            list.innerHTML = restaurants.slice().reverse().map(r => `
+                <div class="item">
+                    <div class="item-info">
+                        <h4>${r.name}</h4>
+                        <p>${r.city} • ${r.food || ''}</p>
+                        <p>${'⭐'.repeat(r.rating)}</p>
+                    </div>
+                    <div>
+                        ${r.cost ? `<div class="item-value">$${r.cost}</div>` : ''}
+                        <button class="delete-btn" onclick="deleteRestaurant(${r.id})">✕</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderFlights() {
+            const list = document.getElementById('flightsList');
+            list.innerHTML = flightsData.map(f => {
+                const override = flightOverrides[f.id] || {};
+                let detailsWithOverrides = f.details;
+                
+                // Agregar overrides al detalle
+                if (Object.keys(override).length > 0) {
+                    detailsWithOverrides += '\n\n🆕 ACTUALIZACIONES:';
+                    if (override.asientoJavier) detailsWithOverrides += `\n💺 Asiento Javier (actualizado): ${override.asientoJavier}`;
+                    if (override.asientoCami) detailsWithOverrides += `\n💺 Asiento Camila (actualizada): ${override.asientoCami}`;
+                    if (override.gate) detailsWithOverrides += `\n🚪 Puerta: ${override.gate}`;
+                    if (override.otros) detailsWithOverrides += `\n📝 ${override.otros}`;
+                }
+                
+                return `
+                <div class="item" style="border-left-color: #FFD700; flex-direction: column; align-items: stretch; cursor: pointer;" onclick="toggleFlightDetails('${f.id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="item-info" style="flex: 1;">
+                            <h4>${f.icon} ${f.from} → ${f.to}${Object.keys(override).length > 0 ? ' <span style="font-size: 10px; color: #10b981;">✏️</span>' : ''}</h4>
+                            <p>${f.flight} | ${f.date} ${f.time}</p>
+                            <p>${f.duration}</p>
+                        </div>
+                        <span id="arrow-${f.id}" style="color: #FFD700; font-size: 18px; padding-left: 10px;">▼</span>
+                    </div>
+                    <div id="details-${f.id}" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); white-space: pre-line; font-size: 12px; color: #cbd5e1; line-height: 1.6;">${detailsWithOverrides}</div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        // Coordenadas de ciudades conocidas
+        const cityCoords = {
+            'washington dc': [38.9072, -77.0369],
+            'washington': [38.9072, -77.0369],
+            'maryland': [39.0993, -76.8483],
+            'laurel': [39.0993, -76.8483],
+            'filadelfia': [39.9526, -75.1652],
+            'philadelphia': [39.9526, -75.1652],
+            'nueva york': [40.7128, -74.0060],
+            'new york': [40.7128, -74.0060],
+            'ny': [40.7128, -74.0060],
+            'nyc': [40.7128, -74.0060],
+            'boston': [42.3601, -71.0589],
+            'santiago': [-33.4569, -70.6483],
+            'santiago de chile': [-33.4569, -70.6483],
+            'scl': [-33.4569, -70.6483],
+            'panama': [9.0078, -79.5189],
+            'panamá': [9.0078, -79.5189],
+            'pty': [9.0078, -79.5189],
+        };
+
+        let travelMapInstance = null;
+
+        function renderCitiesVisited() {
+            const list = document.getElementById('citiesVisitedList');
+            
+            // Renderizar mapa si hay ciudades visitadas
+            if (citiesVisited.length > 0) {
+                document.getElementById('mapContainer').style.display = 'block';
+                setTimeout(() => renderTravelMap(), 100);
+            } else {
+                document.getElementById('mapContainer').style.display = 'none';
+            }
+            
+            if (citiesVisited.length === 0) {
+                list.innerHTML = '<div class="empty-state">Sin ciudades visitadas aún 🏙️<br><small>Sube una foto de un cartel "Welcome to..." al Asistente IA</small></div>';
+                return;
+            }
+            
+            list.innerHTML = citiesVisited.slice().reverse().map(c => `
+                <div class="item" style="border-left-color: #a855f7; flex-direction: column; align-items: stretch;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="item-info" style="flex: 1;">
+                            <h4>🏙️ ${c.name}</h4>
+                            <p style="font-size: 11px;">📅 ${new Date(c.date).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                            ${c.notes ? `<p style="font-size: 12px; font-style: italic; margin-top: 4px;">${c.notes}</p>` : ''}
+                        </div>
+                        <button class="delete-btn" onclick="deleteCityVisited(${c.id})">✕</button>
+                    </div>
+                    ${c.photo ? `<img src="${c.photo}" style="max-width: 100%; max-height: 150px; border-radius: 6px; margin-top: 10px;">` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderTravelMap() {
+            if (!window.L) return; // Leaflet no cargado aún
+            
+            const mapDiv = document.getElementById('travelMap');
+            if (!mapDiv) return;
+            
+            // Destruir mapa anterior si existe
+            if (travelMapInstance) {
+                travelMapInstance.remove();
+                travelMapInstance = null;
+            }
+            
+            // Obtener coordenadas de ciudades visitadas
+            const points = [];
+            const markers = [];
+            
+            citiesVisited.forEach((c, idx) => {
+                const key = c.name.toLowerCase().trim();
+                let coords = cityCoords[key];
+                
+                // Buscar por keys parciales
+                if (!coords) {
+                    for (const [k, v] of Object.entries(cityCoords)) {
+                        if (key.includes(k) || k.includes(key)) {
+                            coords = v;
+                            break;
+                        }
+                    }
+                }
+                
+                if (coords) {
+                    points.push(coords);
+                    markers.push({
+                        coords,
+                        name: c.name,
+                        date: new Date(c.date).toLocaleDateString('es-CL'),
+                        order: idx + 1
+                    });
+                }
+            });
+            
+            if (points.length === 0) {
+                mapDiv.innerHTML = '<div style="padding: 30px; text-align: center; color: #94a3b8;">📍 No se reconocen las coordenadas de estas ciudades</div>';
+                return;
+            }
+            
+            // Crear mapa centrado en costa este USA
+            const map = L.map('travelMap', {
+                zoomControl: true,
+                attributionControl: false
+            }).setView([39.5, -75], 6);
+            
+            // Tema oscuro - usando Carto
+            L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+            }).addTo(map);
+            
+            // Agregar marcadores
+            markers.forEach((m, idx) => {
+                const isLast = idx === markers.length - 1;
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="background: ${isLast ? '#10b981' : '#a855f7'}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 0 10px ${isLast ? 'rgba(16,185,129,0.6)' : 'rgba(168,85,247,0.6)'}; border: 2px solid white;">${m.order}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                
+                L.marker(m.coords, { icon })
+                    .addTo(map)
+                    .bindPopup(`<strong>${m.name}</strong><br><small>${m.date}</small>${isLast ? '<br>📍 Estás aquí' : ''}`);
+            });
+            
+            // Conectar con línea
+            if (points.length > 1) {
+                L.polyline(points, {
+                    color: '#FFD700',
+                    weight: 3,
+                    opacity: 0.8,
+                    dashArray: '5, 10'
+                }).addTo(map);
+            }
+            
+            // Ajustar vista a todos los puntos
+            if (points.length > 1) {
+                map.fitBounds(points, { padding: [30, 30] });
+            } else {
+                map.setView(points[0], 8);
+            }
+            
+            travelMapInstance = map;
+        }
+
+        function deleteCityVisited(id) {
+            if (!confirm('¿Eliminar esta ciudad visitada?')) return;
+            citiesVisited = citiesVisited.filter(c => c.id !== id);
+            localStorage.setItem('citiesVisited', JSON.stringify(citiesVisited));
+            renderCitiesVisited();
+        }
+
+        function toggleFlightDetails(id) {
+            const details = document.getElementById('details-' + id);
+            const arrow = document.getElementById('arrow-' + id);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                arrow.textContent = '▲';
+            } else {
+                details.style.display = 'none';
+                arrow.textContent = '▼';
+            }
+        }
+
+        function renderDashboard() {
+            const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+            const pending = gifts.filter(g => !g.bought).length;
+            
+            const elTotal = document.getElementById('dashTotalExpenses');
+            const elRest = document.getElementById('dashRestCount');
+            const elGiftsPending = document.getElementById('dashGiftsPending');
+            const elExpenses = document.getElementById('dashExpenses');
+            const elGifts = document.getElementById('dashGifts');
+            
+            if (elTotal) elTotal.textContent = total.toFixed(0);
+            if (elRest) elRest.textContent = restaurants.length;
+            if (elGiftsPending) elGiftsPending.textContent = pending;
+
+            if (elExpenses) {
+                elExpenses.innerHTML = expenses.slice(-3).reverse().map(e => `
+                    <div class="quick-item">
+                        <span>${e.desc || e.category} (${e.city})</span>
+                        <span style="color: #4ade80;">$${e.amount.toFixed(2)}</span>
+                    </div>
+                `).join('') || '<p style="color: #94a3b8; font-size: 12px;">Sin gastos</p>';
+            }
+
+            if (elGifts) {
+                const pendingGifts = gifts.filter(g => !g.bought).slice(0, 3);
+                elGifts.innerHTML = pendingGifts.length === 0
+                    ? '<p style="color: #94a3b8; font-size: 12px;">Lista vacía</p>'
+                    : pendingGifts.map(g => `
+                        <div class="quick-item">
+                            <span>${g.idea} para ${g.person}</span>
+                            <span class="priority-tag ${g.priority}">${g.priority === 'high' ? '🔴' : g.priority === 'medium' ? '🟠' : '🟢'}</span>
+                        </div>
+                    `).join('');
+            }
+            
+            renderBudgetWidget();
+        }
+
+        function renderTips() {
+            document.getElementById('citiesForTips').innerHTML = cities.map(c => `
+                <button class="city-tag" onclick="showCityTips('${c}')">${c}</button>
+            `).join('');
+        }
+
+        function showCityTips(city) {
+            const tips = tipsByCity[city] || [];
+            document.getElementById('tipsList').innerHTML = tips.map(t => `<div class="tip-card">${t}</div>`).join('') || '<p style="color: #94a3b8;">Sin tips para esta ciudad</p>';
+        }
+
+        function renderSettings() {
+            updateCitiesList();
+            updateAPIStatus();
+            updateModelStatus();
+        }
+
+        function updateAPIStatus() {
+            if (apiKey) {
+                document.getElementById('apiStatusDisplay').style.background = 'rgba(16, 185, 129, 0.15)';
+                document.getElementById('apiStatusDisplay').style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                document.getElementById('apiStatusText').textContent = '✅ Configurada';
+                document.getElementById('apiKeyInput').style.display = 'none';
+                document.getElementById('saveApiBtn').style.display = 'none';
+            } else {
+                document.getElementById('apiStatusText').textContent = '🔴 No configurada';
+            }
+        }
+
+        function saveBudget() {
+            const val = parseFloat(document.getElementById('budgetInput').value);
+            if (isNaN(val) || val <= 0) {
+                budgetTotal = 0;
+                localStorage.removeItem('budgetTotal');
+                alert('💵 Presupuesto desactivado');
+            } else {
+                budgetTotal = val;
+                localStorage.setItem('budgetTotal', budgetTotal);
+                alert('✅ Presupuesto guardado: $' + val + ' USD');
+            }
+            document.getElementById('budgetInput').value = '';
+            renderDashboard();
+        }
+
+        function renderBudgetWidget() {
+            const widget = document.getElementById('budgetWidget');
+            const content = document.getElementById('budgetContent');
+            if (!widget || !content) return;
+            
+            if (budgetTotal <= 0) {
+                widget.style.display = 'none';
+                return;
+            }
+            
+            widget.style.display = 'block';
+            const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
+            const remaining = budgetTotal - totalSpent;
+            const percent = Math.min(100, (totalSpent / budgetTotal) * 100);
+            
+            let barColor, statusText, statusColor;
+            if (percent < 60) {
+                barColor = '#4ade80';
+                statusText = '👍 Vamos bien';
+                statusColor = '#4ade80';
+            } else if (percent < 85) {
+                barColor = '#f97316';
+                statusText = '⚠️ Cuidado';
+                statusColor = '#f97316';
+            } else if (percent < 100) {
+                barColor = '#ef4444';
+                statusText = '🔥 Casi al límite';
+                statusColor = '#ef4444';
+            } else {
+                barColor = '#ef4444';
+                statusText = '🚨 Pasaste el presupuesto';
+                statusColor = '#ef4444';
+            }
+            
+            content.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                    <div style="text-align: center;">
+                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Total</p>
+                        <p style="font-size: 16px; font-weight: 700; color: white;">$${budgetTotal.toFixed(0)}</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Gastado</p>
+                        <p style="font-size: 16px; font-weight: 700; color: #f97316;">$${totalSpent.toFixed(0)}</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="font-size: 10px; color: #94a3b8; text-transform: uppercase;">Queda</p>
+                        <p style="font-size: 16px; font-weight: 700; color: ${remaining >= 0 ? '#4ade80' : '#ef4444'};">$${remaining.toFixed(0)}</p>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(0,0,0,0.3); border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 8px;">
+                    <div style="background: ${barColor}; width: ${percent}%; height: 100%; transition: width 0.5s; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700;">
+                        ${percent > 15 ? percent.toFixed(0) + '%' : ''}
+                    </div>
+                </div>
+                
+                <p style="text-align: center; font-size: 13px; color: ${statusColor}; font-weight: 600;">${statusText}</p>
+                ${budgetTotal > 0 && expenses.length > 0 ? `<p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 6px;">≈ $${Math.round((totalSpent / Math.max(1, expenses.length))).toFixed(0)} USD por gasto promedio</p>` : ''}
+            `;
+        }
+
+        function saveModel() {
+            const model = document.getElementById('modelSelect').value;
+            selectedModel = model;
+            localStorage.setItem('selectedModel', model);
+            updateModelStatus();
+            alert('✅ Modelo guardado: ' + (model.includes('haiku') ? 'Haiku 4.5 (5x más barato)' : 'Sonnet 4.6'));
+        }
+
+        function updateModelStatus() {
+            const el = document.getElementById('currentModel');
+            if (el) {
+                const name = selectedModel.includes('haiku') ? '⚡ Haiku 4.5 (barato)' : '🧠 Sonnet 4.6';
+                el.textContent = 'Actual: ' + name;
+            }
+            const sel = document.getElementById('modelSelect');
+            if (sel) sel.value = selectedModel;
+        }
+
+        function saveAPIKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('apiKey', key);
+                apiKey = key;
+                document.getElementById('apiKeyInput').value = '';
+                updateAPIStatus();
+                alert('✅ Guardada');
+            }
+        }
+
+        function resetAPIKey() {
+            document.getElementById('apiKeyInput').style.display = 'block';
+            document.getElementById('saveApiBtn').style.display = 'block';
+            document.getElementById('apiKeyInput').focus();
+        }
+
+        function addCity() {
+            const newCity = document.getElementById('newCityInput').value.trim();
+            if (!newCity || cities.includes(newCity)) return;
+            cities.push(newCity);
+            localStorage.setItem('cities', JSON.stringify(cities));
+            document.getElementById('newCityInput').value = '';
+            updateCitiesList();
+            updateCitiesSelect();
+        }
+
+        function removeCity(city) {
+            cities = cities.filter(c => c !== city);
+            localStorage.setItem('cities', JSON.stringify(cities));
+            updateCitiesList();
+            updateCitiesSelect();
+        }
+
+        function updateCitiesList() {
+            document.getElementById('citiesList').innerHTML = cities.map(c => `
+                <div style="display: flex; align-items: center; gap: 6px; background: rgba(78, 205, 196, 0.15); padding: 6px 12px; border-radius: 20px; font-size: 12px;">
+                    <span>${c}</span>
+                    <button onclick="removeCity('${c}')" style="background: #ef4444; width: auto; padding: 2px 8px; font-size: 11px; margin: 0; border: none;">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function updateCitiesSelect() {
+            ['expenseCity', 'restCity'].forEach(id => {
+                const select = document.getElementById(id);
+                if (select) select.innerHTML = cities.map(c => `<option value="${c}">${c}</option>`).join('');
+            });
+        }
+
+        // BACKUP
+        function downloadBackup() {
+            const backup = {
+                version: '3.0',
+                exportDate: new Date().toISOString(),
+                data: {
+                    expenses,
+                    restaurants,
+                    gifts,
+                    orders,
+                    notes,
+                    cities,
+                    exchangeRate,
+                    rateUpdated,
+                    budgetTotal,
+                }
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Viaje_USA_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('✅ Backup descargado correctamente');
+        }
+
+        function restoreBackup() {
+            const file = document.getElementById('backupFile').files[0];
+            if (!file) return;
+            
+            if (!confirm('⚠️ Esto reemplazará tus datos actuales. ¿Continuar?')) {
+                document.getElementById('backupFile').value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const backup = JSON.parse(e.target.result);
+                    if (!backup.data) throw new Error('Archivo inválido');
+                    
+                    expenses = backup.data.expenses || [];
+                    restaurants = backup.data.restaurants || [];
+                    gifts = backup.data.gifts || [];
+                    orders = backup.data.orders || [];
+                    notes = backup.data.notes || [];
+                    cities = backup.data.cities || cities;
+                    exchangeRate = backup.data.exchangeRate || exchangeRate;
+                    rateUpdated = backup.data.rateUpdated || rateUpdated;
+                    budgetTotal = backup.data.budgetTotal || 0;
+                    
+                    localStorage.setItem('expenses', JSON.stringify(expenses));
+                    localStorage.setItem('restaurants', JSON.stringify(restaurants));
+                    localStorage.setItem('gifts', JSON.stringify(gifts));
+                    localStorage.setItem('orders', JSON.stringify(orders));
+                    localStorage.setItem('notes', JSON.stringify(notes));
+                    localStorage.setItem('cities', JSON.stringify(cities));
+                    localStorage.setItem('exchangeRate', exchangeRate);
+                    localStorage.setItem('rateUpdated', rateUpdated);
+                    if (budgetTotal > 0) localStorage.setItem('budgetTotal', budgetTotal);
+                    
+                    document.getElementById('backupFile').value = '';
+                    alert('✅ Datos restaurados correctamente. Recarga la página.');
+                    location.reload();
+                } catch (err) {
+                    alert('❌ Error al leer el backup: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ORDERS / ENCARGOS
+        let orderPhotoData = null;
+        let currentFilter = 'all';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const photoInput = document.getElementById('orderPhoto');
+            if (photoInput) {
+                photoInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            orderPhotoData = ev.target.result;
+                            const preview = document.getElementById('orderPhotoPreview');
+                            preview.src = orderPhotoData;
+                            preview.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+        });
+
+        function addOrder() {
+            const person = document.getElementById('orderPerson').value;
+            const item = document.getElementById('orderItem').value;
+            const costUSD = parseFloat(document.getElementById('orderCostUSD').value) || 0;
+            const chargeCLP = parseFloat(document.getElementById('orderChargeCLP').value) || 0;
+            const orderNotes = document.getElementById('orderNotes').value;
+            if (!person || !item) { alert('Completa persona y producto'); return; }
+            
+            orders.push({ 
+                id: Date.now(), 
+                person, 
+                item, 
+                costUSD, 
+                chargeCLP, 
+                bought: false,
+                paid: false,
+                photo: orderPhotoData,
+                notes: orderNotes 
+            });
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            document.getElementById('orderPerson').value = '';
+            document.getElementById('orderItem').value = '';
+            document.getElementById('orderCostUSD').value = '';
+            document.getElementById('orderChargeCLP').value = '';
+            document.getElementById('orderNotes').value = '';
+            document.getElementById('orderPhoto').value = '';
+            document.getElementById('orderPhotoPreview').style.display = 'none';
+            orderPhotoData = null;
+            
+            renderOrders();
+        }
+
+        function toggleOrderBought(id) {
+            const order = orders.find(o => o.id === id);
+            if (order) {
+                order.bought = !order.bought;
+                localStorage.setItem('orders', JSON.stringify(orders));
+                renderOrders();
+            }
+        }
+
+        function toggleOrderPaid(id) {
+            const order = orders.find(o => o.id === id);
+            if (order) {
+                order.paid = !order.paid;
+                localStorage.setItem('orders', JSON.stringify(orders));
+                renderOrders();
+            }
+        }
+
+        function deleteOrder(id) {
+            if (!confirm('¿Eliminar este encargo?')) return;
+            orders = orders.filter(o => o.id !== id);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            renderOrders();
+        }
+
+        function filterOrders(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('filter-' + filter).classList.add('active');
+            renderOrders();
+        }
+
+        function shareOrdersList() {
+            if (orders.length === 0) {
+                alert('Sin encargos para compartir');
+                return;
+            }
+            
+            let text = '📦 *MIS ENCARGOS - VIAJE USA*\n\n';
+            
+            const pending = orders.filter(o => !o.bought);
+            const bought = orders.filter(o => o.bought);
+            const owed = orders.filter(o => !o.paid);
+            const paid = orders.filter(o => o.paid);
+            
+            if (pending.length > 0) {
+                text += '🛒 *POR COMPRAR:*\n';
+                pending.forEach(o => {
+                    text += `• ${o.item} → ${o.person}`;
+                    if (o.costUSD) text += ` ($${o.costUSD} USD)`;
+                    if (o.notes) text += `\n  📝 ${o.notes}`;
+                    text += '\n';
+                });
+                text += '\n';
+            }
+            
+            if (bought.length > 0) {
+                text += '✅ *COMPRADO:*\n';
+                bought.forEach(o => {
+                    text += `• ${o.item} → ${o.person}\n`;
+                });
+                text += '\n';
+            }
+            
+            const totalOwed = owed.reduce((sum, o) => sum + o.chargeCLP, 0);
+            const totalPaid = paid.reduce((sum, o) => sum + o.chargeCLP, 0);
+            
+            text += `💰 *RESUMEN PAGOS:*\n`;
+            text += `Por cobrar: $${totalOwed.toLocaleString('es-CL')} CLP\n`;
+            text += `Ya cobrado: $${totalPaid.toLocaleString('es-CL')} CLP\n`;
+            
+            // Compartir via WhatsApp
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function renderOrders() {
+            const list = document.getElementById('ordersList');
+            const toBuy = orders.filter(o => !o.bought).length;
+            const owed = orders.filter(o => !o.paid).reduce((sum, o) => sum + o.chargeCLP, 0);
+            const paid = orders.filter(o => o.paid).reduce((sum, o) => sum + o.chargeCLP, 0);
+            
+            document.getElementById('countToBuy').textContent = toBuy;
+            document.getElementById('totalOwed').textContent = owed.toLocaleString('es-CL');
+            document.getElementById('totalPaid').textContent = paid.toLocaleString('es-CL');
+
+            if (orders.length === 0) { 
+                list.innerHTML = '<div class="empty-state">Sin encargos aún 📦<br><small>Agrega uno con el formulario de arriba</small></div>'; 
+                return; 
+            }
+            
+            // Aplicar filtro
+            let filtered = orders.slice();
+            if (currentFilter === 'toBuy') filtered = filtered.filter(o => !o.bought);
+            else if (currentFilter === 'toCharge') filtered = filtered.filter(o => !o.paid);
+            else if (currentFilter === 'done') filtered = filtered.filter(o => o.bought && o.paid);
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="empty-state">Sin encargos en esta categoría</div>';
+                return;
+            }
+            
+            list.innerHTML = filtered.reverse().map(o => {
+                const isComplete = o.bought && o.paid;
+                const borderColor = isComplete ? '#10b981' : 
+                                    o.bought && !o.paid ? '#FFD700' : 
+                                    !o.bought && o.paid ? '#f97316' :
+                                    '#a855f7';
+                
+                return `
+                <div class="item" style="border-left: 4px solid ${borderColor}; flex-direction: column; align-items: stretch; padding: 16px; background: ${isComplete ? 'rgba(16, 185, 129, 0.06)' : 'rgba(255, 255, 255, 0.04)'};">
+                    
+                    <!-- HEADER -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div style="flex: 1;">
+                            <h4 style="font-size: 16px; margin-bottom: 4px;">${isComplete ? '🎉 ' : '📦 '}${o.item}</h4>
+                            <p style="font-size: 13px; color: #FFD700;">Para: ${o.person}</p>
+                        </div>
+                        <button class="delete-btn" onclick="deleteOrder(${o.id})">✕</button>
+                    </div>
+                    
+                    ${o.photo ? `<img src="${o.photo}" style="max-width: 100%; max-height: 150px; border-radius: 6px; margin-bottom: 12px;">` : ''}
+                    
+                    <!-- DETALLES -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; font-size: 12px;">
+                        ${o.costUSD ? `<div style="padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+                            <div style="color: #94a3b8; font-size: 10px;">COSTO</div>
+                            <div style="color: #4ade80; font-weight: bold;">$${o.costUSD} USD</div>
+                        </div>` : '<div></div>'}
+                        ${o.chargeCLP ? `<div style="padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+                            <div style="color: #94a3b8; font-size: 10px;">A COBRAR</div>
+                            <div style="color: #FFD700; font-weight: bold;">$${o.chargeCLP.toLocaleString('es-CL')} CLP</div>
+                        </div>` : '<div></div>'}
+                    </div>
+                    
+                    ${o.notes ? `<p style="font-size: 12px; font-style: italic; color: #cbd5e1; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px; margin-bottom: 12px;">📝 ${o.notes}</p>` : ''}
+                    
+                    <!-- CHECKLIST -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">
+                        <label onclick="toggleOrderBought(${o.id})" style="display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; background: rgba(255,255,255,0.03); border-radius: 6px;">
+                            <span style="font-size: 22px; line-height: 1;">${o.bought ? '☑️' : '☐'}</span>
+                            <span style="font-size: 14px; ${o.bought ? 'text-decoration: line-through; color: #10b981;' : 'color: #f97316;'}">
+                                ${o.bought ? 'Comprado' : 'Por comprar'}
+                            </span>
+                        </label>
+                        <label onclick="toggleOrderPaid(${o.id})" style="display: flex; align-items: center; gap: 10px; padding: 8px; cursor: pointer; background: rgba(255,255,255,0.03); border-radius: 6px;">
+                            <span style="font-size: 22px; line-height: 1;">${o.paid ? '☑️' : '☐'}</span>
+                            <span style="font-size: 14px; ${o.paid ? 'text-decoration: line-through; color: #10b981;' : 'color: #FF6B6B;'}">
+                                ${o.paid ? 'Pagado' : 'Por cobrar'}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // CALCULATOR
+        async function updateExchangeRate() {
+            // Lista de APIs gratuitas con CORS - intenta cada una hasta que una funcione
+            const apis = [
+                {
+                    url: 'https://api.exchangerate-api.com/v4/latest/USD',
+                    parser: (data) => data.rates && data.rates.CLP
+                },
+                {
+                    url: 'https://open.er-api.com/v6/latest/USD',
+                    parser: (data) => data.rates && data.rates.CLP
+                },
+                {
+                    url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+                    parser: (data) => data.usd && data.usd.clp
+                }
+            ];
+            
+            let updated = false;
+            for (const api of apis) {
+                try {
+                    const response = await fetch(api.url);
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    const rate = api.parser(data);
+                    if (rate && rate > 0) {
+                        exchangeRate = rate;
+                        rateUpdated = new Date().toLocaleString('es-CL');
+                        localStorage.setItem('exchangeRate', exchangeRate);
+                        localStorage.setItem('rateUpdated', rateUpdated);
+                        renderCalc();
+                        updated = true;
+                        return true;
+                    }
+                } catch (err) {
+                    console.log('API falló:', api.url, err.message);
+                    continue;
+                }
+            }
+            
+            if (!updated) {
+                alert('⚠️ No se pudo conectar a ninguna API. Usa la tasa manual abajo.');
+                return false;
+            }
+        }
+
+        function setManualRate() {
+            const newRate = parseFloat(document.getElementById('manualRate').value);
+            if (newRate && newRate > 0) {
+                exchangeRate = newRate;
+                rateUpdated = new Date().toLocaleString('es-CL') + ' (manual)';
+                localStorage.setItem('exchangeRate', exchangeRate);
+                localStorage.setItem('rateUpdated', rateUpdated);
+                document.getElementById('manualRate').value = '';
+                renderCalc();
+                alert('✅ Tasa guardada manualmente');
+            }
+        }
+
+        function renderCalc() {
+            document.getElementById('currentRate').textContent = exchangeRate.toLocaleString('es-CL', {maximumFractionDigits: 2});
+            document.getElementById('rateUpdated').textContent = rateUpdated;
+            calculateTax();
+        }
+
+        function calculateTax() {
+            const price = parseFloat(document.getElementById('calcPrice').value) || 0;
+            const cityValue = document.getElementById('calcCity').value;
+            
+            const customDiv = document.getElementById('customTaxDiv');
+            let taxPercent;
+            
+            if (cityValue === 'custom') {
+                customDiv.style.display = 'block';
+                taxPercent = parseFloat(document.getElementById('customTax').value) || 0;
+            } else {
+                customDiv.style.display = 'none';
+                taxPercent = parseFloat(cityValue);
+            }
+            
+            const taxAmount = price * (taxPercent / 100);
+            const totalUSD = price + taxAmount;
+            const totalCLP = totalUSD * exchangeRate;
+            
+            document.getElementById('resBase').textContent = price.toFixed(2);
+            document.getElementById('resTaxPercent').textContent = taxPercent;
+            document.getElementById('resTax').textContent = taxAmount.toFixed(2);
+            document.getElementById('resTotalUSD').textContent = totalUSD.toFixed(2);
+            document.getElementById('resTotalCLP').textContent = Math.round(totalCLP).toLocaleString('es-CL');
+        }
+
+        // AI ASSISTANT - CHAT CONVERSACIONAL
+        let aiImageData = null;
+        let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];
+
+        function renderAIAssistant() {
+            renderChatMessages();
+            
+            // Setup image preview con compresión
+            const imgInput = document.getElementById('aiImage');
+            if (imgInput && !imgInput.dataset.listenerAttached) {
+                imgInput.dataset.listenerAttached = 'true';
+                imgInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        compressImage(file, (compressedDataUrl) => {
+                            aiImageData = compressedDataUrl;
+                            const preview = document.getElementById('aiImagePreview');
+                            preview.src = aiImageData;
+                            preview.style.display = 'block';
+                        });
+                    }
+                });
+            }
+        }
+
+        // OPTIMIZACIÓN: Comprimir imágenes para reducir tokens (de 3000 a ~800 tokens por imagen)
+        function compressImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 800; // 800px max - suficiente para OCR
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height = (height * MAX_SIZE) / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width = (width * MAX_SIZE) / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // JPEG calidad 0.7 (buen balance calidad/tamaño)
+                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                    callback(compressed);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('chatMessages');
+            if (!container) return;
+            
+            if (chatHistory.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #94a3b8; font-style: italic; padding: 20px 0;">💬 Empieza escribiendo algo...</div>`;
+                return;
+            }
+            
+            container.innerHTML = chatHistory.map(msg => {
+                if (msg.role === 'user') {
+                    return `
+                        <div style="display: flex; justify-content: flex-end; margin-bottom: 8px;">
+                            <div style="background: linear-gradient(135deg, #4ECDC4 0%, #44A8A0 100%); color: #1a1a2e; padding: 8px 12px; border-radius: 12px 12px 2px 12px; max-width: 80%; font-size: 13px; font-weight: 500;">
+                                ${msg.content}
+                                ${msg.image ? `<img src="${msg.image}" style="max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 6px;">` : ''}
+                            </div>
+                        </div>
+                    `;
+                } else if (msg.role === 'assistant') {
+                    return `
+                        <div style="display: flex; justify-content: flex-start; margin-bottom: 8px;">
+                            <div style="background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); color: #f5f5f5; padding: 8px 12px; border-radius: 12px 12px 12px 2px; max-width: 90%; font-size: 13px; white-space: pre-line; line-height: 1.5;">
+                                ${msg.content}
+                            </div>
+                        </div>
+                    `;
+                } else if (msg.role === 'preview') {
+                    return msg.content; // HTML del preview con botones
+                }
+            }).join('');
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearChat() {
+            if (!confirm('¿Reiniciar la conversación?')) return;
+            chatHistory = [];
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            aiImageData = null;
+            document.getElementById('aiImagePreview').style.display = 'none';
+            document.getElementById('aiInput').value = '';
+            renderChatMessages();
+        }
+
+        async function sendChatMessage() {
+            const text = document.getElementById('aiInput').value.trim();
+            if (!text && !aiImageData) {
+                alert('Escribe algo');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('⚠️ Configura tu API Key en ⚙️ Configuración');
+                return;
+            }
+
+            // Agregar mensaje del usuario al historial
+            chatHistory.push({
+                role: 'user',
+                content: text,
+                image: aiImageData
+            });
+            
+            const imgToSend = aiImageData;
+            document.getElementById('aiInput').value = '';
+            document.getElementById('aiImage').value = '';
+            document.getElementById('aiImagePreview').style.display = 'none';
+            aiImageData = null;
+            
+            // Agregar "pensando..."
+            chatHistory.push({
+                role: 'assistant',
+                content: '💭 Pensando...'
+            });
+            renderChatMessages();
+
+            const btn = document.getElementById('aiProcessBtn');
+            btn.disabled = true;
+
+            const systemPrompt = `Asistente de viaje (USA 15-29 mayo 2026). Detecta y devuelve SOLO JSON:
+
+TIPOS:
+- gift: {type:"gift", person, idea, budget, priority:"high|medium|low", notes}
+- order: {type:"order", person, item, costUSD, chargeCLP, notes}
+- expense: {type:"expense", amount, category:"food|transport|activity|hotel|other", city, desc}
+- note: {type:"note", noteType:"note|incident|contact|reservation", title, content}
+- city: {type:"city", name, notes, hayFoto:true}
+- flight_update: {type:"flight_update", flightId:"flight1|flight2|flightReturn1|flightReturn2", asientoJavier, asientoCami, gate, otros}
+
+Vuelos: flight1=SCL→PTY CM277, flight2=PTY→IAD CM444, flightReturn1=IAD→PTY CM444, flightReturn2=PTY→SCL CM277.
+Ciudades: Washington DC, Maryland, Filadelfia, Nueva York, Boston.
+
+REGLAS:
+- Si falta info crítica → pregunta breve (1 línea). Si no → SOLO JSON en \`\`\`json ... \`\`\`
+- MONEDA: app guarda en USD. Boletas CLP (Santiago, "$20.000" con punto) → divide entre 900. Si dudas, pregunta.
+- Fotos cartel "Welcome to..." → type:"city" automático.
+- Habla español, breve.`;
+
+            try {
+                // Construir mensajes de la API a partir del historial (excluir el "Pensando...")
+                // OPTIMIZACIÓN: Solo enviar últimos 4 mensajes para reducir tokens
+                const apiMessages = [];
+                const recentHistory = chatHistory.slice(0, -1).slice(-4);
+                
+                for (const msg of recentHistory) {
+                    if (msg.role === 'user') {
+                        const content = [];
+                        if (msg.image) {
+                            content.push({
+                                type: 'image',
+                                source: {
+                                    type: 'base64',
+                                    media_type: 'image/jpeg',
+                                    data: msg.image.split(',')[1]
+                                }
+                            });
+                        }
+                        content.push({ type: 'text', text: msg.content || 'Procesa esta imagen' });
+                        apiMessages.push({ role: 'user', content });
+                    } else if (msg.role === 'assistant' && msg.content !== '💭 Pensando...') {
+                        apiMessages.push({ role: 'assistant', content: msg.content });
+                    }
+                }
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        max_tokens: 512,
+                        system: systemPrompt,
+                        messages: apiMessages
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message || 'API error');
+                
+                let finalText = '';
+                if (data.content && Array.isArray(data.content)) {
+                    for (const block of data.content) {
+                        if (block.type === 'text') finalText += block.text;
+                    }
+                }
+
+                // Quitar el "Pensando..." del historial
+                chatHistory.pop();
+                
+                // Verificar si hay JSON (información completa)
+                const jsonMatch = finalText.match(/```json\s*(\{[\s\S]*?\})\s*```/) || finalText.match(/(\{[\s\S]*?\})/);
+                
+                if (jsonMatch) {
+                    try {
+                        const result = JSON.parse(jsonMatch[1]);
+                        if (result.type) {
+                            // Es un JSON válido - mostrar preview
+                            const previewHTML = generatePreviewHTML(result);
+                            chatHistory.push({
+                                role: 'preview',
+                                content: previewHTML,
+                                data: result
+                            });
+                            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                            renderChatMessages();
+                            btn.disabled = false;
+                            return;
+                        }
+                    } catch (e) {
+                        // No es JSON válido, tratar como mensaje normal
+                    }
+                }
+                
+                // Es una pregunta o mensaje normal
+                chatHistory.push({
+                    role: 'assistant',
+                    content: finalText.trim()
+                });
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                renderChatMessages();
+                
+            } catch (err) {
+                // Quitar "Pensando..."
+                chatHistory.pop();
+                chatHistory.push({
+                    role: 'assistant',
+                    content: '❌ Error: ' + err.message
+                });
+                renderChatMessages();
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function generatePreviewHTML(result) {
+            let summary = '';
+            
+            if (result.type === 'gift') {
+                summary = `<div style="background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">🎁 REGALO</p>
+                    <p style="font-size: 12px;">Para: <strong>${result.person || '?'}</strong></p>
+                    <p style="font-size: 12px;">Idea: <strong>${result.idea || '?'}</strong></p>
+                    ${result.budget ? `<p style="font-size: 12px;">Presupuesto: <strong>$${result.budget}</strong></p>` : ''}
+                    <p style="font-size: 12px;">Prioridad: <strong>${result.priority === 'high' ? '🔴' : result.priority === 'medium' ? '🟠' : '🟢'} ${result.priority}</strong></p>
+                    ${result.notes ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.notes}</p>` : ''}
+                </div>`;
+            } else if (result.type === 'order') {
+                summary = `<div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">📦 ENCARGO</p>
+                    <p style="font-size: 12px;">Para: <strong>${result.person || '?'}</strong></p>
+                    <p style="font-size: 12px;">Producto: <strong>${result.item || '?'}</strong></p>
+                    ${result.costUSD ? `<p style="font-size: 12px;">Costo: <strong>$${result.costUSD} USD</strong></p>` : ''}
+                    ${result.chargeCLP ? `<p style="font-size: 12px;">Cobrar: <strong>$${Number(result.chargeCLP).toLocaleString('es-CL')} CLP</strong></p>` : ''}
+                    ${result.notes ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.notes}</p>` : ''}
+                </div>`;
+            } else if (result.type === 'expense') {
+                summary = `<div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">💰 GASTO</p>
+                    <p style="font-size: 12px;">Monto: <strong>$${result.amount || 0} USD</strong></p>
+                    <p style="font-size: 12px;">Categoría: <strong>${result.category || 'other'}</strong></p>
+                    <p style="font-size: 12px;">Ciudad: <strong>${result.city || '?'}</strong></p>
+                    ${result.desc ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.desc}</p>` : ''}
+                </div>`;
+            } else if (result.type === 'note') {
+                summary = `<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">📝 NOTA</p>
+                    <p style="font-size: 12px;">Tipo: <strong>${result.noteType || 'note'}</strong></p>
+                    <p style="font-size: 12px;">Título: <strong>${result.title || '?'}</strong></p>
+                    ${result.content ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.content}</p>` : ''}
+                </div>`;
+            } else if (result.type === 'city') {
+                summary = `<div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">🏙️ CIUDAD VISITADA</p>
+                    <p style="font-size: 12px;">Ciudad: <strong>${result.name || '?'}</strong></p>
+                    <p style="font-size: 12px;">Fecha: <strong>${new Date().toLocaleDateString('es-CL')}</strong></p>
+                    ${result.notes ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.notes}</p>` : ''}
+                </div>`;
+            } else if (result.type === 'flight_update') {
+                const flightNames = {
+                    flight1: 'Ida 1 (SCL→PTY) CM277',
+                    flight2: 'Ida 2 (PTY→IAD) CM444',
+                    flightReturn1: 'Vuelta 1 (IAD→PTY) CM444',
+                    flightReturn2: 'Vuelta 2 (PTY→SCL) CM277'
+                };
+                summary = `<div style="background: rgba(255, 215, 0, 0.1); border: 1px solid rgba(255, 215, 0, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">✈️ ACTUALIZAR VUELO</p>
+                    <p style="font-size: 12px;">Vuelo: <strong>${flightNames[result.flightId] || result.flightId}</strong></p>
+                    ${result.asientoJavier ? `<p style="font-size: 12px;">Asiento Javier: <strong>${result.asientoJavier}</strong></p>` : ''}
+                    ${result.asientoCami ? `<p style="font-size: 12px;">Asiento Camila: <strong>${result.asientoCami}</strong></p>` : ''}
+                    ${result.gate ? `<p style="font-size: 12px;">Puerta: <strong>${result.gate}</strong></p>` : ''}
+                    ${result.otros ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.otros}</p>` : ''}
+                </div>`;
+            }
+            
+            const dataStr = encodeURIComponent(JSON.stringify(result));
+            
+            return `
+                <div style="display: flex; justify-content: flex-start; margin-bottom: 8px;">
+                    <div style="background: rgba(78, 205, 196, 0.1); border: 1px solid rgba(78, 205, 196, 0.4); padding: 12px; border-radius: 12px 12px 12px 2px; max-width: 95%; width: 100%;">
+                        <p style="color: #4ECDC4; font-weight: 700; font-size: 13px; margin-bottom: 4px;">✨ ¡Listo! Detecté esto:</p>
+                        ${summary}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                            <button onclick="confirmChatItem('${dataStr}')" style="margin: 0; padding: 8px; font-size: 12px; background: #10b981;">✅ Agregar</button>
+                            <button onclick="cancelChatItem()" style="margin: 0; padding: 8px; font-size: 12px; background: rgba(239, 68, 68, 0.3); border: 1px solid #ef4444; color: #ef4444;">❌ Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function confirmChatItem(dataStr) {
+            try {
+                const result = JSON.parse(decodeURIComponent(dataStr));
+                
+                if (result.type === 'gift') {
+                    gifts.push({
+                        id: Date.now(),
+                        person: result.person || '',
+                        idea: result.idea || '',
+                        budget: result.budget || '',
+                        priority: result.priority || 'medium',
+                        notes: result.notes || '',
+                        bought: false
+                    });
+                    localStorage.setItem('gifts', JSON.stringify(gifts));
+                } else if (result.type === 'order') {
+                    orders.push({
+                        id: Date.now(),
+                        person: result.person || '',
+                        item: result.item || '',
+                        costUSD: result.costUSD || 0,
+                        chargeCLP: result.chargeCLP || 0,
+                        bought: false,
+                        paid: false,
+                        photo: null,
+                        notes: result.notes || ''
+                    });
+                    localStorage.setItem('orders', JSON.stringify(orders));
+                } else if (result.type === 'expense') {
+                    expenses.push({
+                        id: Date.now(),
+                        amount: result.amount || 0,
+                        category: result.category || 'other',
+                        city: result.city || cities[0],
+                        desc: result.desc || '',
+                        datetime: new Date().toISOString()
+                    });
+                    localStorage.setItem('expenses', JSON.stringify(expenses));
+                } else if (result.type === 'note') {
+                    notes.push({
+                        id: Date.now(),
+                        type: result.noteType || 'note',
+                        title: result.title || '',
+                        content: result.content || '',
+                        date: new Date().toISOString()
+                    });
+                    localStorage.setItem('notes', JSON.stringify(notes));
+                } else if (result.type === 'city') {
+                    // Buscar el último mensaje del usuario para obtener la foto si la hay
+                    let photo = null;
+                    for (let i = chatHistory.length - 1; i >= 0; i--) {
+                        if (chatHistory[i].role === 'user' && chatHistory[i].image) {
+                            photo = chatHistory[i].image;
+                            break;
+                        }
+                    }
+                    citiesVisited.push({
+                        id: Date.now(),
+                        name: result.name || '',
+                        date: new Date().toISOString(),
+                        notes: result.notes || '',
+                        photo: photo
+                    });
+                    localStorage.setItem('citiesVisited', JSON.stringify(citiesVisited));
+                } else if (result.type === 'flight_update') {
+                    if (!flightOverrides[result.flightId]) {
+                        flightOverrides[result.flightId] = {};
+                    }
+                    if (result.asientoJavier) flightOverrides[result.flightId].asientoJavier = result.asientoJavier;
+                    if (result.asientoCami) flightOverrides[result.flightId].asientoCami = result.asientoCami;
+                    if (result.gate) flightOverrides[result.flightId].gate = result.gate;
+                    if (result.otros) flightOverrides[result.flightId].otros = result.otros;
+                    localStorage.setItem('flightOverrides', JSON.stringify(flightOverrides));
+                }
+                
+                // Agregar mensaje de confirmación
+                chatHistory.push({
+                    role: 'assistant',
+                    content: '✅ ¡Agregado! ¿Algo más?'
+                });
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                renderChatMessages();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        function cancelChatItem() {
+            chatHistory.push({
+                role: 'assistant',
+                content: '❌ Cancelado. ¿Quieres agregar algo más?'
+            });
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+            renderChatMessages();
+        }
+
+        // VIEJA función processWithAI eliminada - reemplazada por sendChatMessage
+        async function processWithAI() {
+            // Compatibilidad: redirige al nuevo flujo
+            sendChatMessage();
+        }
+
+        function showAIPreview() { /* no usado en nuevo flujo */ }
+        function confirmAI() { /* no usado */ }
+        function cancelAI() { /* no usado */ }
+
+        // VOICE RECOGNITION
+        let recognition = null;
+        let isListening = false;
+
+        function toggleVoiceInput() {
+            if (isListening) {
+                if (recognition) recognition.stop();
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Safari o Chrome.');
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'es-CL';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            
+            const btn = document.getElementById('voiceBtn');
+            const btnText = document.getElementById('voiceBtnText');
+            const input = document.getElementById('aiInput');
+            let finalText = input.value || '';
+            
+            recognition.onstart = () => {
+                isListening = true;
+                btn.style.background = 'rgba(239, 68, 68, 0.4)';
+                btn.style.borderColor = '#ef4444';
+                btn.style.color = '#ef4444';
+                btnText.textContent = '🔴 Grabando... (toca para parar)';
+            };
+            
+            recognition.onresult = (event) => {
+                let interim = '';
+                let newFinal = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        newFinal += event.results[i][0].transcript + ' ';
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+                if (newFinal) finalText += newFinal;
+                input.value = finalText + interim;
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Error voz:', event.error);
+                if (event.error === 'not-allowed') {
+                    alert('⚠️ Permitir acceso al micrófono en configuración del navegador.');
+                }
+                stopVoiceInput();
+            };
+            
+            recognition.onend = () => {
+                stopVoiceInput();
+            };
+            
+            recognition.start();
+        }
+
+        function stopVoiceInput() {
+            isListening = false;
+            const btn = document.getElementById('voiceBtn');
+            const btnText = document.getElementById('voiceBtnText');
+            if (btn) {
+                btn.style.background = 'rgba(255, 107, 107, 0.2)';
+                btn.style.borderColor = '#FF6B6B';
+                btn.style.color = '#FF6B6B';
+            }
+            if (btnText) btnText.textContent = 'Activar dictado por voz';
+        }
+
+        // NEARBY (GPS)
+        async function findNearby(query) {
+            await searchNearby(query);
+        }
+
+        async function findNearbyCustom() {
+            const query = document.getElementById('nearbyCustom').value.trim();
+            if (!query) {
+                alert('Escribe qué buscas');
+                return;
+            }
+            await searchNearby(query);
+        }
+
+        async function searchNearby(query) {
+            if (!apiKey) {
+                alert('⚠️ Configura tu API Key en ⚙️ Configuración');
+                return;
+            }
+
+            document.getElementById('nearbyLoading').style.display = 'block';
+            document.getElementById('nearbyResult').style.display = 'none';
+            document.getElementById('nearbyLoadingText').textContent = 'Obteniendo ubicación GPS...';
+
+            if (!navigator.geolocation) {
+                alert('⚠️ Tu navegador no soporta GPS');
+                document.getElementById('nearbyLoading').style.display = 'none';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    document.getElementById('nearbyLoadingText').textContent = `Buscando ${query} cerca...`;
+                    
+                    try {
+                        const response = await fetch('https://api.anthropic.com/v1/messages', {
+                            method: 'POST',
+                            headers: {
+                                'x-api-key': apiKey,
+                                'anthropic-version': '2023-06-01',
+                                'content-type': 'application/json',
+                                'anthropic-dangerous-direct-browser-access': 'true'
+                            },
+                            body: JSON.stringify({
+                                model: selectedModel,
+                                max_tokens: 1500,
+                                system: `Eres un guía turístico experto. El usuario te da sus coordenadas GPS y qué tipo de lugar busca. Usa web_search para buscar lugares reales cerca de esas coordenadas. Devuelve 5 recomendaciones formato:
+
+🏆 [Nombre del lugar]
+📍 Distancia y dirección aproximada
+⭐ Por qué vale la pena (1-2 líneas)
+💡 Tip insider
+
+Sé conciso, útil, considera precios accesibles. Habla en español.`,
+                                messages: [{
+                                    role: 'user',
+                                    content: `Mi ubicación: ${lat}, ${lng}\nBusco: ${query}\n\nDame 5 recomendaciones reales y específicas cerca de mi ubicación actual.`
+                                }],
+                                tools: [{
+                                    type: 'web_search_20250305',
+                                    name: 'web_search',
+                                    max_uses: 3
+                                }]
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (data.error) throw new Error(data.error.message);
+                        
+                        let finalText = '';
+                        if (data.content) {
+                            for (const block of data.content) {
+                                if (block.type === 'text') finalText += block.text;
+                            }
+                        }
+                        
+                        document.getElementById('nearbyLoading').style.display = 'none';
+                        document.getElementById('nearbyResult').style.display = 'block';
+                        document.getElementById('nearbyResult').innerHTML = `
+                            <p style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">📍 Ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+                            <div style="white-space: pre-line; line-height: 1.7; font-size: 13px; color: #cbd5e1;">${finalText}</div>
+                        `;
+                    } catch (err) {
+                        document.getElementById('nearbyLoading').style.display = 'none';
+                        document.getElementById('nearbyResult').style.display = 'block';
+                        document.getElementById('nearbyResult').innerHTML = `<p style="color: #FF6B6B;">❌ Error: ${err.message}</p>`;
+                    }
+                },
+                (error) => {
+                    document.getElementById('nearbyLoading').style.display = 'none';
+                    alert('⚠️ No se pudo obtener ubicación. Permite acceso al GPS.');
+                }
+            );
+        }
+
+        // ASK ME (MEMORIA DEL VIAJE)
+        let askHistory = JSON.parse(localStorage.getItem('askHistory')) || [];
+
+        async function askAI() {
+            const question = document.getElementById('askInput').value.trim();
+            if (!question) {
+                alert('Escribe una pregunta');
+                return;
+            }
+            
+            if (!apiKey) {
+                alert('⚠️ Configura tu API Key en ⚙️ Configuración');
+                return;
+            }
+
+            document.getElementById('askLoading').style.display = 'block';
+            document.getElementById('askResult').style.display = 'none';
+
+            // OPTIMIZACIÓN: contextData compacto en vez de objetos completos
+            const totalGastos = expenses.reduce((s, e) => s + e.amount, 0);
+            const gastosCompacto = expenses.slice(-10).map(e => `${e.desc || e.category} ${e.amount}USD ${e.city}`).join('; ');
+            const restCompacto = restaurants.map(r => `${r.name}(${r.city}) ${r.rating}⭐`).join('; ');
+            const giftsCompacto = gifts.map(g => `${g.idea} para ${g.person}${g.bought ? '✓' : ''}`).join('; ');
+            const ordersCompacto = orders.map(o => `${o.item}/${o.person} $${o.costUSD}${o.paid ? '✓' : ''}`).join('; ');
+            const ciudadesCompacto = citiesVisited.map(c => c.name).join(', ');
+            
+            const contextResumen = `DATOS:
+Gastos total: $${totalGastos.toFixed(0)} USD (${expenses.length} items). Últimos: ${gastosCompacto}
+Restaurantes: ${restCompacto || 'ninguno'}
+Regalos (✓=comprado): ${giftsCompacto || 'ninguno'}
+Encargos (✓=pagado): ${ordersCompacto || 'ninguno'}
+Ciudades visitadas: ${ciudadesCompacto || 'ninguna'}
+Presupuesto: ${budgetTotal > 0 ? '$'+budgetTotal+' USD' : 'no configurado'}`;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        max_tokens: 700,
+                        system: `Asistente de viaje de Javier y Camila (USA, 15-29 mayo 2026). Responde preguntas sobre sus datos. Sé breve, claro, en español. Usa emojis. Para gastos, montos en USD (~900 CLP/USD).
+
+${contextResumen}`,
+                        messages: [{
+                            role: 'user',
+                            content: question
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+                
+                let answer = '';
+                if (data.content) {
+                    for (const block of data.content) {
+                        if (block.type === 'text') answer += block.text;
+                    }
+                }
+                
+                document.getElementById('askLoading').style.display = 'none';
+                document.getElementById('askResult').style.display = 'block';
+                document.getElementById('askResult').textContent = answer;
+                
+                // Guardar en historial
+                askHistory.unshift({
+                    id: Date.now(),
+                    question,
+                    answer,
+                    date: new Date().toISOString()
+                });
+                if (askHistory.length > 20) askHistory = askHistory.slice(0, 20); // Solo 20 últimas
+                localStorage.setItem('askHistory', JSON.stringify(askHistory));
+                
+                document.getElementById('askInput').value = '';
+                renderAskHistory();
+                
+            } catch (err) {
+                document.getElementById('askLoading').style.display = 'none';
+                document.getElementById('askResult').style.display = 'block';
+                document.getElementById('askResult').textContent = '❌ Error: ' + err.message;
+            }
+        }
+
+        function renderAskHistory() {
+            const container = document.getElementById('askHistory');
+            if (!container) return;
+            
+            if (askHistory.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = `
+                <h3>📚 Historial de preguntas</h3>
+                ${askHistory.map(h => `
+                    <div style="background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #a855f7;">
+                        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">${new Date(h.date).toLocaleString('es-CL')}</p>
+                        <p style="font-size: 13px; font-weight: 600; color: #a855f7; margin-bottom: 6px;">❓ ${h.question}</p>
+                        <p style="font-size: 12px; color: #cbd5e1; white-space: pre-line; line-height: 1.5;">${h.answer.substring(0, 200)}${h.answer.length > 200 ? '...' : ''}</p>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // INIT
+        updateCitiesSelect();
+        renderDashboard();
+        renderFlights();
+        renderExpenses();
+        renderRestaurants();
+        renderGifts();
+        renderOrders();
+        renderNotes();
+        renderTips();
+        renderCalc();
+        updateAPIStatus();
+        
+        // Intentar actualizar tasa automáticamente al cargar
+        updateExchangeRate().catch(() => console.log('Tasa offline'));
+    </script>
+</body>
+</html>
