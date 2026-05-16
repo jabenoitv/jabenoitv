@@ -376,9 +376,13 @@
                         <span style="font-size: 32px;">💡</span>
                         <span style="font-size: 13px; font-weight: 600;">Tips</span>
                     </button>
-                    <button onclick="goToTab('citiesVisited')" class="nav-card" style="padding: 24px 10px; background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px; grid-column: span 2;">
+                    <button onclick="goToTab('citiesVisited')" class="nav-card" style="padding: 24px 10px; background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 32px;">🏙️</span>
                         <span style="font-size: 13px; font-weight: 600;">Ciudades Visitadas</span>
+                    </button>
+                    <button onclick="goToTab('moreai')" class="nav-card" style="padding: 24px 10px; background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(168, 85, 247, 0.12) 100%); border: 1px solid rgba(255, 215, 0, 0.4); color: white; margin: 0; flex-direction: column; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 32px;">🎯</span>
+                        <span style="font-size: 13px; font-weight: 600;">Más IA</span>
                     </button>
                 </div>
                 
@@ -750,6 +754,83 @@
             </button>
 
             <div id="citiesVisitedList"></div>
+        </div>
+
+        <!-- MORE AI FEATURES (P4) -->
+        <div id="moreai" class="tab-content">
+            <button class="home-btn" onclick="goToTab('dashboard')">🏠 Volver al Inicio</button>
+            <h2>🎯 Más IA</h2>
+            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 16px;">Features potenciadas con IA</p>
+
+            <!-- DAILY DIARY -->
+            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3 style="color: #a855f7;">📔 Diario del Día</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">Resumen narrativo con los datos de hoy</p>
+                <input type="date" id="diaryDate" style="margin-bottom: 8px;">
+                <button onclick="generateDiary()" style="background: rgba(168, 85, 247, 0.3); border: 1px solid #a855f7; color: white; font-size: 12px;">
+                    ✍️ Generar diario
+                </button>
+                <div id="diaryLoading" style="display: none; margin-top: 12px; color: #a855f7;"><span class="spinner"></span> Escribiendo...</div>
+                <div id="diaryResult" style="display: none; margin-top: 12px; background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; white-space: pre-line; line-height: 1.6; font-size: 13px;"></div>
+            </div>
+
+            <!-- DAY PLANNER -->
+            <div style="background: rgba(78, 205, 196, 0.08); border: 1px solid rgba(78, 205, 196, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3 style="color: #4ECDC4;">🗓️ Planifica mi día</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">¿Cuántas horas tienes y dónde?</p>
+                <select id="plannerCity" style="margin-bottom: 6px;">
+                    <option value="Washington DC">Washington DC</option>
+                    <option value="Nueva York">Nueva York</option>
+                    <option value="Filadelfia">Filadelfia</option>
+                    <option value="Boston">Boston</option>
+                    <option value="Maryland">Maryland</option>
+                </select>
+                <input type="number" id="plannerHours" placeholder="Horas disponibles" min="1" max="24" value="4" style="margin-bottom: 6px;">
+                <input type="text" id="plannerInterests" placeholder="Intereses: arte, comida, historia..." style="margin-bottom: 8px;">
+                <button onclick="generatePlan()" style="background: rgba(78, 205, 196, 0.3); border: 1px solid #4ECDC4; color: white; font-size: 12px;">
+                    🎲 Generar plan
+                </button>
+                <div id="plannerLoading" style="display: none; margin-top: 12px; color: #4ECDC4;"><span class="spinner"></span> Planificando...</div>
+                <div id="plannerResult" style="display: none; margin-top: 12px; background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; white-space: pre-line; line-height: 1.6; font-size: 13px;"></div>
+            </div>
+
+            <!-- SHOPPING ASSISTANT -->
+            <div style="background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3 style="color: #4ade80;">🛒 Asistente de Compras</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">Pega producto/link: compara precio Chile vs USA</p>
+                <input type="text" id="shopInput" placeholder="ej: iPhone 15 Pro 256GB, o link de Amazon" style="margin-bottom: 8px;">
+                <button onclick="analyzeShopping()" style="background: rgba(74, 222, 128, 0.3); border: 1px solid #4ade80; color: white; font-size: 12px;">
+                    💵 ¿Vale la pena traerlo?
+                </button>
+                <div id="shopLoading" style="display: none; margin-top: 12px; color: #4ade80;"><span class="spinner"></span> Comparando precios...</div>
+                <div id="shopResult" style="display: none; margin-top: 12px; background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; white-space: pre-line; line-height: 1.6; font-size: 13px;"></div>
+            </div>
+
+            <!-- CULTURAL TRANSLATOR -->
+            <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3 style="color: #FFD700;">🌍 Traductor Cultural</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">¿Es propina obligatoria? ¿Cómo se saluda? Pregunta cualquier costumbre</p>
+                <input type="text" id="culturalInput" placeholder="ej: cuánto dejar de propina en NYC?" style="margin-bottom: 8px;">
+                <button onclick="askCultural()" style="background: rgba(255, 215, 0, 0.3); border: 1px solid #FFD700; color: white; font-size: 12px;">
+                    🎭 Explicar costumbre
+                </button>
+                <div id="culturalLoading" style="display: none; margin-top: 12px; color: #FFD700;"><span class="spinner"></span> Consultando...</div>
+                <div id="culturalResult" style="display: none; margin-top: 12px; background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; white-space: pre-line; line-height: 1.6; font-size: 13px;"></div>
+            </div>
+
+            <!-- END OF TRIP DASHBOARD -->
+            <div style="background: rgba(255, 107, 107, 0.08); border: 1px solid rgba(255, 107, 107, 0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                <h3 style="color: #FF6B6B;">📊 Resumen del Viaje</h3>
+                <p style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">Estadísticas, mapa y narrativa completa del viaje</p>
+                <button onclick="generateTripSummary()" style="background: rgba(255, 107, 107, 0.3); border: 1px solid #FF6B6B; color: white; font-size: 12px;">
+                    📊 Ver resumen completo
+                </button>
+                <button onclick="exportTripPDF()" style="background: rgba(255, 215, 0, 0.2); border: 1px solid #FFD700; color: #FFD700; font-size: 12px; margin-top: 6px;">
+                    📄 Exportar como texto
+                </button>
+                <div id="summaryLoading" style="display: none; margin-top: 12px; color: #FF6B6B;"><span class="spinner"></span> Generando...</div>
+                <div id="summaryResult" style="display: none; margin-top: 12px; background: rgba(255,255,255,0.04); padding: 12px; border-radius: 6px; white-space: pre-line; line-height: 1.6; font-size: 13px;"></div>
+            </div>
         </div>
 
         <!-- SETTINGS -->
@@ -2661,6 +2742,7 @@ TIPOS:
 - gift: {type:"gift", person, idea, budget, priority:"high|medium|low", notes}
 - order: {type:"order", person, item, costUSD, chargeCLP, notes}
 - expense: {type:"expense", amount, category:"food|transport|activity|hotel|other", city, desc}
+- meal: {type:"meal", dish, calories, city, cost, notes} — para fotos de plato; estima calorías razonablemente. Si hay costo, también devuelve type:"expense" en JSON separado.
 - note: {type:"note", noteType:"note|incident|contact|reservation", title, content}
 - city: {type:"city", name, notes, hayFoto:true}
 - flight_update: {type:"flight_update", flightId:"flight1|flight2|flightReturn1|flightReturn2", asientoJavier, asientoCami, gate, otros}
@@ -2792,6 +2874,15 @@ REGLAS:
                     <p style="font-size: 12px;">Ciudad: <strong>${result.city || '?'}</strong></p>
                     ${result.desc ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.desc}</p>` : ''}
                 </div>`;
+            } else if (result.type === 'meal') {
+                summary = `<div style="background: rgba(249, 115, 22, 0.1); border: 1px solid rgba(249, 115, 22, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
+                    <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">🍽️ COMIDA</p>
+                    <p style="font-size: 12px;">Plato: <strong>${result.dish || '?'}</strong></p>
+                    ${result.calories ? `<p style="font-size: 12px;">Calorías estimadas: <strong>~${result.calories} kcal</strong></p>` : ''}
+                    ${result.city ? `<p style="font-size: 12px;">Ciudad: <strong>${result.city}</strong></p>` : ''}
+                    ${result.cost ? `<p style="font-size: 12px;">Costo: <strong>$${result.cost} USD</strong></p>` : ''}
+                    ${result.notes ? `<p style="font-size: 11px; font-style: italic; margin-top: 4px;">${result.notes}</p>` : ''}
+                </div>`;
             } else if (result.type === 'note') {
                 summary = `<div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px; border-radius: 8px; margin: 8px 0;">
                     <p style="color: #FFD700; font-weight: 700; margin-bottom: 6px;">📝 NOTA</p>
@@ -2877,6 +2968,30 @@ REGLAS:
                         datetime: new Date().toISOString()
                     });
                     localStorage.setItem('expenses', JSON.stringify(expenses));
+                } else if (result.type === 'meal') {
+                    // Guardar como restaurant + opcional expense
+                    restaurants.push({
+                        id: Date.now(),
+                        name: result.dish || 'Plato',
+                        city: result.city || cities[0],
+                        food: result.dish || '',
+                        cost: result.cost || 0,
+                        rating: 0,
+                        notes: `~${result.calories || 0} kcal${result.notes ? '. ' + result.notes : ''}`,
+                        date: new Date().toISOString()
+                    });
+                    localStorage.setItem('restaurants', JSON.stringify(restaurants));
+                    if (result.cost) {
+                        expenses.push({
+                            id: Date.now() + 1,
+                            amount: parseFloat(result.cost) || 0,
+                            category: 'food',
+                            city: result.city || cities[0],
+                            desc: result.dish || 'Comida',
+                            datetime: new Date().toISOString()
+                        });
+                        localStorage.setItem('expenses', JSON.stringify(expenses));
+                    }
                 } else if (result.type === 'note') {
                     notes.push({
                         id: Date.now(),
@@ -3206,8 +3321,238 @@ ${contextResumen}`,
             badge.textContent = label;
         }
 
+        // ============ P4: FEATURES NUEVAS ============
+
+        function isoToday() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        // 📔 DIARIO DEL DÍA
+        async function generateDiary() {
+            const targetDate = document.getElementById('diaryDate').value || isoToday();
+            const loading = document.getElementById('diaryLoading');
+            const result = document.getElementById('diaryResult');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            // Filtrar datos del día
+            const dayMatch = (iso) => iso && iso.slice(0, 10) === targetDate;
+            const dayExpenses = expenses.filter(e => dayMatch(e.datetime));
+            const dayNotes = notes.filter(n => dayMatch(n.date));
+            const dayCities = citiesVisited.filter(c => dayMatch(c.date));
+            const dayRest = restaurants.filter(r => r.date && dayMatch(r.date));
+
+            const totalDay = dayExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            const summary = `Fecha: ${targetDate}
+Gastos (${dayExpenses.length}): ${dayExpenses.map(e => `${e.desc || e.category} $${e.amount} ${e.city}`).join('; ') || 'ninguno'}
+Total: $${totalDay.toFixed(0)} USD
+Comidas: ${dayRest.map(r => `${r.name}(${r.city}) ${r.rating || ''}⭐`).join('; ') || 'ninguna'}
+Ciudades visitadas: ${dayCities.map(c => c.name).join(', ') || 'ninguna'}
+Notas: ${dayNotes.map(n => `${n.title}: ${n.content || ''}`).join('; ') || 'ninguna'}`;
+
+            try {
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 600,
+                    system: `Eres un cronista de viaje. Escribe un diario narrativo en primera persona (Javier hablando), íntimo y reflexivo, sobre el día. Habla español chileno casual. Menciona detalles concretos: lugares, gastos, sensaciones. Máximo 4 párrafos. Tono cálido, no formal.`,
+                    messages: [{
+                        role: 'user',
+                        content: `Datos del día:\n${summary}\n\nEscribe el diario.`
+                    }]
+                }, { dedupKey: `diary:${targetDate}` });
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = extractText(data) || 'Sin datos suficientes para escribir el diario.';
+            } catch (err) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+            }
+        }
+
+        // 🗓️ PLANIFICA MI DÍA
+        async function generatePlan() {
+            const city = document.getElementById('plannerCity').value;
+            const hours = document.getElementById('plannerHours').value || 4;
+            const interests = document.getElementById('plannerInterests').value.trim() || 'turismo general';
+            const loading = document.getElementById('plannerLoading');
+            const result = document.getElementById('plannerResult');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 1200,
+                    system: `Eres un planificador local de USA. Genera itinerarios concretos por hora con lugares REALES, distancias caminables o transporte público. Considera presupuesto moderado. Habla español. Formato:\n\n⏰ HH:MM - Lugar\n📍 Dónde / cómo llegar\n💵 Costo aprox\n💡 Tip\n\nSé práctico, no genérico.`,
+                    messages: [{
+                        role: 'user',
+                        content: `Estoy en ${city}. Tengo ${hours} horas libres. Intereses: ${interests}. Hazme un plan hora a hora.`
+                    }],
+                    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }]
+                }, { dedupKey: `plan:${city}:${hours}:${interests}` });
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = extractText(data);
+            } catch (err) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+            }
+        }
+
+        // 🛒 ASISTENTE DE COMPRAS
+        async function analyzeShopping() {
+            const query = document.getElementById('shopInput').value.trim();
+            if (!query) { alert('Escribe el producto o pega un link'); return; }
+            const loading = document.getElementById('shopLoading');
+            const result = document.getElementById('shopResult');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 800,
+                    system: `Eres asesor de compras Chile-USA. Compara precios REALES usando web_search. Considera: precio USA vs Chile (CLP, ${exchangeRate} CLP/USD), aduana 6% sobre USD 500, peso/volumen para maleta, garantía limitada en USA. Veredicto claro: SÍ/NO/DEPENDE con números. Formato:\n\n💵 Precio USA: $X\n🇨🇱 Precio Chile: $Y CLP\n💱 Diferencia: %\n⚠️ Consideraciones\n✅/❌ Veredicto`,
+                    messages: [{
+                        role: 'user',
+                        content: `Producto: ${query}\n\n¿Me conviene traerlo de USA a Chile?`
+                    }],
+                    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }]
+                }, { dedupKey: `shop:${query}` });
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = extractText(data);
+            } catch (err) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+            }
+        }
+
+        // 🌍 TRADUCTOR CULTURAL
+        async function askCultural() {
+            const question = document.getElementById('culturalInput').value.trim();
+            if (!question) { alert('Escribe tu pregunta'); return; }
+            const loading = document.getElementById('culturalLoading');
+            const result = document.getElementById('culturalResult');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 500,
+                    system: `Eres guía cultural USA para chilenos. Explica costumbres, etiqueta, propinas, formas de saludar, qué se considera grosero, etc. Sé concreto, breve, español. Da números si aplica (% propina, etc).`,
+                    messages: [{ role: 'user', content: question }]
+                }, { dedupKey: `cultural:${question}` });
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = extractText(data);
+            } catch (err) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+            }
+        }
+
+        // 📊 RESUMEN DEL VIAJE
+        function buildTripStats() {
+            const totalGastos = expenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+            const byCategory = expenses.reduce((acc, e) => {
+                const cat = e.category || 'other';
+                acc[cat] = (acc[cat] || 0) + (parseFloat(e.amount) || 0);
+                return acc;
+            }, {});
+            const byCity = expenses.reduce((acc, e) => {
+                acc[e.city] = (acc[e.city] || 0) + (parseFloat(e.amount) || 0);
+                return acc;
+            }, {});
+            const avgDay = expenses.length ? totalGastos / 15 : 0;
+            const restAvg = restaurants.length ? restaurants.reduce((s, r) => s + (parseFloat(r.rating) || 0), 0) / restaurants.length : 0;
+            return { totalGastos, byCategory, byCity, avgDay, restAvg };
+        }
+
+        async function generateTripSummary() {
+            const loading = document.getElementById('summaryLoading');
+            const result = document.getElementById('summaryResult');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const stats = buildTripStats();
+            const summary = `ESTADÍSTICAS:
+Gastos total: $${stats.totalGastos.toFixed(0)} USD (~$${(stats.avgDay).toFixed(0)}/día)
+Por categoría: ${Object.entries(stats.byCategory).map(([k,v]) => `${k}: $${v.toFixed(0)}`).join(', ')}
+Por ciudad: ${Object.entries(stats.byCity).map(([k,v]) => `${k}: $${v.toFixed(0)}`).join(', ')}
+Restaurantes: ${restaurants.length} (promedio ${stats.restAvg.toFixed(1)}⭐)
+Top restaurantes: ${restaurants.slice(0, 5).map(r => `${r.name}(${r.city})`).join(', ')}
+Ciudades visitadas: ${citiesVisited.map(c => c.name).join(', ')}
+Regalos comprados: ${gifts.filter(g => g.bought).length}/${gifts.length}
+Encargos: ${orders.length}`;
+
+            try {
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 1000,
+                    system: `Eres cronista de viaje. Genera resumen narrativo del viaje USA 15-29 mayo 2026 de Javier y Camila. Incluye: highlights, anécdotas implícitas en los datos, estadísticas curiosas, conclusión cálida. Formato libre, español chileno casual, máximo 6 párrafos.`,
+                    messages: [{ role: 'user', content: `Datos del viaje:\n${summary}\n\nEscribe el resumen final del viaje.` }]
+                }, { dedupKey: `summary:${stats.totalGastos}` });
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.dataset.text = extractText(data);
+                result.textContent = result.dataset.text;
+            } catch (err) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.textContent = '❌ ' + err.message;
+            }
+        }
+
+        function exportTripPDF() {
+            const stats = buildTripStats();
+            const narrative = (document.getElementById('summaryResult').dataset.text) || '(genera el resumen primero)';
+            const out = `🇺🇸 VIAJE USA - JAVIER & CAMI
+15-29 mayo 2026
+==================================
+
+📊 ESTADÍSTICAS
+Total gastado: $${stats.totalGastos.toFixed(2)} USD
+Promedio/día: $${stats.avgDay.toFixed(2)} USD
+Restaurantes: ${restaurants.length} (${stats.restAvg.toFixed(1)}⭐ promedio)
+Ciudades: ${citiesVisited.map(c => c.name).join(' → ')}
+
+💰 GASTOS POR CATEGORÍA
+${Object.entries(stats.byCategory).map(([k,v]) => `  ${k}: $${v.toFixed(0)}`).join('\n')}
+
+🏙️ GASTOS POR CIUDAD
+${Object.entries(stats.byCity).map(([k,v]) => `  ${k}: $${v.toFixed(0)}`).join('\n')}
+
+🍽️ RESTAURANTES
+${restaurants.map(r => `  ${r.name} (${r.city}) ${r.rating || ''}⭐ - $${r.cost || 0}`).join('\n') || '  ninguno'}
+
+🎁 REGALOS
+${gifts.map(g => `  ${g.bought ? '✓' : '○'} ${g.idea} para ${g.person} ($${g.budget || '?'})`).join('\n') || '  ninguno'}
+
+📦 ENCARGOS
+${orders.map(o => `  ${o.item} para ${o.person} - $${o.costUSD} (${o.paid ? 'pagado' : 'pendiente'})`).join('\n') || '  ninguno'}
+
+📝 NARRATIVA
+${narrative}
+`;
+            const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `viaje-usa-resumen.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
         // INIT
         updateModelBadge();
+        const diaryDateEl = document.getElementById('diaryDate');
+        if (diaryDateEl) diaryDateEl.value = isoToday();
         updateCitiesSelect();
         renderDashboard();
         renderFlights();
