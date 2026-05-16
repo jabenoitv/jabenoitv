@@ -328,6 +328,10 @@
             <h1>🇺🇸 Viaje USA</h1>
             <p class="subtitle">Javier & Cami ✈️</p>
             <p class="date-info">15 - 29 Mayo 2026</p>
+            <div style="margin-top: 8px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                <span id="modelBadge" style="display: inline-block; font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid #a855f7; color: #a855f7; background: rgba(168,85,247,0.1);" onclick="goToTab('settings')" title="Click para cambiar modelo">🤖 Haiku 4.5</span>
+                <span id="tokenBadge" style="display: none; font-size: 10px; padding: 3px 8px; border-radius: 10px; border: 1px solid #4ECDC4; color: #4ECDC4; background: rgba(78,205,196,0.1);"></span>
+            </div>
         </header>
 
         <div class="tabs" style="display: none;"></div>
@@ -662,9 +666,14 @@
                 ➤ Enviar
             </button>
             
-            <button onclick="clearChat()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 11px; padding: 6px; margin-top: 8px;">
-                🗑️ Reiniciar conversación
-            </button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                <button onclick="copyChat()" style="background: rgba(78, 205, 196, 0.15); border: 1px solid rgba(78, 205, 196, 0.3); color: #4ECDC4; font-size: 11px; padding: 6px;">
+                    📋 Copiar chat
+                </button>
+                <button onclick="clearChat()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 11px; padding: 6px;">
+                    🗑️ Reiniciar
+                </button>
+            </div>
         </div>
 
         <!-- NEARBY (GPS) -->
@@ -838,10 +847,145 @@
             if (msg.includes('overload') || msg.includes('529')) {
                 return '⏳ La API está sobrecargada. Espera 1 minuto e intenta de nuevo';
             }
+            if (msg.includes('rate') || msg.includes('429')) {
+                return '🚦 Rate limit alcanzado. Espera ~30s y reintenta';
+            }
             if (msg.includes('too long') || msg.includes('context') || msg.includes('token')) {
                 return '📏 Conversación muy larga. Usa "Limpiar chat" y empieza de nuevo';
             }
             return apiErr.message || 'Error de API';
+        }
+
+        // ============ ANTHROPIC API HELPER ============
+        // Centraliza: throttling, dedup, retry/backoff, prompt caching, token logging
+        let _lastApiCall = 0;
+        let _lastUserMsg = { text: '', time: 0 };
+        let _tokenStats = { remaining: null, limit: null, reset: null, lastInputTokens: 0, lastOutputTokens: 0, cacheRead: 0, cacheCreated: 0 };
+
+        function isDuplicateSend(text) {
+            const now = Date.now();
+            const isDup = text && text === _lastUserMsg.text && (now - _lastUserMsg.time) < 5000;
+            _lastUserMsg = { text: text || '', time: now };
+            return isDup;
+        }
+
+        async function throttle() {
+            const minGap = 2000; // 1 req cada 2s
+            const sinceLast = Date.now() - _lastApiCall;
+            if (sinceLast < minGap) {
+                await new Promise(r => setTimeout(r, minGap - sinceLast));
+            }
+            _lastApiCall = Date.now();
+        }
+
+        function updateTokenBadge() {
+            const badge = document.getElementById('tokenBadge');
+            if (!badge) return;
+            const r = _tokenStats.remaining;
+            const l = _tokenStats.limit;
+            if (r == null) {
+                badge.style.display = 'none';
+                return;
+            }
+            badge.style.display = 'inline-block';
+            const pct = l ? (r / l) : 1;
+            const color = pct < 0.15 ? '#FF6B6B' : pct < 0.4 ? '#f97316' : '#4ECDC4';
+            badge.style.color = color;
+            badge.style.borderColor = color;
+            const cacheInfo = _tokenStats.cacheRead > 0 ? ` 💾${_tokenStats.cacheRead}` : '';
+            badge.textContent = `🪙 ${r.toLocaleString()}/${(l||0).toLocaleString()}${cacheInfo}`;
+            badge.title = `Tokens restantes (se reinicia ${_tokenStats.reset || 'pronto'})\nÚltima: ${_tokenStats.lastInputTokens} in / ${_tokenStats.lastOutputTokens} out\nCache: ${_tokenStats.cacheRead} leídos, ${_tokenStats.cacheCreated} creados`;
+        }
+
+        function readRateLimitHeaders(response) {
+            const remaining = parseInt(response.headers.get('anthropic-ratelimit-tokens-remaining') || '');
+            const limit = parseInt(response.headers.get('anthropic-ratelimit-tokens-limit') || '');
+            const reset = response.headers.get('anthropic-ratelimit-tokens-reset');
+            if (!isNaN(remaining)) _tokenStats.remaining = remaining;
+            if (!isNaN(limit)) _tokenStats.limit = limit;
+            if (reset) {
+                const resetDate = new Date(reset);
+                const secs = Math.max(0, Math.round((resetDate - Date.now()) / 1000));
+                _tokenStats.reset = secs < 90 ? `${secs}s` : `${Math.round(secs/60)}min`;
+            }
+            updateTokenBadge();
+        }
+
+        function attachCacheControl(systemText) {
+            // Prompt caching: marca el system prompt como cacheable (90% descuento si se reutiliza)
+            // Solo aplica si el prompt es lo suficientemente largo (mín. 1024-2048 tokens según modelo)
+            return [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }];
+        }
+
+        async function callAnthropic(payload, { dedupKey = null, retries = 3 } = {}) {
+            if (!apiKey) throw new Error('🔑 Configura tu API Key en ⚙️ Configuración');
+            if (dedupKey && isDuplicateSend(dedupKey)) {
+                throw new Error('Mensaje duplicado, espera un momento antes de reenviar');
+            }
+
+            // Habilitar prompt caching si el system es un string
+            if (typeof payload.system === 'string' && payload.system.length > 200) {
+                payload.system = attachCacheControl(payload.system);
+            }
+
+            let lastErr;
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                await throttle();
+                try {
+                    const response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'x-api-key': apiKey,
+                            'anthropic-version': '2023-06-01',
+                            'content-type': 'application/json',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    readRateLimitHeaders(response);
+
+                    if (response.status === 429 || response.status === 529 || response.status === 503) {
+                        const retryAfter = parseInt(response.headers.get('retry-after')) || (2 ** attempt) * 2;
+                        if (attempt < retries) {
+                            console.log(`Rate limit, reintentando en ${retryAfter}s (intento ${attempt+1}/${retries})`);
+                            await new Promise(r => setTimeout(r, retryAfter * 1000));
+                            continue;
+                        }
+                    }
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(friendlyApiError(data.error));
+
+                    // Capturar uso de tokens
+                    if (data.usage) {
+                        _tokenStats.lastInputTokens = data.usage.input_tokens || 0;
+                        _tokenStats.lastOutputTokens = data.usage.output_tokens || 0;
+                        _tokenStats.cacheRead = data.usage.cache_read_input_tokens || 0;
+                        _tokenStats.cacheCreated = data.usage.cache_creation_input_tokens || 0;
+                        updateTokenBadge();
+                    }
+                    return data;
+                } catch (err) {
+                    lastErr = err;
+                    if (attempt < retries && /network|fetch/i.test(err.message)) {
+                        await new Promise(r => setTimeout(r, (2 ** attempt) * 1000));
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            throw lastErr || new Error('Falló después de varios intentos');
+        }
+
+        function extractText(data) {
+            let out = '';
+            if (data && data.content && Array.isArray(data.content)) {
+                for (const block of data.content) {
+                    if (block.type === 'text' && block.text) out += block.text;
+                }
+            }
+            return out;
         }
 
         let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
@@ -1449,38 +1593,26 @@ Reportar incidentes DENTRO de 24 horas` },
 
                 try {
                     const base64 = img.split(',')[1];
-                    const response = await fetch('https://api.anthropic.com/v1/messages', {
-                        method: 'POST',
-                        headers: {
-                            'x-api-key': apiKey,
-                            'anthropic-version': '2023-06-01',
-                            'content-type': 'application/json',
-                            'anthropic-dangerous-direct-browser-access': 'true'
-                        },
-                        body: JSON.stringify({
-                            model: selectedModel,
-                            max_tokens: 300,
-                            messages: [{
-                                role: 'user',
-                                content: [
-                                    { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-                                    { type: 'text', text: 'Extrae del recibo: monto total (solo número), descripción corta. Responde JSON: {"amount": X, "description": "Y"}' },
-                                ],
-                            }],
-                        }),
+                    const data = await callAnthropic({
+                        model: selectedModel,
+                        max_tokens: 300,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+                                { type: 'text', text: 'Extrae del recibo: monto total (solo número), descripción corta. Responde JSON: {"amount": X, "description": "Y"}' },
+                            ],
+                        }],
                     });
-                    const data = await response.json();
-                    if (data.error) throw new Error(friendlyApiError(data.error));
-                    if (data.content && data.content[0] && data.content[0].text) {
-                        const jsonMatch = data.content[0].text.match(/\{[\s\S]*?\}/);
-                        if (!jsonMatch) throw new Error('No se pudo leer el recibo. Intenta con mejor foto.');
-                        const ocr = JSON.parse(jsonMatch[0]);
-                        document.getElementById('expenseAmount').value = ocr.amount || '';
-                        document.getElementById('expenseDesc').value = ocr.description || '';
-                        document.getElementById('expenseCategory').value = 'food';
-                        document.getElementById('expenseDateTime').value = new Date().toISOString().slice(0, 16);
-                        document.getElementById('ocrLoading').style.display = 'none';
-                    }
+                    const text = extractText(data);
+                    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+                    if (!jsonMatch) throw new Error('No se pudo leer el recibo. Intenta con mejor foto.');
+                    const ocr = JSON.parse(jsonMatch[0]);
+                    document.getElementById('expenseAmount').value = ocr.amount || '';
+                    document.getElementById('expenseDesc').value = ocr.description || '';
+                    document.getElementById('expenseCategory').value = 'food';
+                    document.getElementById('expenseDateTime').value = new Date().toISOString().slice(0, 16);
+                    document.getElementById('ocrLoading').style.display = 'none';
                 } catch (err) {
                     alert('Error: ' + err.message);
                     document.getElementById('ocrLoading').style.display = 'none';
@@ -1916,6 +2048,7 @@ Reportar incidentes DENTRO de 24 horas` },
             selectedModel = model;
             localStorage.setItem('selectedModel', model);
             updateModelStatus();
+            if (typeof updateModelBadge === 'function') updateModelBadge();
             alert('✅ Modelo guardado: ' + (model.includes('haiku') ? 'Haiku 4.5 (5x más barato)' : 'Sonnet 4.6'));
         }
 
@@ -2451,6 +2584,32 @@ Reportar incidentes DENTRO de 24 horas` },
             container.scrollTop = container.scrollHeight;
         }
 
+        async function copyChat() {
+            if (!chatHistory.length) {
+                alert('No hay conversación para copiar');
+                return;
+            }
+            const lines = chatHistory.map(m => {
+                if (m.role === 'user') return `👤 Tú: ${m.content || '[imagen]'}`;
+                if (m.role === 'assistant') return `🤖 IA: ${m.content}`;
+                if (m.role === 'preview' && m.data) return `✨ Preview: ${JSON.stringify(m.data)}`;
+                return '';
+            }).filter(Boolean).join('\n\n');
+            try {
+                await navigator.clipboard.writeText(lines);
+                alert('✅ Conversación copiada al portapapeles');
+            } catch (e) {
+                // Fallback: textarea selector
+                const ta = document.createElement('textarea');
+                ta.value = lines;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                alert('✅ Conversación copiada');
+            }
+        }
+
         function clearChat() {
             if (!confirm('¿Reiniciar la conversación?')) return;
             chatHistory = [];
@@ -2543,31 +2702,14 @@ REGLAS:
                     }
                 }
 
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'content-type': 'application/json',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: selectedModel,
-                        max_tokens: 512,
-                        system: systemPrompt,
-                        messages: apiMessages
-                    })
-                });
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 512,
+                    system: systemPrompt,
+                    messages: apiMessages
+                }, { dedupKey: text });
 
-                const data = await response.json();
-                if (data.error) throw new Error(friendlyApiError(data.error));
-                
-                let finalText = '';
-                if (data.content && Array.isArray(data.content)) {
-                    for (const block of data.content) {
-                        if (block.type === 'text') finalText += block.text;
-                    }
-                }
+                const finalText = extractText(data);
 
                 // Quitar el "Pensando..." del historial
                 chatHistory.pop();
@@ -2916,18 +3058,10 @@ REGLAS:
                     document.getElementById('nearbyLoadingText').textContent = `Buscando ${query} cerca...`;
                     
                     try {
-                        const response = await fetch('https://api.anthropic.com/v1/messages', {
-                            method: 'POST',
-                            headers: {
-                                'x-api-key': apiKey,
-                                'anthropic-version': '2023-06-01',
-                                'content-type': 'application/json',
-                                'anthropic-dangerous-direct-browser-access': 'true'
-                            },
-                            body: JSON.stringify({
-                                model: selectedModel,
-                                max_tokens: 1500,
-                                system: `Eres un guía turístico experto. El usuario te da sus coordenadas GPS y qué tipo de lugar busca. Usa web_search para buscar lugares reales cerca de esas coordenadas. Devuelve 5 recomendaciones formato:
+                        const data = await callAnthropic({
+                            model: selectedModel,
+                            max_tokens: 1500,
+                            system: `Eres un guía turístico experto. El usuario te da sus coordenadas GPS y qué tipo de lugar busca. Usa web_search para buscar lugares reales cerca de esas coordenadas. Devuelve 5 recomendaciones formato:
 
 🏆 [Nombre del lugar]
 📍 Distancia y dirección aproximada
@@ -2935,28 +3069,19 @@ REGLAS:
 💡 Tip insider
 
 Sé conciso, útil, considera precios accesibles. Habla en español.`,
-                                messages: [{
-                                    role: 'user',
-                                    content: `Mi ubicación: ${lat}, ${lng}\nBusco: ${query}\n\nDame 5 recomendaciones reales y específicas cerca de mi ubicación actual.`
-                                }],
-                                tools: [{
-                                    type: 'web_search_20250305',
-                                    name: 'web_search',
-                                    max_uses: 3
-                                }]
-                            })
-                        });
+                            messages: [{
+                                role: 'user',
+                                content: `Mi ubicación: ${lat}, ${lng}\nBusco: ${query}\n\nDame 5 recomendaciones reales y específicas cerca de mi ubicación actual.`
+                            }],
+                            tools: [{
+                                type: 'web_search_20250305',
+                                name: 'web_search',
+                                max_uses: 3
+                            }]
+                        }, { dedupKey: `nearby:${query}` });
 
-                        const data = await response.json();
-                        if (data.error) throw new Error(friendlyApiError(data.error));
+                        const finalText = extractText(data);
 
-                        let finalText = '';
-                        if (data.content) {
-                            for (const block of data.content) {
-                                if (block.type === 'text') finalText += block.text;
-                            }
-                        }
-                        
                         document.getElementById('nearbyLoading').style.display = 'none';
                         document.getElementById('nearbyResult').style.display = 'block';
                         document.getElementById('nearbyResult').innerHTML = `
@@ -3011,36 +3136,19 @@ Ciudades visitadas: ${ciudadesCompacto || 'ninguna'}
 Presupuesto: ${budgetTotal > 0 ? '$'+budgetTotal+' USD' : 'no configurado'}`;
 
             try {
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'content-type': 'application/json',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: selectedModel,
-                        max_tokens: 700,
-                        system: `Asistente de viaje de Javier y Camila (USA, 15-29 mayo 2026). Responde preguntas sobre sus datos. Sé breve, claro, en español. Usa emojis. Para gastos, montos en USD (~900 CLP/USD).
+                const data = await callAnthropic({
+                    model: selectedModel,
+                    max_tokens: 700,
+                    system: `Asistente de viaje de Javier y Camila (USA, 15-29 mayo 2026). Responde preguntas sobre sus datos. Sé breve, claro, en español. Usa emojis. Para gastos, montos en USD (~900 CLP/USD).
 
 ${contextResumen}`,
-                        messages: [{
-                            role: 'user',
-                            content: question
-                        }]
-                    })
-                });
+                    messages: [{
+                        role: 'user',
+                        content: question
+                    }]
+                }, { dedupKey: `ask:${question}` });
 
-                const data = await response.json();
-                if (data.error) throw new Error(friendlyApiError(data.error));
-
-                let answer = '';
-                if (data.content) {
-                    for (const block of data.content) {
-                        if (block.type === 'text') answer += block.text;
-                    }
-                }
+                const answer = extractText(data);
 
                 document.getElementById('askLoading').style.display = 'none';
                 document.getElementById('askResult').style.display = 'block';
@@ -3087,7 +3195,19 @@ ${contextResumen}`,
             `;
         }
 
+        function updateModelBadge() {
+            const badge = document.getElementById('modelBadge');
+            if (!badge) return;
+            const m = (selectedModel || '').toLowerCase();
+            let label = '🤖 IA';
+            if (m.includes('haiku')) label = '🤖 Haiku 4.5';
+            else if (m.includes('sonnet')) label = '🧠 Sonnet 4.6';
+            else if (m.includes('opus')) label = '✨ Opus';
+            badge.textContent = label;
+        }
+
         // INIT
+        updateModelBadge();
         updateCitiesSelect();
         renderDashboard();
         renderFlights();
@@ -3099,7 +3219,7 @@ ${contextResumen}`,
         renderTips();
         renderCalc();
         updateAPIStatus();
-        
+
         // Intentar actualizar tasa automáticamente al cargar
         updateExchangeRate().catch(() => console.log('Tasa offline'));
     </script>
