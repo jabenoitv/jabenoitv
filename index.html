@@ -1503,7 +1503,7 @@ Reportar incidentes DENTRO de 24 horas` },
                 (e.desc || '').toLowerCase().includes(query) || 
                 e.city.toLowerCase().includes(query) ||
                 e.category.toLowerCase().includes(query)
-            ).map(e => ({ type: '💰 Gasto', title: e.desc || e.category, details: `${e.city} | $${e.amount.toFixed(2)} | ${new Date(e.datetime).toLocaleDateString('es-ES')}` }));
+            ).map(e => ({ type: '💰 Gasto', title: e.desc || e.category, details: `${e.city} | $${parseFloat(e.amount || 0).toFixed(2)} | ${new Date(e.datetime).toLocaleDateString('es-ES')}` }));
             
             const restResults = restaurants.filter(r => 
                 r.name.toLowerCase().includes(query) || 
@@ -1718,6 +1718,7 @@ Reportar incidentes DENTRO de 24 horas` },
         }
 
         function deleteExpense(id) {
+            if (!confirm('¿Eliminar este gasto?')) return;
             expenses = expenses.filter(e => e.id !== id);
             localStorage.setItem('expenses', JSON.stringify(expenses));
             renderExpenses();
@@ -1734,7 +1735,7 @@ Reportar incidentes DENTRO de 24 horas` },
                         <p>${e.city} • ${new Date(e.datetime).toLocaleDateString('es-ES')}</p>
                     </div>
                     <div>
-                        <div class="item-value">$${e.amount.toFixed(2)}</div>
+                        <div class="item-value">$${parseFloat(e.amount || 0).toFixed(2)}</div>
                         <button class="delete-btn" onclick="deleteExpense(${e.id})">✕</button>
                     </div>
                 </div>
@@ -1999,7 +2000,7 @@ Reportar incidentes DENTRO de 24 horas` },
                 elExpenses.innerHTML = expenses.slice(-3).reverse().map(e => `
                     <div class="quick-item">
                         <span>${e.desc || e.category} (${e.city})</span>
-                        <span style="color: #4ade80;">$${e.amount.toFixed(2)}</span>
+                        <span style="color: #4ade80;">$${parseFloat(e.amount || 0).toFixed(2)}</span>
                     </div>
                 `).join('') || '<p style="color: #94a3b8; font-size: 12px;">Sin gastos</p>';
             }
