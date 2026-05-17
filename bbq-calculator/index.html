@@ -29,14 +29,8 @@
         }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         h1 {
@@ -92,11 +86,6 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .weight-group,
-        .temp-group {
-            grid-column: span 1;
-        }
-
         .weight-input-group,
         .temp-input-group {
             display: flex;
@@ -119,6 +108,7 @@
             transition: all 0.3s ease;
             white-space: nowrap;
             font-size: 0.9em;
+            min-width: 50px;
         }
 
         .unit-toggle:hover {
@@ -147,10 +137,6 @@
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
-        .calculate-btn:active {
-            transform: translateY(0);
-        }
-
         .results-section {
             animation: fadeIn 0.5s ease-out;
             display: none;
@@ -161,12 +147,8 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .result-header {
@@ -247,8 +229,19 @@
             font-weight: 700;
         }
 
+        .temp-range .secondary-unit {
+            color: #999;
+            font-size: 0.85em;
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
         .card.primary .temp-range strong {
             color: #ffeb3b;
+        }
+
+        .card.primary .temp-range .secondary-unit {
+            color: rgba(255, 255, 255, 0.7);
         }
 
         .holding-time {
@@ -273,10 +266,6 @@
             margin-bottom: 15px;
             color: #333;
             font-size: 1.1em;
-        }
-
-        .chart-container {
-            margin-bottom: 20px;
         }
 
         .bars {
@@ -307,21 +296,26 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .bar:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
         .temp-label {
             margin-top: 8px;
-            font-size: 0.8em;
+            font-size: 0.75em;
             font-weight: 600;
             color: #333;
+            text-align: center;
             white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .temp-label .secondary {
+            display: block;
+            color: #999;
+            font-size: 0.85em;
+            font-weight: 400;
         }
 
         .stages {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 10px;
             margin-top: 15px;
         }
@@ -340,7 +334,13 @@
         .stage-temp {
             font-weight: 700;
             color: #667eea;
-            min-width: 50px;
+            min-width: 70px;
+        }
+
+        .stage-temp .secondary {
+            color: #999;
+            font-weight: 400;
+            font-size: 0.85em;
         }
 
         .stage-name {
@@ -383,13 +383,8 @@
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-
-            h1 {
-                font-size: 1.5em;
-            }
+            .container { padding: 15px; }
+            h1 { font-size: 1.5em; }
 
             .input-section {
                 grid-template-columns: 1fr;
@@ -397,35 +392,17 @@
                 padding: 15px;
             }
 
-            .weight-group,
-            .temp-group {
-                grid-column: span 1;
-            }
-
-            .calculate-btn {
-                grid-column: 1;
-            }
-
-            .result-cards {
-                grid-template-columns: 1fr;
-            }
+            .calculate-btn { grid-column: 1; }
+            .result-cards { grid-template-columns: 1fr; }
 
             .bars {
                 height: 200px;
                 gap: 6px;
             }
 
-            .stages {
-                grid-template-columns: 1fr;
-            }
-
-            .time-display {
-                font-size: 1.5em;
-            }
-
-            .holding-time .duration {
-                font-size: 1.4em;
-            }
+            .stages { grid-template-columns: 1fr; }
+            .time-display { font-size: 1.5em; }
+            .holding-time .duration { font-size: 1.4em; }
         }
     </style>
 </head>
@@ -448,85 +425,85 @@
                 </select>
             </div>
 
-            <div class="form-group weight-group">
+            <div class="form-group">
                 <label for="weight">Peso</label>
                 <div class="weight-input-group">
-                    <input id="weight" type="number" value="5" min="0.1" step="0.1">
-                    <button class="unit-toggle" onclick="toggleWeightUnit()">lbs</button>
+                    <input id="weight" type="number" value="2.3" min="0.1" step="0.1">
+                    <button class="unit-toggle" onclick="toggleWeightUnit()" id="weightUnitBtn">kg</button>
                 </div>
             </div>
 
-            <div class="form-group temp-group">
-                <label for="smokingTemp">Temperatura</label>
+            <div class="form-group">
+                <label for="smokingTemp">Temperatura del Ahumador</label>
                 <div class="temp-input-group">
-                    <input id="smokingTemp" type="number" value="225" min="150" max="350" step="5">
-                    <button class="unit-toggle" onclick="toggleTempUnit()">°F</button>
+                    <input id="smokingTemp" type="number" value="110" min="65" max="180" step="1">
+                    <button class="unit-toggle" onclick="toggleTempUnit()" id="tempUnitBtn">°C</button>
                 </div>
             </div>
 
             <button class="calculate-btn" onclick="calculate()">Calcular</button>
         </div>
 
-        <div id="results" class="results-section">
-            <!-- Los resultados se insertan aquí -->
-        </div>
+        <div id="results" class="results-section"></div>
     </div>
 
     <script>
+        // Fórmulas basadas en kg y °C como unidades primarias
         const MEAT_FORMULAS = {
             brisket: {
                 name: 'Brisket',
-                timePerPound: 1.5,
-                minTemp: 190,
-                optimalTemp: 205,
-                holdingTime: 60
+                timePerKg: 1.65, // ~1.5 hrs/lb = 3.3 hrs/kg, ajustado para temp media
+                minTempC: 88,    // 190°F
+                optimalTempC: 96, // 205°F
+                holdingMin: 60
             },
             pork_butt: {
                 name: 'Pork Butt',
-                timePerPound: 2,
-                minTemp: 190,
-                optimalTemp: 205,
-                holdingTime: 90
+                timePerKg: 2.2,
+                minTempC: 88,
+                optimalTempC: 96,
+                holdingMin: 90
             },
             pork_shoulder: {
                 name: 'Pork Shoulder',
-                timePerPound: 2,
-                minTemp: 190,
-                optimalTemp: 205,
-                holdingTime: 90
+                timePerKg: 2.2,
+                minTempC: 88,
+                optimalTempC: 96,
+                holdingMin: 90
             },
             ribs: {
                 name: 'Costillas (Ribs)',
-                timePerPound: 0.5,
-                minTemp: 190,
-                optimalTemp: 200,
-                holdingTime: 15
+                timePerKg: 1.1,
+                minTempC: 88,
+                optimalTempC: 93,
+                holdingMin: 15
             },
             beef_ribs: {
                 name: 'Costillas de Res (Beef Ribs)',
-                timePerPound: 1.25,
-                minTemp: 190,
-                optimalTemp: 205,
-                holdingTime: 30
+                timePerKg: 1.4,
+                minTempC: 88,
+                optimalTempC: 96,
+                holdingMin: 30
             },
             chicken: {
                 name: 'Pollo',
-                timePerPound: 0.75,
-                minTemp: 165,
-                optimalTemp: 165,
-                holdingTime: 10
+                timePerKg: 0.85,
+                minTempC: 74,
+                optimalTempC: 74,
+                holdingMin: 10
             },
             turkey: {
                 name: 'Pavo',
-                timePerPound: 0.75,
-                minTemp: 165,
-                optimalTemp: 165,
-                holdingTime: 20
+                timePerKg: 0.85,
+                minTempC: 74,
+                optimalTempC: 74,
+                holdingMin: 20
             }
         };
 
-        let isKg = false;
-        let tempUnit = 'F';
+        // Estado: empezamos en métrico
+        let weightUnit = 'kg';  // kg o lbs
+        let tempUnit = 'C';     // C o F
 
         function celsiusToFahrenheit(c) {
             return Math.round((c * 9 / 5) + 32);
@@ -536,36 +513,49 @@
             return Math.round(((f - 32) * 5 / 9) * 10) / 10;
         }
 
+        function kgToLbs(kg) {
+            return Math.round(kg * 2.20462 * 10) / 10;
+        }
+
+        function lbsToKg(lbs) {
+            return Math.round(lbs * 0.453592 * 10) / 10;
+        }
+
         function toggleWeightUnit() {
             const weightInput = document.getElementById('weight');
-            const btn = event.target;
+            const btn = document.getElementById('weightUnitBtn');
+            const currentValue = parseFloat(weightInput.value);
 
-            if (!isKg) {
-                // Convert lbs to kg
-                weightInput.value = Math.round(parseFloat(weightInput.value) * 0.453592 * 10) / 10;
-                btn.textContent = 'kg';
-                isKg = true;
-            } else {
-                // Convert kg to lbs
-                weightInput.value = Math.round(parseFloat(weightInput.value) * 2.20462 * 10) / 10;
+            if (weightUnit === 'kg') {
+                weightInput.value = kgToLbs(currentValue);
                 btn.textContent = 'lbs';
-                isKg = false;
+                weightUnit = 'lbs';
+            } else {
+                weightInput.value = lbsToKg(currentValue);
+                btn.textContent = 'kg';
+                weightUnit = 'kg';
             }
         }
 
         function toggleTempUnit() {
             const tempInput = document.getElementById('smokingTemp');
-            const btn = event.target;
-
+            const btn = document.getElementById('tempUnitBtn');
             const currentValue = parseFloat(tempInput.value);
-            if (tempUnit === 'F') {
-                tempInput.value = fahrenheitToCelsius(currentValue);
-                btn.textContent = '°C';
-                tempUnit = 'C';
-            } else {
+
+            if (tempUnit === 'C') {
                 tempInput.value = celsiusToFahrenheit(currentValue);
                 btn.textContent = '°F';
+                tempInput.min = 150;
+                tempInput.max = 350;
+                tempInput.step = 5;
                 tempUnit = 'F';
+            } else {
+                tempInput.value = fahrenheitToCelsius(currentValue);
+                btn.textContent = '°C';
+                tempInput.min = 65;
+                tempInput.max = 180;
+                tempInput.step = 1;
+                tempUnit = 'C';
             }
         }
 
@@ -575,67 +565,89 @@
             const smokingTemp = parseFloat(document.getElementById('smokingTemp').value);
 
             const formula = MEAT_FORMULAS[meatType];
-            const smokingTempF = tempUnit === 'C' ? celsiusToFahrenheit(smokingTemp) : smokingTemp;
-            const weightLbs = isKg ? weight * 2.20462 : weight;
 
-            const cookingTimeHours = weightLbs * formula.timePerPound;
-            const cookingTimeMinutes = Math.round(cookingTimeHours * 60);
+            // Normalizamos todo a métrico
+            const weightKg = weightUnit === 'kg' ? weight : lbsToKg(weight);
+            const smokingTempC = tempUnit === 'C' ? smokingTemp : fahrenheitToCelsius(smokingTemp);
 
-            const temperatureRange = generateTempRange(formula.minTemp, formula.optimalTemp, 10);
+            // Cálculo de tiempo base
+            let cookingTimeHours = weightKg * formula.timePerKg;
+
+            // Ajuste por temperatura (referencia: 107°C / 225°F)
+            const tempDiffC = smokingTempC - 107;
+            const adjustmentFactor = 1 - (tempDiffC * 0.015);
+            cookingTimeHours = cookingTimeHours * Math.max(0.6, Math.min(1.4, adjustmentFactor));
+
+            const totalMinutes = Math.round(cookingTimeHours * 60);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+
+            const temperatureRange = generateTempRange(formula.minTempC, formula.optimalTempC, 8);
+
+            // Conversiones para mostrar
+            const weightKgDisplay = Math.round(weightKg * 100) / 100;
+            const weightLbsDisplay = kgToLbs(weightKg);
+            const smokingTempCDisplay = Math.round(smokingTempC);
+            const smokingTempFDisplay = celsiusToFahrenheit(smokingTempC);
+            const minTempF = celsiusToFahrenheit(formula.minTempC);
+            const optimalTempF = celsiusToFahrenheit(formula.optimalTempC);
 
             const resultsHTML = `
                 <div class="result-header">
                     <h2>${formula.name}</h2>
-                    <p class="result-weight">${Math.round(weightLbs * 100) / 100} lbs (${Math.round(weight * 100) / 100} ${isKg ? 'kg' : 'lbs'}) • ${smokingTempF}°F</p>
+                    <p class="result-weight">
+                        ${weightKgDisplay} kg <span style="color:#999">(${weightLbsDisplay} lbs)</span>
+                        •
+                        ${smokingTempCDisplay}°C <span style="color:#999">(${smokingTempFDisplay}°F)</span>
+                    </p>
                 </div>
 
                 <div class="result-cards">
                     <div class="card primary">
                         <h3>Tiempo de Cocción</h3>
                         <div class="time-display">
-                            <span class="hours">${Math.round(cookingTimeHours)}h</span>
-                            <span class="minutes">${cookingTimeMinutes % 60}m</span>
+                            <span class="hours">${hours}h</span>
+                            <span class="minutes">${minutes}m</span>
                         </div>
                         <p class="note">Tiempo aproximado de ahumado</p>
                     </div>
 
                     <div class="card">
-                        <h3>Rango de Temperatura</h3>
+                        <h3>Temperatura Interna Objetivo</h3>
                         <div class="temp-range">
-                            <p>Mínima: <strong>${formula.minTemp}°F</strong></p>
-                            <p>Óptima: <strong>${formula.optimalTemp}°F</strong></p>
+                            <p>Mínima: <strong>${formula.minTempC}°C</strong><span class="secondary-unit">(${minTempF}°F)</span></p>
+                            <p>Óptima: <strong>${formula.optimalTempC}°C</strong><span class="secondary-unit">(${optimalTempF}°F)</span></p>
                         </div>
                     </div>
 
                     <div class="card">
                         <h3>Tiempo de Reposo</h3>
                         <div class="holding-time">
-                            <span class="duration">${formula.holdingTime} min</span>
+                            <span class="duration">${formula.holdingMin} min</span>
                         </div>
-                        <p class="note">A 140°F después de cocción</p>
+                        <p class="note">A 60°C (140°F) después de cocción</p>
                     </div>
                 </div>
 
                 <div class="temperature-chart">
                     <h3>Progresión de Temperatura Interna</h3>
-                    <div class="chart-container">
-                        <div class="bars">
-                            ${temperatureRange.map(item => {
-                                const percentage = ((item.temp - formula.minTemp) / (formula.optimalTemp - formula.minTemp)) * 100;
-                                const color = getColorForTemp(item.temp, formula.optimalTemp);
-                                return `
-                                    <div class="bar-item">
-                                        <div class="bar" style="height: ${Math.max(percentage, 5)}%; background: ${color};" />
-                                        <span class="temp-label">${item.temp}°F</span>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
+                    <div class="bars">
+                        ${temperatureRange.map(item => {
+                            const percentage = ((item.tempC - formula.minTempC) / Math.max(1, (formula.optimalTempC - formula.minTempC))) * 100;
+                            const color = getColorForTemp(item.tempC, formula.optimalTempC, formula.minTempC);
+                            const tempF = celsiusToFahrenheit(item.tempC);
+                            return `
+                                <div class="bar-item">
+                                    <div class="bar" style="height: ${Math.max(percentage, 5)}%; background: ${color};"></div>
+                                    <span class="temp-label">${item.tempC}°C<span class="secondary">${tempF}°F</span></span>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                     <div class="stages">
                         ${temperatureRange.map(item => `
                             <div class="stage-item">
-                                <span class="stage-temp">${item.temp}°F</span>
+                                <span class="stage-temp">${item.tempC}°C <span class="secondary">(${celsiusToFahrenheit(item.tempC)}°F)</span></span>
                                 <span class="stage-name">${item.stage}</span>
                             </div>
                         `).join('')}
@@ -645,11 +657,11 @@
                 <div class="tips-section">
                     <h3>💡 Consejos</h3>
                     <ul>
-                        <li>Usa un termómetro de carne confiable</li>
-                        <li>El "wrap" a 165°F acelera la cocción</li>
-                        <li>Los tiempos varían por viento y humedad</li>
-                        <li>Reposa en caja aislante a 140°F</li>
-                        <li>Mantén temperatura consistente</li>
+                        <li>Usa un termómetro de carne confiable para verificar la temperatura interna</li>
+                        <li>El "wrap" con papel a 74°C (165°F) acelera la cocción y previene resecamiento</li>
+                        <li>Los tiempos son aproximados; viento, humedad y abrir la tapa afectan la cocción</li>
+                        <li>Reposa la carne en caja aislante a 60°C (140°F) para distribuir jugos</li>
+                        <li>Mantén la temperatura del ahumador consistente durante todo el proceso</li>
                     </ul>
                 </div>
             `;
@@ -657,37 +669,59 @@
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = resultsHTML;
             resultsDiv.classList.add('show');
+            resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        function generateTempRange(minTemp, maxTemp, steps) {
+        function generateTempRange(minTempC, maxTempC, steps) {
             const result = [];
-            const step = (maxTemp - minTemp) / steps;
+            const range = maxTempC - minTempC;
 
-            for (let i = 0; i <= steps; i++) {
-                const temp = minTemp + step * i;
-                let stage = '';
-
-                if (temp < minTemp + step * 3) {
-                    stage = 'Cociendo';
-                } else if (temp < minTemp + step * 7) {
-                    stage = 'Cocimiento avanzado';
-                } else if (temp === maxTemp) {
-                    stage = 'Listo';
-                } else {
-                    stage = 'Casi listo';
+            // Si el rango es 0 (pollo/pavo), mostramos progresión desde temp ambiente
+            if (range === 0) {
+                const startTemp = 40;
+                const stepSize = (maxTempC - startTemp) / steps;
+                for (let i = 0; i <= steps; i++) {
+                    const temp = startTemp + stepSize * i;
+                    result.push({
+                        tempC: Math.round(temp),
+                        stage: getStageForProgress(i / steps)
+                    });
                 }
-
-                result.push({ temp: Math.round(temp), stage });
+                return result;
             }
 
+            const step = range / steps;
+            for (let i = 0; i <= steps; i++) {
+                const temp = minTempC + step * i;
+                result.push({
+                    tempC: Math.round(temp),
+                    stage: getStageForProgress(i / steps)
+                });
+            }
             return result;
         }
 
-        function getColorForTemp(temp, optimalTemp) {
-            const percentage = (temp / optimalTemp) * 100;
-            if (percentage < 50) return '#FF6B6B';
-            if (percentage < 75) return '#FFD93D';
-            if (percentage < 90) return '#6BCB77';
+        function getStageForProgress(progress) {
+            if (progress < 0.25) return 'Cocción inicial';
+            if (progress < 0.55) return 'Stall (meseta)';
+            if (progress < 0.85) return 'Cocción avanzada';
+            if (progress < 1) return 'Casi listo';
+            return 'Listo - retirar';
+        }
+
+        function getColorForTemp(tempC, optimalC, minC) {
+            const range = optimalC - minC;
+            if (range === 0) {
+                const pct = tempC / optimalC;
+                if (pct < 0.5) return '#FF6B6B';
+                if (pct < 0.75) return '#FFD93D';
+                if (pct < 0.95) return '#6BCB77';
+                return '#4D96FF';
+            }
+            const pct = (tempC - minC) / range;
+            if (pct < 0.25) return '#FF6B6B';
+            if (pct < 0.55) return '#FFD93D';
+            if (pct < 0.85) return '#6BCB77';
             return '#4D96FF';
         }
     </script>
