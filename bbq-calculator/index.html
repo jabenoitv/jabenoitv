@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 BBQ Smoking Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px 20px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .weight-group,
+        .temp-group {
+            grid-column: span 1;
+        }
+
+        .weight-input-group,
+        .temp-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .weight-input-group input,
+        .temp-input-group input {
+            flex: 1;
+        }
+
+        .unit-toggle {
+            padding: 10px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.9em;
+        }
+
+        .unit-toggle:hover {
+            background: #764ba2;
+        }
+
+        .unit-toggle:active {
+            transform: scale(0.95);
+        }
+
+        .calculate-btn {
+            grid-column: 1 / -1;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .calculate-btn:active {
+            transform: translateY(0);
+        }
+
+        .results-section {
+            animation: fadeIn 0.5s ease-out;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .result-header h2 {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-weight {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .result-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .card.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-left-color: #fff;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h3 {
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+
+        .card .note {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+
+        .time-display {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 2em;
+            font-weight: 700;
+        }
+
+        .time-display .minutes {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .temp-range p {
+            margin: 6px 0;
+            font-size: 0.95em;
+        }
+
+        .temp-range strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .card.primary .temp-range strong {
+            color: #ffeb3b;
+        }
+
+        .holding-time {
+            text-align: center;
+        }
+
+        .holding-time .duration {
+            display: block;
+            font-size: 1.8em;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+
+        .temperature-chart {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .temperature-chart h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .chart-container {
+            margin-bottom: 20px;
+        }
+
+        .bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            gap: 10px;
+            height: 250px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .bar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            height: 100%;
+        }
+
+        .bar {
+            width: 100%;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.3s ease;
+            min-height: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .bar:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .temp-label {
+            margin-top: 8px;
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .stages {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stage-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .stage-temp {
+            font-weight: 700;
+            color: #667eea;
+            min-width: 50px;
+        }
+
+        .stage-name {
+            color: #666;
+        }
+
+        .tips-section {
+            background: linear-gradient(135deg, #fff9e6 0%, #ffe0cc 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #FFD93D;
+        }
+
+        .tips-section h3 {
+            color: #d97706;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        .tips-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .tips-section li {
+            color: #666;
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+            line-height: 1.5;
+            font-size: 0.9em;
+        }
+
+        .tips-section li:before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #d97706;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .input-section {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 15px;
+            }
+
+            .weight-group,
+            .temp-group {
+                grid-column: span 1;
+            }
+
+            .calculate-btn {
+                grid-column: 1;
+            }
+
+            .result-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .bars {
+                height: 200px;
+                gap: 6px;
+            }
+
+            .stages {
+                grid-template-columns: 1fr;
+            }
+
+            .time-display {
+                font-size: 1.5em;
+            }
+
+            .holding-time .duration {
+                font-size: 1.4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 BBQ Smoking Calculator</h1>
+        <p class="subtitle">Calcula tiempo y temperatura para tu ahumado perfecto</p>
+
+        <div class="input-section">
+            <div class="form-group">
+                <label for="meatType">Tipo de Carne</label>
+                <select id="meatType">
+                    <option value="brisket">Brisket</option>
+                    <option value="pork_butt">Pork Butt</option>
+                    <option value="pork_shoulder">Pork Shoulder</option>
+                    <option value="ribs">Costillas (Ribs)</option>
+                    <option value="beef_ribs">Costillas de Res (Beef Ribs)</option>
+                    <option value="chicken">Pollo</option>
+                    <option value="turkey">Pavo</option>
+                </select>
+            </div>
+
+            <div class="form-group weight-group">
+                <label for="weight">Peso</label>
+                <div class="weight-input-group">
+                    <input id="weight" type="number" value="5" min="0.1" step="0.1">
+                    <button class="unit-toggle" onclick="toggleWeightUnit()">lbs</button>
+                </div>
+            </div>
+
+            <div class="form-group temp-group">
+                <label for="smokingTemp">Temperatura</label>
+                <div class="temp-input-group">
+                    <input id="smokingTemp" type="number" value="225" min="150" max="350" step="5">
+                    <button class="unit-toggle" onclick="toggleTempUnit()">°F</button>
+                </div>
+            </div>
+
+            <button class="calculate-btn" onclick="calculate()">Calcular</button>
+        </div>
+
+        <div id="results" class="results-section">
+            <!-- Los resultados se insertan aquí -->
+        </div>
+    </div>
+
+    <script>
+        const MEAT_FORMULAS = {
+            brisket: {
+                name: 'Brisket',
+                timePerPound: 1.5,
+                minTemp: 190,
+                optimalTemp: 205,
+                holdingTime: 60
+            },
+            pork_butt: {
+                name: 'Pork Butt',
+                timePerPound: 2,
+                minTemp: 190,
+                optimalTemp: 205,
+                holdingTime: 90
+            },
+            pork_shoulder: {
+                name: 'Pork Shoulder',
+                timePerPound: 2,
+                minTemp: 190,
+                optimalTemp: 205,
+                holdingTime: 90
+            },
+            ribs: {
+                name: 'Costillas (Ribs)',
+                timePerPound: 0.5,
+                minTemp: 190,
+                optimalTemp: 200,
+                holdingTime: 15
+            },
+            beef_ribs: {
+                name: 'Costillas de Res (Beef Ribs)',
+                timePerPound: 1.25,
+                minTemp: 190,
+                optimalTemp: 205,
+                holdingTime: 30
+            },
+            chicken: {
+                name: 'Pollo',
+                timePerPound: 0.75,
+                minTemp: 165,
+                optimalTemp: 165,
+                holdingTime: 10
+            },
+            turkey: {
+                name: 'Pavo',
+                timePerPound: 0.75,
+                minTemp: 165,
+                optimalTemp: 165,
+                holdingTime: 20
+            }
+        };
+
+        let isKg = false;
+        let tempUnit = 'F';
+
+        function celsiusToFahrenheit(c) {
+            return Math.round((c * 9 / 5) + 32);
+        }
+
+        function fahrenheitToCelsius(f) {
+            return Math.round(((f - 32) * 5 / 9) * 10) / 10;
+        }
+
+        function toggleWeightUnit() {
+            const weightInput = document.getElementById('weight');
+            const btn = event.target;
+
+            if (!isKg) {
+                // Convert lbs to kg
+                weightInput.value = Math.round(parseFloat(weightInput.value) * 0.453592 * 10) / 10;
+                btn.textContent = 'kg';
+                isKg = true;
+            } else {
+                // Convert kg to lbs
+                weightInput.value = Math.round(parseFloat(weightInput.value) * 2.20462 * 10) / 10;
+                btn.textContent = 'lbs';
+                isKg = false;
+            }
+        }
+
+        function toggleTempUnit() {
+            const tempInput = document.getElementById('smokingTemp');
+            const btn = event.target;
+
+            const currentValue = parseFloat(tempInput.value);
+            if (tempUnit === 'F') {
+                tempInput.value = fahrenheitToCelsius(currentValue);
+                btn.textContent = '°C';
+                tempUnit = 'C';
+            } else {
+                tempInput.value = celsiusToFahrenheit(currentValue);
+                btn.textContent = '°F';
+                tempUnit = 'F';
+            }
+        }
+
+        function calculate() {
+            const meatType = document.getElementById('meatType').value;
+            const weight = parseFloat(document.getElementById('weight').value);
+            const smokingTemp = parseFloat(document.getElementById('smokingTemp').value);
+
+            const formula = MEAT_FORMULAS[meatType];
+            const smokingTempF = tempUnit === 'C' ? celsiusToFahrenheit(smokingTemp) : smokingTemp;
+            const weightLbs = isKg ? weight * 2.20462 : weight;
+
+            const cookingTimeHours = weightLbs * formula.timePerPound;
+            const cookingTimeMinutes = Math.round(cookingTimeHours * 60);
+
+            const temperatureRange = generateTempRange(formula.minTemp, formula.optimalTemp, 10);
+
+            const resultsHTML = `
+                <div class="result-header">
+                    <h2>${formula.name}</h2>
+                    <p class="result-weight">${Math.round(weightLbs * 100) / 100} lbs (${Math.round(weight * 100) / 100} ${isKg ? 'kg' : 'lbs'}) • ${smokingTempF}°F</p>
+                </div>
+
+                <div class="result-cards">
+                    <div class="card primary">
+                        <h3>Tiempo de Cocción</h3>
+                        <div class="time-display">
+                            <span class="hours">${Math.round(cookingTimeHours)}h</span>
+                            <span class="minutes">${cookingTimeMinutes % 60}m</span>
+                        </div>
+                        <p class="note">Tiempo aproximado de ahumado</p>
+                    </div>
+
+                    <div class="card">
+                        <h3>Rango de Temperatura</h3>
+                        <div class="temp-range">
+                            <p>Mínima: <strong>${formula.minTemp}°F</strong></p>
+                            <p>Óptima: <strong>${formula.optimalTemp}°F</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Tiempo de Reposo</h3>
+                        <div class="holding-time">
+                            <span class="duration">${formula.holdingTime} min</span>
+                        </div>
+                        <p class="note">A 140°F después de cocción</p>
+                    </div>
+                </div>
+
+                <div class="temperature-chart">
+                    <h3>Progresión de Temperatura Interna</h3>
+                    <div class="chart-container">
+                        <div class="bars">
+                            ${temperatureRange.map(item => {
+                                const percentage = ((item.temp - formula.minTemp) / (formula.optimalTemp - formula.minTemp)) * 100;
+                                const color = getColorForTemp(item.temp, formula.optimalTemp);
+                                return `
+                                    <div class="bar-item">
+                                        <div class="bar" style="height: ${Math.max(percentage, 5)}%; background: ${color};" />
+                                        <span class="temp-label">${item.temp}°F</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="stages">
+                        ${temperatureRange.map(item => `
+                            <div class="stage-item">
+                                <span class="stage-temp">${item.temp}°F</span>
+                                <span class="stage-name">${item.stage}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="tips-section">
+                    <h3>💡 Consejos</h3>
+                    <ul>
+                        <li>Usa un termómetro de carne confiable</li>
+                        <li>El "wrap" a 165°F acelera la cocción</li>
+                        <li>Los tiempos varían por viento y humedad</li>
+                        <li>Reposa en caja aislante a 140°F</li>
+                        <li>Mantén temperatura consistente</li>
+                    </ul>
+                </div>
+            `;
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = resultsHTML;
+            resultsDiv.classList.add('show');
+        }
+
+        function generateTempRange(minTemp, maxTemp, steps) {
+            const result = [];
+            const step = (maxTemp - minTemp) / steps;
+
+            for (let i = 0; i <= steps; i++) {
+                const temp = minTemp + step * i;
+                let stage = '';
+
+                if (temp < minTemp + step * 3) {
+                    stage = 'Cociendo';
+                } else if (temp < minTemp + step * 7) {
+                    stage = 'Cocimiento avanzado';
+                } else if (temp === maxTemp) {
+                    stage = 'Listo';
+                } else {
+                    stage = 'Casi listo';
+                }
+
+                result.push({ temp: Math.round(temp), stage });
+            }
+
+            return result;
+        }
+
+        function getColorForTemp(temp, optimalTemp) {
+            const percentage = (temp / optimalTemp) * 100;
+            if (percentage < 50) return '#FF6B6B';
+            if (percentage < 75) return '#FFD93D';
+            if (percentage < 90) return '#6BCB77';
+            return '#4D96FF';
+        }
+    </script>
+</body>
+</html>
