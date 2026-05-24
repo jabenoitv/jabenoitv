@@ -523,20 +523,27 @@
             <div class="form-group">
                 <label for="meatType">Tipo de Carne</label>
                 <select id="meatType">
-                    <option value="brisket">Brisket</option>
-                    <option value="pork_butt">Pork Butt</option>
-                    <option value="pork_shoulder">Pork Shoulder</option>
-                    <option value="ribs">Costillas (Ribs)</option>
-                    <option value="beef_ribs">Costillas de Res (Beef Ribs)</option>
-                    <option value="chicken">Pollo</option>
-                    <option value="turkey">Pavo</option>
+                    <optgroup label="Vacuno">
+                        <option value="tapapecho">Tapapecho (Brisket)</option>
+                        <option value="plateada">Plateada</option>
+                        <option value="punta_ganso">Punta de Ganso (Picaña)</option>
+                        <option value="asado_tira">Asado de Tira (Short Ribs)</option>
+                    </optgroup>
+                    <optgroup label="Cerdo">
+                        <option value="paleta_cerdo">Paleta de Cerdo (Pork Shoulder)</option>
+                        <option value="costillar_cerdo">Costillar de Cerdo (Pork Ribs)</option>
+                    </optgroup>
+                    <optgroup label="Ave">
+                        <option value="pollo_entero">Pollo Entero (Whole Chicken)</option>
+                        <option value="pavo_entero">Pavo Entero (Whole Turkey)</option>
+                    </optgroup>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="weight">Peso</label>
                 <div class="weight-input-group">
-                    <input id="weight" type="number" value="2.3" min="0.1" step="0.1">
+                    <input id="weight" type="number" value="3.0" min="0.1" step="0.1">
                     <button class="unit-toggle" onclick="calculator.toggleWeightUnit()" id="weightUnitBtn">kg</button>
                 </div>
             </div>
@@ -622,67 +629,71 @@
                 this.tempUnit = 'C';
             }
 
-            /**
-             * CORRECCIÓN FASE 1: Fórmulas de cocción actualizadas
-             * Referencias: 1.5 hrs/lb (brisket), 2.0 hrs/lb (pork)
-             */
             getMeatFormulas() {
                 return {
-                    brisket: {
-                        name: 'Brisket',
-                        timePerKg: 2.3,  // ✓ CORREGIDO: era 1.65, ahora 2.3 (1.05 hrs/lb)
+                    tapapecho: {
+                        name: 'Tapapecho (Brisket)',
+                        timePerKg: 3.85,
                         minTempC: 88,
                         optimalTempC: 96,
                         holdingMin: 60,
-                        description: 'Corte duro, requiere cocción lenta'
+                        description: 'Corte chileno equivalente al brisket. Cocción larga, fall-apart.'
                     },
-                    pork_butt: {
-                        name: 'Pork Butt',
-                        timePerKg: 2.5,  // ✓ CORREGIDO: era 2.2, ahora 2.5 (1.13 hrs/lb)
+                    plateada: {
+                        name: 'Plateada',
+                        timePerKg: 3.35,
                         minTempC: 88,
                         optimalTempC: 96,
-                        holdingMin: 90,
-                        description: 'Ideal para pulled pork'
+                        holdingMin: 45,
+                        description: 'Similar al brisket, alternativa al tapapecho.'
                     },
-                    pork_shoulder: {
-                        name: 'Pork Shoulder',
-                        timePerKg: 2.5,
-                        minTempC: 88,
-                        optimalTempC: 96,
-                        holdingMin: 90,
-                        description: 'Similar a pork butt'
-                    },
-                    ribs: {
-                        name: 'Costillas (Ribs)',
-                        timePerKg: 1.1,
-                        minTempC: 88,
-                        optimalTempC: 93,
+                    punta_ganso: {
+                        name: 'Punta de Ganso (Picaña)',
+                        timePerKg: 1.65,
+                        minTempC: 54,
+                        optimalTempC: 60,
                         holdingMin: 15,
-                        description: 'Cocción rápida, vigilar temperatura'
+                        description: 'Picaña - corte premium, cocción a término medio (no fall-apart).'
                     },
-                    beef_ribs: {
-                        name: 'Costillas de Res (Beef Ribs)',
-                        timePerKg: 1.4,
+                    asado_tira: {
+                        name: 'Asado de Tira (Short Ribs)',
+                        timePerKg: 2.35,
                         minTempC: 88,
                         optimalTempC: 96,
                         holdingMin: 30,
-                        description: 'Similar a brisket, requiere paciencia'
+                        description: 'Costillas de res chilenas, similar a beef short ribs.'
                     },
-                    chicken: {
-                        name: 'Pollo',
-                        timePerKg: 0.85,
+                    paleta_cerdo: {
+                        name: 'Paleta de Cerdo (Pork Shoulder)',
+                        timePerKg: 4.15,
+                        minTempC: 88,
+                        optimalTempC: 96,
+                        holdingMin: 90,
+                        description: 'Ideal para pulled pork chileno. Equivalente al Boston Butt.'
+                    },
+                    costillar_cerdo: {
+                        name: 'Costillar de Cerdo (Pork Ribs)',
+                        timePerKg: 1.8,
+                        minTempC: 88,
+                        optimalTempC: 93,
+                        holdingMin: 15,
+                        description: 'Costillas de cerdo. Método 3-2-1 recomendado.'
+                    },
+                    pollo_entero: {
+                        name: 'Pollo Entero (Whole Chicken)',
+                        timePerKg: 1.4,
                         minTempC: 74,
                         optimalTempC: 74,
                         holdingMin: 10,
-                        description: 'Cocción más rápida, vigilar resecamiento'
+                        description: 'Pollo completo. Vigilar resecamiento.'
                     },
-                    turkey: {
-                        name: 'Pavo',
-                        timePerKg: 0.85,
+                    pavo_entero: {
+                        name: 'Pavo Entero (Whole Turkey)',
+                        timePerKg: 1.4,
                         minTempC: 74,
                         optimalTempC: 74,
                         holdingMin: 20,
-                        description: 'Similar a pollo, mayor tamaño'
+                        description: 'Pavo para fiestas. Considerar inyección de líquidos.'
                     }
                 };
             }
@@ -903,7 +914,8 @@
                     errors.weight = 'Peso debe ser entre 0.1 y 100';
                 }
 
-                if (!inputs.meatType || !['brisket', 'pork_butt', 'pork_shoulder', 'ribs', 'beef_ribs', 'chicken', 'turkey'].includes(inputs.meatType)) {
+                const validTypes = ['tapapecho', 'plateada', 'punta_ganso', 'asado_tira', 'paleta_cerdo', 'costillar_cerdo', 'pollo_entero', 'pavo_entero'];
+                if (!inputs.meatType || !validTypes.includes(inputs.meatType)) {
                     errors.meatType = 'Tipo de carne inválido';
                 }
 
