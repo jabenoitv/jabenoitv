@@ -16,6 +16,8 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 15px;
+            display: flex;
+            flex-direction: column;
         }
 
         .container {
@@ -24,8 +26,68 @@
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 30px 20px;
+            padding: 0;
             animation: slideIn 0.5s ease-out;
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+
+        .app-header {
+            padding: 25px 20px 0;
+            border-bottom: none;
+        }
+
+        .app-header h1 {
+            margin-bottom: 5px;
+        }
+
+        .app-header .subtitle {
+            margin-bottom: 20px;
+        }
+
+        .tab-navigation {
+            display: flex;
+            gap: 8px;
+            padding: 0 20px;
+            border-bottom: 2px solid #e0e0e0;
+            overflow-x: auto;
+            background: #f8f9fa;
+        }
+
+        .tab-button {
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.95em;
+        }
+
+        .tab-button:hover {
+            color: #333;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab-content {
+            flex: 1;
+            display: none;
+            padding: 30px 20px;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         @keyframes slideIn {
@@ -488,8 +550,30 @@
         }
 
         @media (max-width: 768px) {
-            .container { padding: 15px; }
+            .container {
+                padding: 0;
+                min-height: auto;
+            }
+
+            .app-header {
+                padding: 20px 15px 0;
+            }
+
             h1 { font-size: 1.5em; }
+
+            .tab-navigation {
+                padding: 0 10px;
+                gap: 4px;
+            }
+
+            .tab-button {
+                padding: 12px 12px;
+                font-size: 0.85em;
+            }
+
+            .tab-content {
+                padding: 20px 15px;
+            }
 
             .input-section {
                 grid-template-columns: 1fr;
@@ -516,58 +600,123 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔥 BBQ Smoking Calculator</h1>
-        <p class="subtitle">Calcula tiempo y temperatura para tu ahumado perfecto</p>
+        <div class="app-header">
+            <h1>🔥 BBQ Smoking Calculator</h1>
+            <p class="subtitle">Calcula tiempo y temperatura para tu ahumado perfecto</p>
+        </div>
 
-        <div class="input-section">
-            <div class="form-group">
-                <label for="meatType">Tipo de Carne</label>
-                <select id="meatType">
-                    <optgroup label="Vacuno">
-                        <option value="tapapecho">Tapapecho (Brisket)</option>
-                        <option value="plateada">Plateada</option>
-                        <option value="punta_ganso">Punta de Ganso (Picaña)</option>
-                        <option value="asado_tira">Asado de Tira (Short Ribs)</option>
-                    </optgroup>
-                    <optgroup label="Cerdo">
-                        <option value="paleta_cerdo">Paleta de Cerdo (Pork Shoulder)</option>
-                        <option value="costillar_cerdo">Costillar de Cerdo (Pork Ribs)</option>
-                    </optgroup>
-                    <optgroup label="Ave">
-                        <option value="pollo_entero">Pollo Entero (Whole Chicken)</option>
-                        <option value="pavo_entero">Pavo Entero (Whole Turkey)</option>
-                    </optgroup>
-                </select>
-            </div>
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="switchTab('ahumado')">🔥 Ahumado</button>
+            <button class="tab-button" onclick="switchTab('recetas')">📋 Mis Recetas</button>
+            <button class="tab-button" onclick="switchTab('gadgets')">🛠️ Gadgets</button>
+            <button class="tab-button" onclick="switchTab('configuracion')">⚙️ Config</button>
+        </div>
 
-            <div class="form-group">
-                <label for="weight">Peso</label>
-                <div class="weight-input-group">
-                    <input id="weight" type="number" value="3.0" min="0.1" step="0.1">
-                    <button class="unit-toggle" onclick="calculator.toggleWeightUnit()" id="weightUnitBtn">kg</button>
+        <!-- TAB: AHUMADO -->
+        <div id="ahumado" class="tab-content active">
+            <div class="input-section">
+                <div class="form-group">
+                    <label for="meatType">Tipo de Carne</label>
+                    <select id="meatType">
+                        <optgroup label="Vacuno">
+                            <option value="tapapecho">Tapapecho (Brisket)</option>
+                            <option value="plateada">Plateada</option>
+                            <option value="punta_ganso">Punta de Ganso (Picaña)</option>
+                            <option value="asado_tira">Asado de Tira (Short Ribs)</option>
+                        </optgroup>
+                        <optgroup label="Cerdo">
+                            <option value="paleta_cerdo">Paleta de Cerdo (Pork Shoulder)</option>
+                            <option value="costillar_cerdo">Costillar de Cerdo (Pork Ribs)</option>
+                        </optgroup>
+                        <optgroup label="Ave">
+                            <option value="pollo_entero">Pollo Entero (Whole Chicken)</option>
+                            <option value="pavo_entero">Pavo Entero (Whole Turkey)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="weight">Peso</label>
+                    <div class="weight-input-group">
+                        <input id="weight" type="number" value="3.0" min="0.1" step="0.1">
+                        <button class="unit-toggle" onclick="calculator.toggleWeightUnit()" id="weightUnitBtn">kg</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="smokingTemp">Temperatura del Ahumador</label>
+                    <div class="temp-input-group">
+                        <input id="smokingTemp" type="number" value="110" min="65" max="180" step="1">
+                        <button class="unit-toggle" onclick="calculator.toggleTempUnit()" id="tempUnitBtn">°C</button>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="calculate-btn" onclick="calculator.calculate()">Calcular</button>
+                    <button class="secondary-btn" onclick="stateManager.exportData()">📥 Exportar</button>
+                    <button class="secondary-btn" onclick="stateManager.importData()">📤 Importar</button>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="smokingTemp">Temperatura del Ahumador</label>
-                <div class="temp-input-group">
-                    <input id="smokingTemp" type="number" value="110" min="65" max="180" step="1">
-                    <button class="unit-toggle" onclick="calculator.toggleTempUnit()" id="tempUnitBtn">°C</button>
-                </div>
-            </div>
+            <div id="results" class="results-section"></div>
+        </div>
 
-            <div class="button-group">
-                <button class="calculate-btn" onclick="calculator.calculate()">Calcular</button>
-                <button class="secondary-btn" onclick="stateManager.showHistory()">📋 Historial</button>
-                <button class="secondary-btn" onclick="stateManager.exportData()">📥 Exportar</button>
-                <button class="secondary-btn" onclick="stateManager.importData()">📤 Importar</button>
+        <!-- TAB: MIS RECETAS -->
+        <div id="recetas" class="tab-content">
+            <div style="padding: 10px 0;">
+                <h2>Mis Recetas Guardadas</h2>
+                <p style="color: #666; margin-bottom: 20px;">Carga recetas anteriores o guarda nuevas</p>
+                <div class="history-list" id="historyList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;"></div>
+                <p id="emptyHistory" style="grid-column: 1/-1; text-align: center; color: #999; padding: 40px 20px;">Sin recetas guardadas aún</p>
             </div>
         </div>
 
-        <div id="results" class="results-section"></div>
-        <div id="history" style="display:none; margin-bottom: 30px;">
-            <h3>Recetas Guardadas</h3>
-            <div class="history-list" id="historyList"></div>
+        <!-- TAB: GADGETS -->
+        <div id="gadgets" class="tab-content">
+            <h2>🛠️ Herramientas útiles para el parrillero</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div class="card">
+                    <h3>🌡️ Convertidor de Temperatura</h3>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <input id="gadgetTemp" type="number" value="110" placeholder="Temperaturan">
+                        <button class="secondary-btn" onclick="convertTempGadget()" style="margin-top: 8px; width: 100%;">Convertir</button>
+                    </div>
+                    <div id="tempResult" style="padding: 10px; background: #f0f0f0; border-radius: 6px; display: none;"></div>
+                </div>
+
+                <div class="card">
+                    <h3>⚖️ Convertidor de Peso</h3>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <input id="gadgetWeight" type="number" value="3.0" placeholder="Peso">
+                        <select id="weightFrom" style="margin-top: 8px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                            <option value="kg">Kilogramos (kg)</option>
+                            <option value="lbs">Libras (lbs)</option>
+                        </select>
+                        <button class="secondary-btn" onclick="convertWeightGadget()" style="margin-top: 8px; width: 100%;">Convertir</button>
+                    </div>
+                    <div id="weightResult" style="padding: 10px; background: #f0f0f0; border-radius: 6px; display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CONFIGURACIÓN -->
+        <div id="configuracion" class="tab-content">
+            <h2>⚙️ Configuración</h2>
+            <div class="card" style="max-width: 500px;">
+                <h3>Preferencias</h3>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Unidades por defecto:</label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="radio" name="defaultUnit" value="metric" checked> Métrico (kg, °C)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="radio" name="defaultUnit" value="imperial"> Imperial (lbs, °F)
+                        </label>
+                    </div>
+                </div>
+                <button class="secondary-btn" onclick="stateManager.clearHistory()" style="background: #fff3cd; border-color: #ffc107; color: #333;">🗑️ Limpiar Historial</button>
+            </div>
         </div>
     </div>
 
@@ -1054,27 +1203,14 @@
             }
 
             /**
-             * Mostrar historial
+             * Limpiar historial
              */
-            showHistory() {
-                const historyDiv = document.getElementById('history');
-                const historyList = document.getElementById('historyList');
-
-                if (historyDiv.style.display === 'none') {
-                    const recipes = this.getRecipes();
-                    historyList.innerHTML = recipes.length === 0
-                        ? '<p style="grid-column: 1/-1; text-align: center; color: #999;">Sin recetas guardadas aún</p>'
-                        : recipes.reverse().map(r => `
-                            <div class="history-item" onclick="stateManager.loadRecipe(${r.id})">
-                                <strong>${r.meatName}</strong><br>
-                                ${r.weightKg}kg @ ${r.smokingTempC}°C<br>
-                                <small>${r.estimatedHours}h aprox.</small><br>
-                                <small style="color:#999;">${r.calculatedAt}</small>
-                            </div>
-                        `).join('');
-                    historyDiv.style.display = 'block';
-                } else {
-                    historyDiv.style.display = 'none';
+            clearHistory() {
+                if (confirm('¿Borrar todas las recetas guardadas?')) {
+                    this.state.recipes = [];
+                    this.save();
+                    updateRecipesList();
+                    showToast('✓ Historial borrado', 'success');
                 }
             }
 
@@ -1155,6 +1291,84 @@
             setTimeout(() => {
                 toast.remove();
             }, 3000);
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const buttons = document.querySelectorAll('.tab-button');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            const activeTab = document.getElementById(tabName);
+            const activeButton = document.querySelector(`button[onclick="switchTab('${tabName}')"]`);
+
+            if (activeTab) activeTab.classList.add('active');
+            if (activeButton) activeButton.classList.add('active');
+
+            if (tabName === 'recetas') {
+                updateRecipesList();
+            }
+        }
+
+        function updateRecipesList() {
+            const recipes = stateManager.getRecipes();
+            const historyList = document.getElementById('historyList');
+            const emptyHistory = document.getElementById('emptyHistory');
+
+            if (recipes.length === 0) {
+                historyList.innerHTML = '';
+                emptyHistory.style.display = 'block';
+            } else {
+                historyList.innerHTML = recipes.reverse().map(r => `
+                    <div class="history-item" onclick="stateManager.loadRecipe(${r.id}); switchTab('ahumado');">
+                        <strong>${r.meatName}</strong><br>
+                        ${r.weightKg}kg @ ${r.smokingTempC}°C<br>
+                        <small>${r.estimatedHours}h aprox.</small><br>
+                        <small style="color:#999;">${r.calculatedAt}</small>
+                    </div>
+                `).join('');
+                emptyHistory.style.display = 'none';
+            }
+        }
+
+        function convertTempGadget() {
+            const input = parseFloat(document.getElementById('gadgetTemp').value);
+            const resultDiv = document.getElementById('tempResult');
+
+            if (isNaN(input)) {
+                resultDiv.style.display = 'none';
+                return;
+            }
+
+            const celsius = input;
+            const fahrenheit = calculator.celsiusToFahrenheit(celsius);
+
+            resultDiv.innerHTML = `<strong>${celsius}°C</strong> = <strong>${fahrenheit}°F</strong>`;
+            resultDiv.style.display = 'block';
+        }
+
+        function convertWeightGadget() {
+            const input = parseFloat(document.getElementById('gadgetWeight').value);
+            const from = document.getElementById('weightFrom').value;
+            const resultDiv = document.getElementById('weightResult');
+
+            if (isNaN(input)) {
+                resultDiv.style.display = 'none';
+                return;
+            }
+
+            let kg, lbs;
+            if (from === 'kg') {
+                kg = input;
+                lbs = calculator.kgToLbs(input);
+            } else {
+                lbs = input;
+                kg = calculator.lbsToKg(input);
+            }
+
+            resultDiv.innerHTML = `<strong>${kg.toFixed(1)} kg</strong> = <strong>${lbs.toFixed(1)} lbs</strong>`;
+            resultDiv.style.display = 'block';
         }
 
         function displayResult(result) {
@@ -1292,10 +1506,10 @@
         // ================================================================
         // INICIALIZACIÓN
         // ================================================================
+        updateRecipesList();
         console.log('✓ BBQ Calculator inicializado con arquitectura GSD-Lite');
-        console.log('✓ Fase 1: Correcciones de datos aplicadas (Brisket: 1.65→2.3, Pork: 2.2→2.5)');
-        console.log('✓ Fase 2: Arquitectura modular (EventEmitter, Engine, Validator, StateManager)');
-        console.log('✓ Fase 3: Persistencia y exportación habilitadas');
+        console.log('✓ Navegación de pestañas implementada');
+        console.log('✓ Gadgets disponibles: Conversión Temperatura y Peso');
     </script>
 </body>
 </html>
