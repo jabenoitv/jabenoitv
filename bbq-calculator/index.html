@@ -865,6 +865,14 @@
                 </div>
             </div>
 
+            <!-- Sección de Recomendaciones -->
+            <div class="card" style="margin-bottom: 30px; border-left-color: #fbbf24; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(249, 115, 22, 0.1) 100%); border: 1px solid rgba(251, 191, 36, 0.3);">
+                <h3 style="color: #fbbf24;">💡 Recomendaciones</h3>
+                <div id="recommendationsBox" style="color: #cbd5e1; font-size: 0.95em; line-height: 1.6;">
+                    <p style="color: #94a3b8;">Inicia la cocción para recibir recomendaciones</p>
+                </div>
+            </div>
+
             <!-- Sección de Entrada de Datos -->
             <div class="card" style="margin-bottom: 30px;">
                 <h3>📝 Registrar Lectura</h3>
@@ -1565,6 +1573,7 @@
                 const display = `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
                 const timerDisplay = document.getElementById('timerDisplay');
                 if (timerDisplay) timerDisplay.textContent = display;
+                this.updateRecommendations();
             }
 
             addReading() {
@@ -1648,6 +1657,7 @@
                     document.getElementById('currentMeatTemp').textContent = '--';
                     document.getElementById('recordCount').textContent = '0';
                     document.getElementById('progressPercent').textContent = '0';
+                    this.updateRecommendations();
                     return;
                 }
 
@@ -1661,6 +1671,71 @@
                     const progress = Math.min(100, Math.round((last.meatTemp / lastResult.optimalTempC) * 100));
                     document.getElementById('progressPercent').textContent = progress;
                 }
+
+                this.updateRecommendations();
+            }
+
+            getRecommendations() {
+                const recommendations = [];
+
+                if (!this.isRunning && this.elapsedSeconds === 0) {
+                    return null;
+                }
+
+                // Obtener tiempos esperados del último cálculo
+                if (!lastResult) {
+                    return null;
+                }
+
+                const totalExpectedSeconds = lastResult.totalMinutes * 60;
+                const currentPercent = (this.elapsedSeconds / totalExpectedSeconds) * 100;
+
+                // Recomendaciones basadas en porcentaje de progreso
+                if (currentPercent < 25) {
+                    recommendations.push('🔥 Fase inicial de cocción. Verifica que el ahumador mantenga temperatura constante.');
+                } else if (currentPercent < 50) {
+                    recommendations.push('📊 Estás en la fase de cocción activa. Toma lecturas cada 30 min.');
+                    if (this.readings.length === 0) {
+                        recommendations.push('⚠️ Aún sin registros de temperatura. Registra una lectura ahora.');
+                    }
+                } else if (currentPercent < 75) {
+                    recommendations.push('⏱️ Aproximadamente 50% de cocción completada.');
+                    if (this.readings.length > 0) {
+                        const currentTemp = this.readings[this.readings.length - 1].meatTemp;
+                        const tempNeeded = lastResult.optimalTempC - currentTemp;
+                        if (tempNeeded > 10) {
+                            recommendations.push(`🌡️ Necesita ${tempNeeded.toFixed(0)}°C más para alcanzar objetivo.`);
+                        }
+                    }
+                } else if (currentPercent < 90) {
+                    recommendations.push('🎯 Aproximando al final. Revisa temperatura interna cada 10-15 min.');
+                } else {
+                    recommendations.push('✨ Casi listo. Verifica si alcanzó temperatura interna deseada.');
+                }
+
+                // Recomendación basada en temperatura registrada
+                if (this.readings.length > 0) {
+                    const last = this.readings[this.readings.length - 1];
+                    if (last.meatTemp >= lastResult.optimalTempC - 2) {
+                        recommendations.push('✅ ¡Temperatura objetivo alcanzada! Retira la carne y reposa.');
+                    } else if (last.meatTemp >= lastResult.optimalTempC - 5) {
+                        recommendations.push('🔔 Casi en temperatura. Próxima lectura en 5 minutos.');
+                    }
+                }
+
+                return recommendations.length > 0 ? recommendations : null;
+            }
+
+            updateRecommendations() {
+                const recs = this.getRecommendations();
+                const box = document.getElementById('recommendationsBox');
+
+                if (!recs) {
+                    box.innerHTML = '<p style="color: #94a3b8;">Inicia la cocción para recibir recomendaciones</p>';
+                    return;
+                }
+
+                box.innerHTML = recs.map(r => `<p>• ${r}</p>`).join('');
             }
 
             drawChart() {
