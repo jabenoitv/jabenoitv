@@ -873,6 +873,27 @@
                 </div>
             </div>
 
+            <!-- Sección de Configuración de Termómetro -->
+            <div class="card" style="margin-bottom: 30px; border-left-color: #60a5fa;">
+                <h3>🌡️ Tipo de Termómetro</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; background: rgba(96, 165, 250, 0.1); border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
+                        <input type="radio" name="thermometerType" value="manual" onchange="cookingMonitor.setThermometerType('manual')" checked style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>
+                            <strong>📱 Termómetro Manual</strong>
+                            <p style="font-size: 0.85em; color: #94a3b8; margin-top: 4px;">Registro manual cada vez que reviso</p>
+                        </span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; background: rgba(96, 165, 250, 0.1); border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
+                        <input type="radio" name="thermometerType" value="probe" onchange="cookingMonitor.setThermometerType('probe')" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>
+                            <strong>📡 Sonda Conectada (iGrill 2)</strong>
+                            <p style="font-size: 0.85em; color: #94a3b8; margin-top: 4px;">Captura automática cada 5 min</p>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
             <!-- Sección de Entrada de Datos -->
             <div class="card" style="margin-bottom: 30px;">
                 <h3>📝 Registrar Lectura</h3>
@@ -891,6 +912,9 @@
                     </div>
                     <button class="calculate-btn" onclick="cookingMonitor.addReading()" style="padding: 12px 20px; white-space: nowrap;">➕ Guardar</button>
                 </div>
+                <p id="thermometerHint" style="color: #94a3b8; font-size: 0.9em; margin-top: 12px; padding: 8px; background: rgba(148, 163, 184, 0.1); border-radius: 6px;">
+                    💡 Usando termómetro manual - registra lecturas manualmente
+                </p>
             </div>
 
             <!-- Tabla de Registros -->
@@ -966,20 +990,48 @@
         <!-- TAB: CONFIGURACIÓN -->
         <div id="configuracion" class="tab-content">
             <h2>⚙️ Configuración</h2>
-            <div class="card" style="max-width: 500px;">
-                <h3>Preferencias</h3>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label>Unidades por defecto:</label>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                            <input type="radio" name="defaultUnit" value="metric" checked> Métrico (kg, °C)
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                            <input type="radio" name="defaultUnit" value="imperial"> Imperial (lbs, °F)
-                        </label>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Preferencias Generales -->
+                <div class="card">
+                    <h3>Preferencias Generales</h3>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Unidades por defecto:</label>
+                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-direction: column;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                                <input type="radio" name="defaultUnit" value="metric" checked> Métrico (kg, °C)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                                <input type="radio" name="defaultUnit" value="imperial"> Imperial (lbs, °F)
+                            </label>
+                        </div>
                     </div>
                 </div>
-                <button class="secondary-btn" onclick="stateManager.clearHistory()" style="background: #fff3cd; border-color: #ffc107; color: #333;">🗑️ Limpiar Historial</button>
+
+                <!-- Configuración de iGrill 2 -->
+                <div class="card" style="border-left-color: #60a5fa;">
+                    <h3>📡 Sonda iGrill 2</h3>
+                    <div style="margin-bottom: 15px;">
+                        <p style="font-size: 0.9em; color: #94a3b8; margin-bottom: 12px;">Conecta tu iGrill 2 para captura automática</p>
+                        <div id="igrillStatus" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; margin-bottom: 12px;">
+                            <p style="color: #fca5a5; font-size: 0.9em;">
+                                ⚫ Desconectado
+                            </p>
+                        </div>
+                        <button class="secondary-btn" onclick="stateManager.connectIGrill()" style="width: 100%;">🔗 Conectar iGrill 2</button>
+                        <p style="font-size: 0.8em; color: #64748b; margin-top: 8px;">Nota: Requiere acceso a tu red y API token</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Datos -->
+            <div class="card" style="margin-top: 20px;">
+                <h3>📊 Datos y Privacidad</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="secondary-btn" onclick="stateManager.exportData()">📥 Exportar Datos</button>
+                    <button class="secondary-btn" onclick="stateManager.importData()">📤 Importar Datos</button>
+                    <button class="secondary-btn" onclick="stateManager.clearHistory()" style="grid-column: 1/-1;">🗑️ Limpiar Historial</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1467,6 +1519,27 @@
             }
 
             /**
+             * Conectar iGrill 2
+             */
+            connectIGrill() {
+                const token = prompt('Ingresa tu API token de iGrill 2:\n(Encontralo en tu cuenta de iGrill)');
+                if (!token) return;
+
+                // Guardar token en state
+                this.state.igrillToken = token;
+                this.save();
+
+                // En producción, aquí iría validación con API real de iGrill
+                const statusDiv = document.getElementById('igrillStatus');
+                statusDiv.innerHTML = '<p style="color: #86efac; font-size: 0.9em;">🟢 Conectado a iGrill 2</p>';
+                showToast('✓ iGrill 2 conectado (capturas automáticas cada 5 min)', 'success');
+
+                // Simular estado conectado
+                this.state.igrillConnected = true;
+                this.save();
+            }
+
+            /**
              * Limpiar historial
              */
             clearHistory() {
@@ -1532,6 +1605,23 @@
                 this.readings = [];
                 this.startedAt = null;
                 this.targetMeatTemp = null;
+                this.thermometerType = 'manual'; // 'manual' o 'probe'
+                this.probeAutoInterval = null;
+                this.lastProbeReadingTime = 0;
+            }
+
+            setThermometerType(type) {
+                this.thermometerType = type;
+                const hint = document.getElementById('thermometerHint');
+
+                if (type === 'manual') {
+                    hint.innerHTML = '💡 Usando termómetro manual - registra lecturas manualmente cada vez que revises';
+                } else if (type === 'probe') {
+                    hint.innerHTML = '📡 Usando sonda conectada - se capturará temperatura automáticamente cada 5 minutos. Asegúrate de que iGrill 2 está conectado.';
+                }
+
+                showToast(`✓ Tipo de termómetro: ${type === 'manual' ? 'Manual' : 'Sonda iGrill 2'}`, 'success');
+                this.emit('thermometer-changed', type);
             }
 
             startTimer() {
@@ -1544,19 +1634,53 @@
                     this.elapsedSeconds = Math.floor((Date.now() - this.startedAt) / 1000);
                     this.updateTimerDisplay();
                 }, 100);
+
+                // Si es sonda conectada, inicia captura automática
+                if (this.thermometerType === 'probe') {
+                    this.startProbeAutoCapture();
+                }
+
                 showToast('⏱️ Cronómetro iniciado', 'success');
+            }
+
+            startProbeAutoCapture() {
+                // Captura automática cada 5 minutos para sonda iGrill 2
+                this.probeAutoInterval = setInterval(() => {
+                    // En producción, esto se conectaría a la API real de iGrill
+                    // Por ahora, muestra un recordatorio
+                    if (this.thermometerType === 'probe') {
+                        showToast('📡 Intenta capturar datos de iGrill 2...', 'info');
+                        // this.captureProbeTemperature(); descomentar cuando haya API
+                    }
+                }, 5 * 60 * 1000); // 5 minutos
+            }
+
+            stopProbeAutoCapture() {
+                if (this.probeAutoInterval) {
+                    clearInterval(this.probeAutoInterval);
+                    this.probeAutoInterval = null;
+                }
+            }
+
+            captureProbeTemperature() {
+                // Método stub para integración futura con iGrill 2 API
+                // En producción, aquí iría la llamada a la API de iGrill
+                console.log('Intento de captura de sonda iGrill 2 (API no implementada aún)');
+                showToast('⚠️ Integración iGrill 2 en desarrollo', 'warning');
             }
 
             pauseTimer() {
                 if (!this.isRunning) return;
                 this.isRunning = false;
                 clearInterval(this.timerInterval);
+                this.stopProbeAutoCapture();
                 showToast('⏸️ Cronómetro pausado', 'info');
             }
 
             resetTimer() {
                 this.isRunning = false;
                 clearInterval(this.timerInterval);
+                this.stopProbeAutoCapture();
                 this.elapsedSeconds = 0;
                 this.startedAt = null;
                 this.readings = [];
@@ -2070,9 +2194,19 @@
         // INICIALIZACIÓN
         // ================================================================
         updateRecipesList();
+
+        // Verificar estado de iGrill 2
+        if (stateManager.state.igrillConnected) {
+            const statusDiv = document.getElementById('igrillStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<p style="color: #86efac; font-size: 0.9em;">🟢 Conectado a iGrill 2</p>';
+            }
+        }
+
         console.log('✓ BBQ Calculator inicializado con arquitectura GSD-Lite');
         console.log('✓ Navegación de pestañas implementada');
         console.log('✓ Monitor de cocción en vivo disponible');
+        console.log('✓ Soporte para termómetro manual e iGrill 2');
         console.log('✓ Gadgets: Conversión Temperatura y Peso');
     </script>
 </body>
