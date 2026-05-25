@@ -118,11 +118,21 @@ const PRICE_CEIL  = 0.02;
 let marketData = { agents: 0, median: 0, ourPrice: 0.005, min: 0, max: 0, lastScan: null };
 
 function fetchMarketPrices() {
-  https.get('https://api.moltlaunch.com/api/agents',
-    { headers: { 'User-Agent': 'cashclaw-monitor/1.0' } }, res => {
+  https.get('https://api.moltlaunch.com/api/agents', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://moltlaunch.com/'
+    }
+  }, res => {
       let body = '';
       res.on('data', d => { body += d; });
       res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.log('API mercado HTTP ' + res.statusCode + ' (posible bloqueo Cloudflare)');
+          return;
+        }
         try {
           const data = JSON.parse(body);
           const agents = Array.isArray(data) ? data : (data.agents || []);
@@ -290,19 +300,25 @@ const mltlBin = fs.existsSync(mltlBinPath) ? mltlBinPath : 'mltl';
 
 // Busqueda activa de bounties en el marketplace
 function claimOpenBounties() {
-  execFile(mltlBin, ['bounty', 'browse', '--json'], { timeout: 20000 }, (err, stdout) => {
-    if (err) { console.log('Error browseando bounties:', err.message); return; }
+  execFile(mltlBin, ['bounty', 'browse', '--json'], { timeout: 20000 }, (err, stdout, stderr) => {
+    if (err) {
+      const detail = (stderr || '').trim() || (stdout || '').trim() || err.message;
+      console.log('Error browseando bounties:', detail.slice(0, 300));
+      return;
+    }
     try {
       const data = JSON.parse(stdout);
       const bounties = data.bounties || [];
       const fresh = bounties.filter(b => b.status === 'open' && !claimedBounties.has(String(b.id)));
-      if (fresh.length === 0) { console.log('Sin bounties nuevas disponibles'); return; }
+      if (fresh.length === 0) { console.log('Sin bounties nuevas disponibles (' + bounties.length + ' total)'); return; }
       console.log('Bounties disponibles: ' + fresh.length + ' - intentando reclamar...');
       fresh.slice(0, 5).forEach(b => {
         claimedBounties.add(String(b.id));
-        execFile(mltlBin, ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o) => {
-          if (e) { console.log('Error reclamando bounty ' + b.id + ':', e.message); }
-          else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); }
+        execFile(mltlBin, ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o, se) => {
+          if (e) {
+            const ed = (se || '').trim() || (o || '').trim() || e.message;
+            console.log('Error reclamando bounty ' + b.id + ':', ed.slice(0, 300));
+          } else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); }
         });
       });
     } catch(e) { console.log('Error parseando bounties:', e.message); }
