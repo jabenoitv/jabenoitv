@@ -3,7 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 const w = path.join(os.homedir(), '.workclaw');
 const m = path.join(os.homedir(), '.moltlaunch');
@@ -52,6 +52,16 @@ try {
     console.log('Cashclaw parcheado: puerto ' + CASHCLAW_PORT);
   }
 } catch (e) { console.log('No se pudo parchear cashclaw:', e.message); }
+
+// Re-importar wallet en mltl cada startup (containers Railway son efimeros)
+(function setupMltlWallet() {
+  const key = process.env.WALLET_PRIVATE_KEY;
+  if (!key) { console.log('WALLET_PRIVATE_KEY no configurado'); return; }
+  execFile('mltl', ['wallet', 'import', '--key', key, '--json'], { timeout: 30000 }, (err) => {
+    if (err) console.log('mltl wallet import error:', err.message);
+    else console.log('mltl wallet importada OK');
+  });
+})();
 
 // SSE clients
 const sseClients = [];
@@ -195,6 +205,54 @@ function addLog(line, type) {
     newPayment: totalEarnedEth > prevEarned ? (totalEarnedEth - prevEarned).toFixed(6) : null
   });
 }
+
+// Tail del log interno de cashclaw (~/.workclaw/logs/YYYY-MM-DD.md)
+// cashclaw escribe ahi, no a stdout, por eso el dashboard se veia vacio
+let lastCashclawLogSize = 0;
+function tailCashclawLog() {
+  const today = new Date().toISOString().split('T')[0];
+  const logPath = path.join(os.homedir(), '.workclaw', 'logs', today + '.md');
+  try {
+    const stat = fs.statSync(logPath);
+    if (stat.size <= lastCashclawLogSize) return;
+    const fd = fs.openSync(logPath, 'r');
+    const buf = Buffer.alloc(stat.size - lastCashclawLogSize);
+    fs.readSync(fd, buf, 0, buf.length, lastCashclawLogSize);
+    fs.closeSync(fd);
+    lastCashclawLogSize = stat.size;
+    buf.toString('utf8').split('\n').forEach(line => {
+      const match = line.match(/^- `\d{2}:\d{2}:\d{2}` (.+)$/);
+      if (match) addLog(match[1].trim(), 'info');
+    });
+  } catch(e) {}
+}
+setInterval(tailCashclawLog, 5000);
+
+// Busqueda activa de bounties — no esperar que clientes nos encuentren
+const claimedBounties = new Set();
+function claimOpenBounties() {
+  execFile('mltl', ['bounty', 'browse', '--json'], { timeout: 30000 }, (err, stdout) => {
+    if (err) { addLog('Bounties: ' + err.message.slice(0, 80), 'warn'); return; }
+    try {
+      const data = JSON.parse(stdout.trim());
+      const list = Array.isArray(data) ? data : (data.bounties || data.tasks || []);
+      const fresh = list.filter(b => b && (b.id || b.taskId) && !claimedBounties.has(String(b.id || b.taskId)));
+      if (fresh.length === 0) { addLog('Bounties: ninguna nueva disponible', 'info'); return; }
+      addLog(fresh.length + ' bounties nuevas encontradas en marketplace', 'info');
+      fresh.slice(0, 5).forEach(b => {
+        const id = String(b.id || b.taskId);
+        claimedBounties.add(id);
+        const msg = 'Agente disponible con experiencia en escritura, investigacion, analisis y desarrollo. Entrego trabajo completo y profesional.';
+        execFile('mltl', ['bounty', 'claim', '--task', id, '--message', msg, '--json'], { timeout: 30000 }, (e2) => {
+          if (e2) addLog('Bounty ' + id + ' no reclamada: ' + e2.message.slice(0, 60), 'warn');
+          else addLog('Bounty ' + id + ' reclamada — esperando asignacion del cliente', 'info');
+        });
+      });
+    } catch(e) { addLog('Bounties error: ' + e.message, 'warn'); }
+  });
+}
+setTimeout(claimOpenBounties, 15000);
+setInterval(claimOpenBounties, 5 * 60 * 1000);
 
 const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
 const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
