@@ -283,9 +283,14 @@ function tailCashclawLog() {
 }
 setInterval(tailCashclawLog, 5000);
 
+// Localizar mltl: en Railway el PATH no incluye node_modules/.bin
+const localBin = path.join(process.cwd(), 'node_modules', '.bin');
+const mltlBinPath = path.join(localBin, 'mltl');
+const mltlBin = fs.existsSync(mltlBinPath) ? mltlBinPath : 'mltl';
+
 // Busqueda activa de bounties en el marketplace
 function claimOpenBounties() {
-  execFile('mltl', ['bounty', 'browse', '--json'], { timeout: 20000 }, (err, stdout) => {
+  execFile(mltlBin, ['bounty', 'browse', '--json'], { timeout: 20000 }, (err, stdout) => {
     if (err) { console.log('Error browseando bounties:', err.message); return; }
     try {
       const data = JSON.parse(stdout);
@@ -295,7 +300,7 @@ function claimOpenBounties() {
       console.log('Bounties disponibles: ' + fresh.length + ' - intentando reclamar...');
       fresh.slice(0, 5).forEach(b => {
         claimedBounties.add(String(b.id));
-        execFile('mltl', ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o) => {
+        execFile(mltlBin, ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o) => {
           if (e) { console.log('Error reclamando bounty ' + b.id + ':', e.message); }
           else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); }
         });
@@ -311,7 +316,10 @@ const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
 
 function startCashclaw() {
   cashclawStatus = 'running';
-  cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: process.env });
+  const augmentedEnv = Object.assign({}, process.env, {
+    PATH: localBin + path.delimiter + (process.env.PATH || '')
+  });
+  cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: augmentedEnv });
   cashclawProc.stdout.on('data', d =>
     d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stdout.write(l + '\n'); addLog(l, 'info'); })
   );
