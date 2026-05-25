@@ -3,11 +3,12 @@ const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 const w = path.join(os.homedir(), '.workclaw');
 const m = path.join(os.homedir(), '.moltlaunch');
 fs.mkdirSync(w, { recursive: true });
+fs.mkdirSync(path.join(w, 'logs'), { recursive: true });
 fs.mkdirSync(m, { recursive: true });
 
 fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
@@ -41,15 +42,26 @@ console.log('Config ready. AgentId:', process.env.AGENT_ID);
 
 const PORT = Number(process.env.PORT || 3777);
 const CASHCLAW_PORT = PORT + 1;
+const DASHBOARD_SECRET = process.env.DASHBOARD_SECRET || '';
 
 const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
+let cashclawPatchOk = false;
 try {
   let src = fs.readFileSync(cashclawDist, 'utf8');
   if (src.includes('var PORT = 3777')) {
     src = src.replace('var PORT = 3777;', 'var PORT = ' + CASHCLAW_PORT + ';');
     src = src.replace(/localhost:3777/g, 'localhost:' + CASHCLAW_PORT);
     fs.writeFileSync(cashclawDist, src);
-    console.log('Cashclaw parcheado: puerto ' + CASHCLAW_PORT);
+    const verify = fs.readFileSync(cashclawDist, 'utf8');
+    if (verify.includes('var PORT = 3777')) {
+      console.error('ERROR: Patch de puerto fallido - cashclaw aun usa 3777, abortando');
+      process.exit(1);
+    }
+    console.log('Cashclaw parcheado y verificado: puerto ' + CASHCLAW_PORT);
+    cashclawPatchOk = true;
+  } else {
+    console.log('Cashclaw ya usa puerto correcto (' + CASHCLAW_PORT + ')');
+    cashclawPatchOk = true;
   }
 } catch (e) { console.log('No se pudo parchear cashclaw:', e.message); }
 
@@ -67,8 +79,9 @@ setInterval(() => {
   }
 }, 25000);
 
-// ETH price
+// ETH price — load from state cache, retry with backoff on failure
 let ethPrice = { usd: 0, clp: 0, updatedAt: null };
+let ethFetchRetry = 0;
 function fetchEthPrice() {
   https.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp',
     { headers: { 'User-Agent': 'cashclaw-dashboard/1.0' } }, res => {
@@ -79,18 +92,28 @@ function fetchEthPrice() {
           const d = JSON.parse(body);
           if (d.ethereum) {
             ethPrice = { usd: d.ethereum.usd, clp: d.ethereum.clp, updatedAt: new Date().toISOString() };
+            ethFetchRetry = 0;
             console.log('Precio ETH: $' + ethPrice.usd + ' USD');
             broadcast({ type: 'price', usd: ethPrice.usd, clp: ethPrice.clp, updatedAt: ethPrice.updatedAt });
+            saveState();
           }
-        } catch (e) { console.log('Error precio ETH:', e.message); }
+        } catch (e) {
+          ethFetchRetry++;
+          console.log('Error precio ETH (intento ' + ethFetchRetry + '):', e.message);
+          setTimeout(fetchEthPrice, Math.min(ethFetchRetry * 30000, 300000));
+        }
       });
-    }).on('error', e => { console.log('No se pudo obtener precio ETH:', e.message); });
+    }).on('error', e => {
+      ethFetchRetry++;
+      console.log('No se pudo obtener precio ETH (intento ' + ethFetchRetry + '):', e.message);
+      setTimeout(fetchEthPrice, Math.min(ethFetchRetry * 30000, 300000));
+    });
 }
 fetchEthPrice();
 setInterval(fetchEthPrice, 5 * 60 * 1000);
 
 // Inteligencia de mercado
-const PRICE_FLOOR = 0.0005;
+const PRICE_FLOOR = 0.0001;
 const PRICE_CEIL  = 0.02;
 let marketData = { agents: 0, median: 0, ourPrice: 0.005, min: 0, max: 0, lastScan: null };
 
@@ -158,6 +181,41 @@ let lastActivity = null;
 let cashclawProc = null;
 let cashclawStatus = 'starting';
 let restartCount = 0;
+const restartTimes = [];
+let pollCount = 0;
+let claimAttempts = 0;
+let lastPollTime = null;
+const claimedBounties = new Set();
+let lastCashclawLogSize = 0;
+
+// Estado persistente en disco
+const STATE_FILE = path.join(w, 'state.json');
+
+function loadState() {
+  try {
+    const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    if (typeof s.totalEarnedEth === 'number' && s.totalEarnedEth > 0) totalEarnedEth = s.totalEarnedEth;
+    if (typeof s.completedJobsCount === 'number') completedJobsCount = s.completedJobsCount;
+    if (Array.isArray(s.jobs)) s.jobs.slice(0, MAX_JOBS).forEach(j => jobs.push(j));
+    if (s.ethPrice && s.ethPrice.usd) ethPrice = s.ethPrice;
+    if (typeof s.pollCount === 'number') pollCount = s.pollCount;
+    if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
+    console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
+  } catch (e) { /* first run or corrupt state — no problem */ }
+}
+
+function saveState() {
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify({
+      totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
+      jobs: jobs.slice(0, MAX_JOBS), ethPrice, lastSync: new Date().toISOString()
+    }));
+  } catch (e) { console.log('Error guardando estado:', e.message); }
+}
+
+loadState();
+setInterval(saveState, 60000);
+process.on('SIGTERM', () => { console.log('SIGTERM recibido - guardando estado...'); saveState(); process.exit(0); });
 
 function detectJobEvent(line, time) {
   if (/task.*receiv|receiv.*task|new.*task|job.*receiv|receiv.*job|assigned|accept.*offer|offer.*accept|new.*job/i.test(line)) {
@@ -177,6 +235,7 @@ function detectJobEvent(line, time) {
       totalEarnedEth = Math.round((totalEarnedEth + eth) * 1e8) / 1e8;
       const j = jobs.find(j => j.status === 'completado' && !j.earnedEth);
       if (j) { j.earnedEth = eth; j.status = 'pagado'; }
+      saveState();
     }
   }
 }
@@ -186,6 +245,13 @@ function addLog(line, type) {
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
   lastActivity = entry.time;
+  if (/polled inbox|inbox.*task|polling inbox/i.test(line)) {
+    pollCount++;
+    lastPollTime = entry.time;
+  }
+  if (/bounty.*claim|claim.*bounty|reclamad|bounty.*accept/i.test(line)) {
+    claimAttempts++;
+  }
   const prevJobs = jobs.length;
   const prevEarned = totalEarnedEth;
   detectJobEvent(line, entry.time);
@@ -195,6 +261,50 @@ function addLog(line, type) {
     newPayment: totalEarnedEth > prevEarned ? (totalEarnedEth - prevEarned).toFixed(6) : null
   });
 }
+
+// Tail del log de cashclaw para ver actividad del heartbeat
+function tailCashclawLog() {
+  const today = new Date().toISOString().slice(0, 10);
+  const logFile = path.join(w, 'logs', today + '.md');
+  try {
+    const stat = fs.statSync(logFile);
+    if (stat.size > lastCashclawLogSize) {
+      const fd = fs.openSync(logFile, 'r');
+      const buf = Buffer.alloc(stat.size - lastCashclawLogSize);
+      fs.readSync(fd, buf, 0, buf.length, lastCashclawLogSize);
+      fs.closeSync(fd);
+      lastCashclawLogSize = stat.size;
+      buf.toString('utf8').split('\n').forEach(line => {
+        const match = line.match(/^-\s*`(\d{2}:\d{2}:\d{2})`\s+(.+)/);
+        if (match) addLog(match[2].trim(), 'info');
+      });
+    }
+  } catch (e) { /* log file may not exist yet */ }
+}
+setInterval(tailCashclawLog, 5000);
+
+// Busqueda activa de bounties en el marketplace
+function claimOpenBounties() {
+  execFile('mltl', ['bounty', 'browse', '--json'], { timeout: 20000 }, (err, stdout) => {
+    if (err) { console.log('Error browseando bounties:', err.message); return; }
+    try {
+      const data = JSON.parse(stdout);
+      const bounties = data.bounties || [];
+      const fresh = bounties.filter(b => b.status === 'open' && !claimedBounties.has(String(b.id)));
+      if (fresh.length === 0) { console.log('Sin bounties nuevas disponibles'); return; }
+      console.log('Bounties disponibles: ' + fresh.length + ' - intentando reclamar...');
+      fresh.slice(0, 5).forEach(b => {
+        claimedBounties.add(String(b.id));
+        execFile('mltl', ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o) => {
+          if (e) { console.log('Error reclamando bounty ' + b.id + ':', e.message); }
+          else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); }
+        });
+      });
+    } catch(e) { console.log('Error parseando bounties:', e.message); }
+  });
+}
+claimOpenBounties();
+setInterval(claimOpenBounties, 5 * 60 * 1000);
 
 const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
 const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
@@ -210,10 +320,21 @@ function startCashclaw() {
   );
   cashclawProc.on('exit', code => {
     restartCount++;
-    const msg = 'CashClaw salio (codigo ' + code + ') reiniciando en 15s (#' + restartCount + ')';
-    console.log(msg); addLog(msg, 'warn');
-    cashclawStatus = 'restarting';
-    setTimeout(startCashclaw, 15000);
+    const now = Date.now();
+    restartTimes.push(now);
+    const fiveMinAgo = now - 5 * 60 * 1000;
+    while (restartTimes.length > 0 && restartTimes[0] < fiveMinAgo) restartTimes.shift();
+    if (restartTimes.length > 5) {
+      const msg = 'Restart loop detectado (' + restartTimes.length + ' reinicios en 5min) - pausando 5 minutos';
+      console.log(msg); addLog(msg, 'warn');
+      cashclawStatus = 'restarting';
+      setTimeout(startCashclaw, 5 * 60 * 1000);
+    } else {
+      const msg = 'CashClaw salio (codigo ' + code + ') reiniciando en 15s (#' + restartCount + ')';
+      console.log(msg); addLog(msg, 'warn');
+      cashclawStatus = 'restarting';
+      setTimeout(startCashclaw, 15000);
+    }
   });
 }
 
@@ -312,6 +433,8 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="card"><label>Trabajos</label><div class="v" id="jbadge">0</div></div>
   <div class="card"><label>Wallet</label><div class="v mo" id="wal">-</div></div>
   <div class="card"><label>Precio cobrado</label><div class="v mo" id="prc-eth">-</div><div class="prc-fiat"><span id="prc-usd"></span><span id="prc-clp"></span></div></div>
+  <div class="card"><label>Polls inbox</label><div class="v" id="poll-cnt">0</div></div>
+  <div class="card"><label>Bounties int.</label><div class="v" id="claim-cnt">0</div></div>
 </div>
 <div class="tags">
   <span class="tag">writing</span><span class="tag">copywriting</span><span class="tag">research</span>
@@ -358,6 +481,9 @@ header h1{font-size:1.1em;color:#38bdf8}
 <div class="footer"><a href="/">Refrescar</a></div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
+var _tk=new URLSearchParams(window.location.search).get('token')||'';
+function _tq(u){return _tk?u+(u.indexOf('?')>=0?'&':'?')+'token='+_tk:u;}
+function afetch(u){return fetch(_tq(u)).then(function(x){return x.json();});}
 
 function fmt(s){var h=Math.floor(s/3600),m=Math.floor(s%3600/60),sc=s%60;return h?h+'h '+m+'m':m?m+'m '+sc+'s':sc+'s';}
 function ftime(iso){return new Date(iso).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
@@ -457,11 +583,11 @@ function ethLine(eth){
 async function load(){
   try{
     var r=await Promise.all([
-      fetch('/api/status').then(function(x){return x.json();}),
-      fetch('/api/logs').then(function(x){return x.json();}),
-      fetch('/api/jobs').then(function(x){return x.json();}),
-      fetch('/api/price').then(function(x){return x.json();}),
-      fetch('/api/market').then(function(x){return x.json();})
+      afetch('/api/status'),
+      afetch('/api/logs'),
+      afetch('/api/jobs'),
+      afetch('/api/price'),
+      afetch('/api/market')
     ]);
     var st=r[0],ls=r[1],jd=r[2],pr=r[3],mk=r[4];
     if(pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
@@ -474,6 +600,8 @@ async function load(){
     document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime);
     document.getElementById('up').textContent=fmt(st.uptime);
     document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
+    document.getElementById('poll-cnt').textContent=st.pollCount||0;
+    document.getElementById('claim-cnt').textContent=st.claimAttempts||0;
     var jobs=jd.jobs||[];
     document.getElementById('jbadge').textContent=(jd.completed||0)+' completados';
     document.getElementById('jcnt').textContent=jobs.length?(jd.completed||0)+' completados - '+jobs.length+' total':'Sin trabajos aun';
@@ -497,7 +625,7 @@ function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
 
 var ldot=document.getElementById('ldot');
 function connectSSE(){
-  var es=new EventSource('/events');
+  var es=new EventSource(_tq('/events'));
   es.addEventListener('open',function(){ldot.classList.add('on');document.getElementById('earn-ts').textContent='en vivo';});
   es.onmessage=function(ev){
     try{
@@ -514,8 +642,20 @@ load();
 <\/script>
 </body></html>`;
 
+function checkAuth(req, res) {
+  if (!DASHBOARD_SECRET) return true;
+  const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
+  const params = new URLSearchParams(qs);
+  const token = params.get('token') || req.headers['x-dashboard-token'] || '';
+  if (token === DASHBOARD_SECRET) return true;
+  res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer realm="CashClaw"' });
+  res.end(JSON.stringify({ error: 'Unauthorized' }));
+  return false;
+}
+
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
+  if (!checkAuth(req, res)) return;
   if (url === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
       'Connection': 'keep-alive', 'X-Accel-Buffering': 'no', 'Access-Control-Allow-Origin': '*' });
@@ -528,7 +668,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({ agent: process.env.AGENT_ID, wallet: process.env.WALLET_ADDRESS,
       uptime: Math.floor((Date.now() - startTime) / 1000), status: cashclawStatus, lastActivity,
-      completedJobs: completedJobsCount, totalEarned: totalEarnedEth, restarts: restartCount }));
+      completedJobs: completedJobsCount, totalEarned: totalEarnedEth, restarts: restartCount,
+      pollCount, claimAttempts, lastPollTime }));
   }
   if (url === '/api/price') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
