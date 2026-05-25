@@ -39,6 +39,8 @@ fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
 }, null, 2));
 
 console.log('Config ready. AgentId:', process.env.AGENT_ID);
+console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
+console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
 
 const PORT = Number(process.env.PORT || 3777);
 const CASHCLAW_PORT = PORT + 1;
@@ -271,6 +273,31 @@ function addLog(line, type) {
     newPayment: totalEarnedEth > prevEarned ? (totalEarnedEth - prevEarned).toFixed(6) : null
   });
 }
+
+// Diagnostico de startup: verifica wallet y conectividad con Moltlaunch
+function runStartupDiagnostics() {
+  execFile(mltlBin, ['wallet', 'show', '--json'], { timeout: 15000 }, (err, stdout, stderr) => {
+    if (err) {
+      const detail = (stderr || '').trim() || (stdout || '').trim() || err.message;
+      console.log('[DIAG] mltl wallet show FALLO:', detail.slice(0, 500));
+    } else {
+      try {
+        const w = JSON.parse(stdout.trim());
+        console.log('[DIAG] Wallet OK:', JSON.stringify(w).slice(0, 200));
+      } catch(e) { console.log('[DIAG] Wallet output:', stdout.trim().slice(0, 300)); }
+    }
+  });
+  const agentId = process.env.AGENT_ID || '51049';
+  execFile(mltlBin, ['inbox', '--agent', agentId, '--json'], { timeout: 15000 }, (err, stdout, stderr) => {
+    if (err) {
+      const detail = (stderr || '').trim() || (stdout || '').trim() || err.message;
+      console.log('[DIAG] mltl inbox FALLO:', detail.slice(0, 500));
+    } else {
+      console.log('[DIAG] mltl inbox OK:', stdout.trim().slice(0, 300));
+    }
+  });
+}
+setTimeout(runStartupDiagnostics, 3000);
 
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
