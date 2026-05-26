@@ -335,22 +335,24 @@ const GIGS = [
 function setupGigs() {
   const agentId = process.env.AGENT_ID || '51049';
   execFile(mltlBin, ['gig', 'list', '--agent', agentId, '--json'], { timeout: 20000 }, (err, stdout) => {
-    const existing = new Set();
-    if (!err) {
-      try {
-        const d = JSON.parse(stdout);
-        (Array.isArray(d) ? d : (d.gigs || [])).forEach(g => existing.add(g.title));
-        console.log('[GIGS] Gigs existentes: ' + existing.size);
-      } catch(e) {}
+    if (err) {
+      console.log('[GIGS] Error listando gigs (KV limit?):', (err.message || '').slice(0, 150), '— saltando setup');
+      return;
     }
-    let pending = 0;
+    const existing = new Set();
+    try {
+      const d = JSON.parse(stdout);
+      (Array.isArray(d) ? d : (d.gigs || [])).forEach(g => existing.add(g.title));
+      console.log('[GIGS] Gigs existentes: ' + existing.size);
+    } catch(e) {}
     const toCreate = GIGS.filter(g => !existing.has(g.title));
     if (toCreate.length === 0) {
       marketplaceSetupDone = true; saveState();
-      console.log('[GIGS] Todos los gigs ya existen');
+      console.log('[GIGS] Todos los gigs ya existen (' + existing.size + '/' + GIGS.length + ')');
       return;
     }
-    pending = toCreate.length;
+    let pending = toCreate.length;
+    let successCount = 0;
     toCreate.forEach(gig => {
       execFile(mltlBin, [
         'gig', 'create', '--agent', agentId,
@@ -359,9 +361,17 @@ function setupGigs() {
         '--category', gig.category, '--json'
       ], { timeout: 30000 }, (e, o, se) => {
         if (e) console.log('[GIGS] Error "' + gig.title + '":', ((se || '').trim() || e.message).slice(0, 200));
-        else console.log('[GIGS] Creada: ' + gig.title + ' @ ' + gig.price + ' ETH');
+        else { console.log('[GIGS] Creada: ' + gig.title + ' @ ' + gig.price + ' ETH'); successCount++; }
         pending--;
-        if (pending === 0) { marketplaceSetupDone = true; saveState(); console.log('[GIGS] Setup completo, guardado en estado'); }
+        if (pending === 0) {
+          const total = existing.size + successCount;
+          if (total >= GIGS.length) {
+            marketplaceSetupDone = true; saveState();
+            console.log('[GIGS] Setup completo: ' + total + '/' + GIGS.length + ' gigs activas');
+          } else {
+            console.log('[GIGS] Setup parcial (' + total + '/' + GIGS.length + ' gigs) — se reintentará en próximo arranque');
+          }
+        }
       });
     });
   });
