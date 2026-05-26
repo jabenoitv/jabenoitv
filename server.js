@@ -199,6 +199,7 @@ let claimAttempts = 0;
 let lastPollTime = null;
 const claimedBounties = new Set();
 let lastCashclawLogSize = 0;
+let lastCashclawLogDate = '';
 
 // Estado persistente en disco
 const STATE_FILE = path.join(w, 'state.json');
@@ -213,6 +214,7 @@ function loadState() {
     if (typeof s.pollCount === 'number') pollCount = s.pollCount;
     if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
     if (s.marketplaceSetupDone) marketplaceSetupDone = true;
+    if (Array.isArray(s.claimedBounties)) s.claimedBounties.forEach(id => claimedBounties.add(String(id)));
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
 }
@@ -224,6 +226,7 @@ function saveState() {
     fs.writeFileSync(STATE_FILE, JSON.stringify({
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
       jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone,
+      claimedBounties: [...claimedBounties].slice(-200),
       lastSync: new Date().toISOString()
     }));
   } catch (e) { console.log('Error guardando estado:', e.message); }
@@ -399,6 +402,7 @@ if (!marketplaceSetupDone) {
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
   const today = new Date().toISOString().slice(0, 10);
+  if (today !== lastCashclawLogDate) { lastCashclawLogDate = today; lastCashclawLogSize = 0; }
   const logFile = path.join(w, 'logs', today + '.md');
   try {
     const stat = fs.statSync(logFile);
@@ -436,13 +440,14 @@ function claimOpenBounties() {
       const fresh = bounties.filter(b => b.status === 'open' && !claimedBounties.has(String(b.id)));
       if (fresh.length === 0) { console.log('Sin bounties nuevas disponibles (' + bounties.length + ' total)'); return; }
       console.log('Bounties disponibles: ' + fresh.length + ' - intentando reclamar...');
+      const agentId = process.env.AGENT_ID || '51049';
       fresh.slice(0, 5).forEach(b => {
         claimedBounties.add(String(b.id));
-        execFile(mltlBin, ['bounty', 'claim', String(b.id)], { timeout: 20000 }, (e, o, se) => {
+        execFile(mltlBin, ['bounty', 'claim', '--task', String(b.id), '--agent', agentId, '--json'], { timeout: 20000 }, (e, o, se) => {
           if (e) {
             const ed = (se || '').trim() || (o || '').trim() || e.message;
             console.log('Error reclamando bounty ' + b.id + ':', ed.slice(0, 300));
-          } else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); }
+          } else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); saveState(); }
         });
       });
     } catch(e) { console.log('Error parseando bounties:', e.message); }
@@ -450,6 +455,24 @@ function claimOpenBounties() {
 }
 claimOpenBounties();
 setInterval(claimOpenBounties, 5 * 60 * 1000);
+
+// Webhook push: registra URL para recibir notificaciones sin polling
+function setupWebhook() {
+  const publicUrl = (process.env.RAILWAY_PUBLIC_DOMAIN
+    ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN
+    : process.env.PUBLIC_URL || '').replace(/\/$/, '');
+  if (!publicUrl) { console.log('[WEBHOOK] Configura PUBLIC_URL o RAILWAY_PUBLIC_DOMAIN para activar push'); return; }
+  const agentId = process.env.AGENT_ID || '51049';
+  const webhookUrl = publicUrl + '/webhook';
+  execFile(mltlBin, ['webhook', 'set', '--agent', agentId, '--url', webhookUrl,
+    '--events', 'task.requested,task.accepted,task.revised', '--json'],
+    { timeout: 30000 }, (err, stdout, stderr) => {
+      const detail = (stderr || '').trim() || err && err.message || '';
+      if (err) console.log('[WEBHOOK] Error registrando:', detail.slice(0, 300));
+      else console.log('[WEBHOOK] Push activo: ' + webhookUrl);
+    });
+}
+setTimeout(setupWebhook, 15000);
 
 const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
 const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
@@ -835,6 +858,21 @@ const server = http.createServer((req, res) => {
     res.write('data: {"type":"connected"}\n\n');
     sseClients.push(res);
     req.on('close', () => { const i = sseClients.indexOf(res); if (i >= 0) sseClients.splice(i, 1); });
+    return;
+  }
+  if (url === '/webhook' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => { body += d; });
+    req.on('end', () => {
+      try {
+        const event = JSON.parse(body);
+        const type = event.type || event.event || 'evento';
+        console.log('[WEBHOOK] Push recibido:', type, JSON.stringify(event).slice(0, 200));
+        addLog('Tarea llegó via webhook: ' + type + (event.taskId ? ' #' + event.taskId : ''), 'info');
+      } catch(e) { console.log('[WEBHOOK] Payload inválido:', body.slice(0, 100)); }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+    });
     return;
   }
   if (url === '/api/status') {
