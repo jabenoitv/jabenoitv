@@ -254,7 +254,7 @@ function postToFarcaster(text) {
   const body = JSON.stringify({ signer_uuid: FARCASTER_SIGNER_UUID, text: text.slice(0, 320) });
   const req = https.request({
     hostname: 'api.neynar.com', path: '/v2/farcaster/cast', method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api_key': NEYNAR_API_KEY, 'Content-Length': Buffer.byteLength(body) }
+    headers: { 'Content-Type': 'application/json', 'api_key': NEYNAR_API_KEY, 'Content-Length': Buffer.byteLength(body), 'Origin': 'https://jabenoitv-production.up.railway.app', 'Referer': 'https://jabenoitv-production.up.railway.app/' }
   }, res => {
     let d = ''; res.on('data', c => { d += c; });
     res.on('end', () => {
