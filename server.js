@@ -458,9 +458,8 @@ setInterval(claimOpenBounties, 5 * 60 * 1000);
 
 // Webhook push: registra URL para recibir notificaciones sin polling
 function setupWebhook() {
-  const publicUrl = (process.env.RAILWAY_PUBLIC_DOMAIN
-    ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN
-    : process.env.PUBLIC_URL || '').replace(/\/$/, '');
+  const domain = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PUBLIC_URL || 'jabenoitv-production.up.railway.app';
+  const publicUrl = (domain.startsWith('http') ? domain : 'https://' + domain).replace(/\/$/, '');
   if (!publicUrl) { console.log('[WEBHOOK] Configura PUBLIC_URL o RAILWAY_PUBLIC_DOMAIN para activar push'); return; }
   const agentId = process.env.AGENT_ID || '51049';
   const webhookUrl = publicUrl + '/webhook';
