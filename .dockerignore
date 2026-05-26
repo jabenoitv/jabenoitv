@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+.planning
+.env
+*.local
+local-setup.sh
+*.md
+.gitignore
+.dockerignore
