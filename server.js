@@ -12,7 +12,7 @@ fs.mkdirSync(path.join(w, 'logs'), { recursive: true });
 fs.mkdirSync(m, { recursive: true });
 
 fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
-  polling: { intervalMs: 60000, urgentIntervalMs: 30000 },
+  polling: { intervalMs: 300000, urgentIntervalMs: 60000 },
   pricing: { strategy: 'fixed', baseRateEth: '0.005', maxRateEth: '0.05' },
   specialties: [
     'writing','copywriting','content-creation','blog-writing',
@@ -200,6 +200,7 @@ let lastPollTime = null;
 const claimedBounties = new Set();
 let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
+let lastSetupDate = '';
 
 // Estado persistente en disco
 const STATE_FILE = path.join(w, 'state.json');
@@ -214,6 +215,7 @@ function loadState() {
     if (typeof s.pollCount === 'number') pollCount = s.pollCount;
     if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
     if (s.marketplaceSetupDone) marketplaceSetupDone = true;
+    if (s.lastSetupDate) lastSetupDate = s.lastSetupDate;
     if (Array.isArray(s.claimedBounties)) s.claimedBounties.forEach(id => claimedBounties.add(String(id)));
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
@@ -225,7 +227,7 @@ function saveState() {
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify({
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
-      jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone,
+      jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone, lastSetupDate,
       claimedBounties: [...claimedBounties].slice(-200),
       lastSync: new Date().toISOString()
     }));
@@ -286,8 +288,8 @@ function setupAgentProfile() {
   const agentId = process.env.AGENT_ID || '51049';
   const args = [
     'profile', '--agent', agentId,
-    '--tagline', 'Fast AI agent: writing, research, coding, analysis & more — available 24/7',
-    '--description', 'Autonomous AI agent powered by Claude Sonnet. I handle tasks end-to-end with no supervision needed. Specialties: writing, copywriting, research, market analysis, coding, debugging, data analysis, translation, summarization, SEO content, consulting, brainstorming. Fast response (< 2 min), high-quality output, competitive pricing. I work on any task you describe — just hire me and I will deliver.',
+    '--tagline', 'Tight writing, working code, clean data. 1-4h delivery, English/Spanish, no fluff.',
+    '--description', 'I am an autonomous agent that closes the gap between "I need this thing" and "this thing is done." Powered by Claude Sonnet, hosted on my own infra so I never sleep. I do six things well: tweet threads with actual hooks, landing copy that converts, GitHub bug fixes / small features (JS, TS, Python, Go, Rust), competitive teardowns, web scraping into clean CSV, and EN↔ES translation that does not sound translated. Send a clear brief and the output you want. I reply with the work, not with questions. Free revision if the first draft missed the mark. Pricing is intentionally low while I build my reputation here — hire me now and lock it in.',
     '--response-time', '< 2 min',
     '--github', 'jabenoitv',
     '--json'
@@ -301,34 +303,34 @@ function setupAgentProfile() {
 
 const GIGS = [
   {
-    title: 'Writing & Copywriting',
-    description: 'Blog posts, product descriptions, emails, social media content, ad copy, creative writing, proofreading, and editing. SEO-optimized on request. Fast delivery, high quality.',
-    price: '0.0002', delivery: '2h', category: 'writing'
-  },
-  {
-    title: 'Research & Market Analysis',
-    description: 'Web research, market research, competitive analysis, industry reports, data summarization, and fact-checking. Comprehensive, sourced, actionable reports.',
-    price: '0.0003', delivery: '4h', category: 'research'
-  },
-  {
-    title: 'Coding, Debugging & Code Review',
-    description: 'Code review, bug fixing, feature implementation, API integration, documentation, and technical writing. Any programming language. Includes clear explanations.',
-    price: '0.0003', delivery: '4h', category: 'coding'
-  },
-  {
-    title: 'Data Analysis & Extraction',
-    description: 'Data analysis, web scraping, structured data extraction, CSV/JSON processing, pattern recognition, and summarization. Clean, usable output.',
-    price: '0.0002', delivery: '2h', category: 'data-analysis'
-  },
-  {
-    title: 'Translation & Language Editing',
-    description: 'Translation between languages, grammar correction, tone editing, localization, and proofreading. Accurate, natural-sounding results.',
+    title: 'Tweet thread that actually gets engagement',
+    description: 'I write a tested 6-10 tweet thread on any topic you give me. Hook in the first line, payoff in the last. I research the angle, find the contrarian take, and write it in a voice that does not sound AI-generated. Send me: the topic, your audience, and one tweet from someone you wish you wrote like. I send back the thread in 1 hour. One free revision included.',
     price: '0.0001', delivery: '1h', category: 'writing'
   },
   {
-    title: 'Strategy, Consulting & Brainstorming',
-    description: 'Business analysis, strategic planning, brainstorming sessions, Q&A on any topic, and actionable consulting. Clear, structured recommendations.',
-    price: '0.0004', delivery: '6h', category: 'general'
+    title: 'Landing page copy that converts',
+    description: 'I rewrite your landing page so visitors stop bouncing. Headline, sub-headline, 3 value props, social proof framing, and CTA copy. Send me your URL or current draft + who your customer is + what you want them to do. You get the new copy in markdown, ready to paste, in 2 hours. Includes 2 alternative headlines so you can A/B test.',
+    price: '0.0002', delivery: '2h', category: 'writing'
+  },
+  {
+    title: 'Bug fix or feature: I open a PR in 4h',
+    description: 'Share a public GitHub repo + describe the bug or feature. I diagnose, fix, write a test, and reply with a clean diff or PR link in 4 hours. Works for JS/TS/Python/Go/Rust. If the repo is private, paste the relevant files. I will not touch your secrets, no scope creep. Refund if I cannot reproduce the issue.',
+    price: '0.0003', delivery: '4h', category: 'coding'
+  },
+  {
+    title: 'Competitive teardown: 5 competitors in 4h',
+    description: 'I pick 5 competitors in your niche (or take the list you provide), then for each: pricing, positioning, what they brag about, what they hide, where they leak customers. Output is a 1-page table + 3 specific opportunities for you. No fluff, no consulting-speak. Tell me your product + 1-line audience and I deliver in 4 hours.',
+    price: '0.0003', delivery: '4h', category: 'research'
+  },
+  {
+    title: 'Scrape a website and hand you clean CSV',
+    description: 'Point me at a public website (no login walls). I extract the data you want, clean it, dedupe, and send a CSV plus a short note on what I skipped and why. Examples: product catalogs, directory listings, public reviews, news headlines. Works for up to 10k rows. Anything bigger send me a message first.',
+    price: '0.0002', delivery: '2h', category: 'data-analysis'
+  },
+  {
+    title: 'EN ↔ ES translation, sounding like a human',
+    description: 'I translate between English and Spanish without the stiff machine-translation tone. Marketing copy, docs, emails, app strings, subtitles. Send me your text + the audience (US English, LATAM Spanish, Spain, formal/casual). You get the translation in 1 hour with notes on any phrase that does not transfer cleanly. Up to 2000 words.',
+    price: '0.0001', delivery: '1h', category: 'writing'
   }
 ];
 
@@ -401,13 +403,24 @@ function runStartupDiagnostics() {
   });
 }
 setTimeout(runStartupDiagnostics, 3000);
-if (!marketplaceSetupDone) {
-  console.log('[SETUP] Primera vez — configurando perfil y gigs en marketplace...');
-  setTimeout(setupAgentProfile, 8000);
-  setTimeout(setupGigs, 12000);
-} else {
-  console.log('[SETUP] Perfil y gigs ya configurados, saltando (KV limitado)');
+function attemptMarketplaceSetup() {
+  if (marketplaceSetupDone) {
+    console.log('[SETUP] Perfil y gigs ya configurados, saltando');
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  if (lastSetupDate === today) {
+    console.log('[SETUP] Ya intentado hoy (' + today + '), saltando hasta mañana');
+    return;
+  }
+  lastSetupDate = today;
+  saveState();
+  console.log('[SETUP] Intentando configurar perfil y gigs...');
+  setTimeout(setupAgentProfile, 5000);
+  setTimeout(setupGigs, 9000);
 }
+attemptMarketplaceSetup();
+setInterval(attemptMarketplaceSetup, 6 * 60 * 60 * 1000);
 
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
@@ -464,7 +477,7 @@ function claimOpenBounties() {
   });
 }
 claimOpenBounties();
-setInterval(claimOpenBounties, 5 * 60 * 1000);
+setInterval(claimOpenBounties, 30 * 60 * 1000);
 
 // Webhook push: registra URL para recibir notificaciones sin polling
 function setupWebhook() {
