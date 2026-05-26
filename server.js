@@ -38,16 +38,16 @@ fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
   privateKey: process.env.WALLET_PRIVATE_KEY || ''
 }, null, 2));
 
-console.log('Config ready. AgentId:', process.env.AGENT_ID);
-console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
-console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
-console.log('Farcaster:', NEYNAR_API_KEY ? 'API key OK' : '(FALTA NEYNAR_API_KEY)', '/', FARCASTER_SIGNER_UUID ? 'signer OK' : '(FALTA FARCASTER_SIGNER_UUID)');
-
 const PORT = Number(process.env.PORT || 3777);
 const CASHCLAW_PORT = PORT + 1;
 const DASHBOARD_SECRET = process.env.DASHBOARD_SECRET || '';
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
 const FARCASTER_SIGNER_UUID = process.env.FARCASTER_SIGNER_UUID || '';
+
+console.log('Config ready. AgentId:', process.env.AGENT_ID);
+console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
+console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
+console.log('Farcaster:', NEYNAR_API_KEY ? 'API key OK' : '(FALTA NEYNAR_API_KEY)', '/', FARCASTER_SIGNER_UUID ? 'signer OK' : '(FALTA FARCASTER_SIGNER_UUID)');
 
 const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
 let cashclawPatchOk = false;
