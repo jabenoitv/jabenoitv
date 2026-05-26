@@ -41,10 +41,13 @@ fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
 console.log('Config ready. AgentId:', process.env.AGENT_ID);
 console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
 console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
+console.log('Farcaster:', NEYNAR_API_KEY ? 'API key OK' : '(FALTA NEYNAR_API_KEY)', '/', FARCASTER_SIGNER_UUID ? 'signer OK' : '(FALTA FARCASTER_SIGNER_UUID)');
 
 const PORT = Number(process.env.PORT || 3777);
 const CASHCLAW_PORT = PORT + 1;
 const DASHBOARD_SECRET = process.env.DASHBOARD_SECRET || '';
+const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY || '';
+const FARCASTER_SIGNER_UUID = process.env.FARCASTER_SIGNER_UUID || '';
 
 const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
 let cashclawPatchOk = false;
@@ -201,6 +204,7 @@ const claimedBounties = new Set();
 let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
 let lastSetupDate = '';
+let lastFarcasterPost = 0;
 
 // Estado persistente en disco
 const STATE_FILE = path.join(w, 'state.json');
@@ -216,6 +220,7 @@ function loadState() {
     if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
     if (s.marketplaceSetupDone) marketplaceSetupDone = true;
     if (s.lastSetupDate) lastSetupDate = s.lastSetupDate;
+    if (typeof s.lastFarcasterPost === 'number') lastFarcasterPost = s.lastFarcasterPost;
     if (Array.isArray(s.claimedBounties)) s.claimedBounties.forEach(id => claimedBounties.add(String(id)));
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
@@ -227,7 +232,7 @@ function saveState() {
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify({
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
-      jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone, lastSetupDate,
+      jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone, lastSetupDate, lastFarcasterPost,
       claimedBounties: [...claimedBounties].slice(-200),
       lastSync: new Date().toISOString()
     }));
@@ -237,6 +242,34 @@ function saveState() {
 loadState();
 setInterval(saveState, 60000);
 process.on('SIGTERM', () => { console.log('SIGTERM recibido - guardando estado...'); saveState(); process.exit(0); });
+
+function postToFarcaster(text) {
+  if (!NEYNAR_API_KEY || !FARCASTER_SIGNER_UUID) return;
+  if (Date.now() - lastFarcasterPost < 4 * 60 * 60 * 1000) {
+    console.log('[FARCASTER] Cooldown activo, saltando');
+    return;
+  }
+  lastFarcasterPost = Date.now();
+  saveState();
+  const body = JSON.stringify({ signer_uuid: FARCASTER_SIGNER_UUID, text: text.slice(0, 320) });
+  const req = https.request({
+    hostname: 'api.neynar.com', path: '/v2/farcaster/cast', method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api_key': NEYNAR_API_KEY, 'Content-Length': Buffer.byteLength(body) }
+  }, res => {
+    let d = ''; res.on('data', c => { d += c; });
+    res.on('end', () => {
+      if (res.statusCode === 200 || res.statusCode === 201) {
+        console.log('[FARCASTER] Post publicado: ' + text.slice(0, 80));
+        addLog('Farcaster: post publicado', 'info');
+      } else {
+        console.log('[FARCASTER] Error ' + res.statusCode + ': ' + d.slice(0, 150));
+        lastFarcasterPost = 0;
+      }
+    });
+  });
+  req.on('error', e => { console.log('[FARCASTER] Error de red:', e.message); lastFarcasterPost = 0; });
+  req.write(body); req.end();
+}
 
 function detectJobEvent(line, time) {
   if (/task.*receiv|receiv.*task|new.*task|job.*receiv|receiv.*job|assigned|accept.*offer|offer.*accept|new.*job/i.test(line)) {
@@ -257,6 +290,7 @@ function detectJobEvent(line, time) {
       const j = jobs.find(j => j.status === 'completado' && !j.earnedEth);
       if (j) { j.earnedEth = eth; j.status = 'pagado'; }
       saveState();
+      postToFarcaster('Job done, paid ' + eth.toFixed(6) + ' ETH on @moltlaunch. Taking new work 24/7. moltlaunch.com/agents/51049');
     }
   }
 }
@@ -351,6 +385,7 @@ function setupGigs() {
     if (toCreate.length === 0) {
       marketplaceSetupDone = true; saveState();
       console.log('[GIGS] Todos los gigs ya existen (' + existing.size + '/' + GIGS.length + ')');
+      postToFarcaster('6 gigs live on @moltlaunch: tweet threads, landing copy, GitHub PRs, competitive teardowns, web scraping, EN↔ES translation. From 0.0001 ETH. moltlaunch.com/agents/51049');
       return;
     }
     let pending = toCreate.length;
@@ -370,6 +405,7 @@ function setupGigs() {
           if (total >= GIGS.length) {
             marketplaceSetupDone = true; saveState();
             console.log('[GIGS] Setup completo: ' + total + '/' + GIGS.length + ' gigs activas');
+            postToFarcaster('6 gigs live on @moltlaunch: tweet threads, landing copy, GitHub PRs, competitive teardowns, web scraping, EN↔ES translation. From 0.0001 ETH. moltlaunch.com/agents/51049');
           } else {
             console.log('[GIGS] Setup parcial (' + total + '/' + GIGS.length + ' gigs) — se reintentará en próximo arranque');
           }
@@ -470,7 +506,11 @@ function claimOpenBounties() {
           if (e) {
             const ed = (se || '').trim() || (o || '').trim() || e.message;
             console.log('Error reclamando bounty ' + b.id + ':', ed.slice(0, 300));
-          } else { addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info'); saveState(); }
+          } else {
+            addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info');
+            saveState();
+            postToFarcaster('Claimed a bounty on @moltlaunch. Available for new tasks 24/7. Check my gigs: moltlaunch.com/agents/51049');
+          }
         });
       });
     } catch(e) { console.log('Error parseando bounties:', e.message); }
@@ -673,7 +713,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v6-fix</div>
+<div class="footer"><a href="/">Refrescar</a> · build v7-farcaster</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -947,5 +987,8 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
   startCashclaw();
+  setTimeout(() => {
+    postToFarcaster('CashClaw #' + AGENT_ID + ' online on @moltlaunch. Writing, coding, research, data extraction, EN↔ES translation — 1-4h delivery, never sleeps. moltlaunch.com/agents/51049');
+  }, 60000);
 });
 server.on('error', err => { console.error('Error servidor:', err.message); process.exit(1); });
