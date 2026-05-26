@@ -773,26 +773,28 @@ async function load(){
     ]);
     var st=r[0],ls=r[1],jd=r[2],pr=r[3],mk=r[4];
     if(!st)return;
-    if(pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
-    updateEarnings(jd.totalEarned||0);
-    updateMarket(mk);
-    var jcount=jd.count||0;
-    if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}}
-    prevJC=jcount;
     document.getElementById('st').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status;
     document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime);
     document.getElementById('up').textContent=fmt(st.uptime);
     document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
     document.getElementById('poll-cnt').textContent=st.pollCount||0;
     document.getElementById('claim-cnt').textContent=st.claimAttempts||0;
-    var jobs=jd.jobs||[];
-    document.getElementById('jbadge').textContent=(jd.completed||0)+' completados';
-    document.getElementById('jcnt').textContent=jobs.length?(jd.completed||0)+' completados - '+jobs.length+' total':'Sin trabajos aun';
-    var jel=document.getElementById('jlist');
-    jel.innerHTML=jobs.length?jobs.map(function(j){
-      var es=j.earnedEth?'<div class="je">'+ethLine(j.earnedEth)+'</div>':'';
-      return '<div class="jr"><span class="bdg '+j.status+'">' +j.status+'</span><div class="jb"><div class="jd">'+j.description.replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
-    }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
+    if(pr&&pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
+    if(jd){
+      updateEarnings(jd.totalEarned||0);
+      var jcount=jd.count||0;
+      if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}}
+      prevJC=jcount;
+      var jobs=jd.jobs||[];
+      document.getElementById('jbadge').textContent=(jd.completed||0)+' completados';
+      document.getElementById('jcnt').textContent=jobs.length?(jd.completed||0)+' completados - '+jobs.length+' total':'Sin trabajos aun';
+      var jel=document.getElementById('jlist');
+      jel.innerHTML=jobs.length?jobs.map(function(j){
+        var es=j.earnedEth?'<div class="je">'+ethLine(j.earnedEth)+'</div>':'';
+        return '<div class="jr"><span class="bdg '+j.status+'">' +j.status+'</span><div class="jb"><div class="jd">'+j.description.replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
+      }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
+    }
+    updateMarket(mk);
     document.getElementById('lcnt').textContent=ls.length+' eventos';
     var lel=document.getElementById('llist');
     lel.innerHTML=ls.length?[].concat(ls).reverse().map(function(l){
@@ -909,7 +911,12 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({ jobs, totalEarned: totalEarnedEth, completed: completedJobsCount, count: jobs.length }));
   }
-  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.writeHead(200, {
+    'Content-Type': 'text/html',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   res.end(DASHBOARD_HTML);
 });
 
