@@ -765,13 +765,14 @@ function ethLine(eth){
 async function load(){
   try{
     var r=await Promise.all([
-      afetch('/api/status'),
-      afetch('/api/logs'),
-      afetch('/api/jobs'),
-      afetch('/api/price'),
-      afetch('/api/market')
+      afetch('/api/status').catch(function(){return null;}),
+      afetch('/api/logs').catch(function(){return [];}),
+      afetch('/api/jobs').catch(function(){return null;}),
+      afetch('/api/price').catch(function(){return null;}),
+      afetch('/api/market').catch(function(){return null;})
     ]);
     var st=r[0],ls=r[1],jd=r[2],pr=r[3],mk=r[4];
+    if(!st)return;
     if(pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
     updateEarnings(jd.totalEarned||0);
     updateMarket(mk);
@@ -844,6 +845,7 @@ function fallbackCopy(txt,btn){
 }
 connectSSE();
 load();
+setInterval(load,30000);
 <\/script>
 </body></html>`;
 
