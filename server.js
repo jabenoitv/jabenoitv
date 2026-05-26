@@ -450,7 +450,9 @@ header h1{font-size:1.1em;color:#38bdf8}
 .jb{flex:1;min-width:0}.jd{color:#cbd5e1;word-break:break-word}
 .jm{font-size:.7em;color:#475569;margin-top:2px}
 .je{color:#4ade80;font-weight:700;white-space:nowrap;font-family:monospace;flex-shrink:0;font-size:.8em;margin-top:1px}
-.ldot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;margin-right:5px;vertical-align:middle;transition:background .5s}
+.cpybtn{background:transparent;border:1px solid #334155;color:#64748b;border-radius:6px;padding:2px 8px;font-size:.68em;cursor:pointer;transition:all .2s}
+.cpybtn:hover{border-color:#38bdf8;color:#38bdf8}
+.cpybtn.ok{border-color:#4ade80;color:#4ade80}
 .ldot.on{background:#22c55e;animation:pulse 1.5s infinite}
 .empty{padding:28px;text-align:center;color:#475569;font-size:.86em}
 .footer{text-align:center;padding:12px;color:#475569;font-size:.72em;margin-top:12px}
@@ -526,7 +528,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div id="jlist"><div class="empty">Esperando primer trabajo del marketplace...</div></div>
 </div>
 <div class="sec">
-  <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><span id="lcnt" style="color:#64748b">-</span></div>
+  <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
 <div class="footer"><a href="/">Refrescar</a></div>
@@ -687,6 +689,29 @@ function connectSSE(){
     }catch(ex){}
   };
   es.onerror=function(){ldot.classList.remove('on');es.close();setTimeout(connectSSE,5000);};
+}
+document.getElementById('cpybtn').addEventListener('click',function(){
+  var lines=[];
+  document.querySelectorAll('#llist .log').forEach(function(el){
+    var t=el.querySelector('.t');var m=el.querySelector('.msg');
+    if(t&&m)lines.push('['+t.textContent.trim()+'] '+m.textContent.trim());
+  });
+  if(!lines.length){return;}
+  var txt=lines.join('\n');
+  var btn=document.getElementById('cpybtn');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(function(){
+      btn.textContent='Copiado!';btn.classList.add('ok');
+      setTimeout(function(){btn.textContent='Copiar';btn.classList.remove('ok');},2000);
+    }).catch(function(){fallbackCopy(txt,btn);});
+  }else{fallbackCopy(txt,btn);}
+});
+function fallbackCopy(txt,btn){
+  var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');btn.textContent='Copiado!';btn.classList.add('ok');setTimeout(function(){btn.textContent='Copiar';btn.classList.remove('ok');},2000);}
+  catch(e){btn.textContent='Error';}
+  document.body.removeChild(ta);
 }
 connectSSE();
 load();
