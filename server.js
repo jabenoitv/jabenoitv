@@ -30,7 +30,7 @@ fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
   autoQuote: true, autoWork: true, maxConcurrentTasks: 3,
   declineKeywords: ['image-generation','video-creation','audio-generation','music-creation','nsfw','illegal'],
   agentId: process.env.AGENT_ID || '',
-  llm: { provider: 'anthropic', apiKey: process.env.ANTHROPIC_API_KEY || '', model: 'claude-sonnet-4-20250514' }
+  llm: { provider: 'anthropic', apiKey: process.env.ANTHROPIC_API_KEY || '', model: 'claude-sonnet-4-6' }
 }, null, 2));
 
 fs.writeFileSync(path.join(m, 'wallet.json'), JSON.stringify({
@@ -274,6 +274,83 @@ function addLog(line, type) {
   });
 }
 
+// Perfil del agente en el marketplace
+function setupAgentProfile() {
+  const agentId = process.env.AGENT_ID || '51049';
+  const args = [
+    'profile', '--agent', agentId,
+    '--tagline', 'Fast AI agent: writing, research, coding, analysis & more — available 24/7',
+    '--description', 'Autonomous AI agent powered by Claude Sonnet. I handle tasks end-to-end with no supervision needed. Specialties: writing, copywriting, research, market analysis, coding, debugging, data analysis, translation, summarization, SEO content, consulting, brainstorming. Fast response (< 2 min), high-quality output, competitive pricing. I work on any task you describe — just hire me and I will deliver.',
+    '--response-time', '< 2 min',
+    '--github', 'jabenoitv',
+    '--json'
+  ];
+  execFile(mltlBin, args, { timeout: 30000 }, (err, stdout, stderr) => {
+    const detail = (stderr || '').trim() || err && err.message || '';
+    if (err) console.log('[PERFIL] Error:', detail.slice(0, 300));
+    else console.log('[PERFIL] Perfil actualizado OK');
+  });
+}
+
+const GIGS = [
+  {
+    title: 'Writing & Copywriting',
+    description: 'Blog posts, product descriptions, emails, social media content, ad copy, creative writing, proofreading, and editing. SEO-optimized on request. Fast delivery, high quality.',
+    price: '0.0002', delivery: '2h', category: 'writing'
+  },
+  {
+    title: 'Research & Market Analysis',
+    description: 'Web research, market research, competitive analysis, industry reports, data summarization, and fact-checking. Comprehensive, sourced, actionable reports.',
+    price: '0.0003', delivery: '4h', category: 'research'
+  },
+  {
+    title: 'Coding, Debugging & Code Review',
+    description: 'Code review, bug fixing, feature implementation, API integration, documentation, and technical writing. Any programming language. Includes clear explanations.',
+    price: '0.0003', delivery: '4h', category: 'coding'
+  },
+  {
+    title: 'Data Analysis & Extraction',
+    description: 'Data analysis, web scraping, structured data extraction, CSV/JSON processing, pattern recognition, and summarization. Clean, usable output.',
+    price: '0.0002', delivery: '2h', category: 'data-analysis'
+  },
+  {
+    title: 'Translation & Language Editing',
+    description: 'Translation between languages, grammar correction, tone editing, localization, and proofreading. Accurate, natural-sounding results.',
+    price: '0.0001', delivery: '1h', category: 'writing'
+  },
+  {
+    title: 'Strategy, Consulting & Brainstorming',
+    description: 'Business analysis, strategic planning, brainstorming sessions, Q&A on any topic, and actionable consulting. Clear, structured recommendations.',
+    price: '0.0004', delivery: '6h', category: 'general'
+  }
+];
+
+function setupGigs() {
+  const agentId = process.env.AGENT_ID || '51049';
+  execFile(mltlBin, ['gig', 'list', '--agent', agentId, '--json'], { timeout: 20000 }, (err, stdout) => {
+    const existing = new Set();
+    if (!err) {
+      try {
+        const d = JSON.parse(stdout);
+        (Array.isArray(d) ? d : (d.gigs || [])).forEach(g => existing.add(g.title));
+        console.log('[GIGS] Gigs existentes: ' + existing.size);
+      } catch(e) {}
+    }
+    GIGS.forEach(gig => {
+      if (existing.has(gig.title)) { console.log('[GIGS] Ya existe: ' + gig.title); return; }
+      execFile(mltlBin, [
+        'gig', 'create', '--agent', agentId,
+        '--title', gig.title, '--description', gig.description,
+        '--price', gig.price, '--delivery', gig.delivery,
+        '--category', gig.category, '--json'
+      ], { timeout: 30000 }, (e, o, se) => {
+        if (e) console.log('[GIGS] Error "' + gig.title + '":', ((se || '').trim() || e.message).slice(0, 200));
+        else console.log('[GIGS] Creada: ' + gig.title + ' @ ' + gig.price + ' ETH');
+      });
+    });
+  });
+}
+
 // Diagnostico de startup: verifica wallet y conectividad con Moltlaunch
 function runStartupDiagnostics() {
   execFile(mltlBin, ['wallet', 'show', '--json'], { timeout: 15000 }, (err, stdout, stderr) => {
@@ -298,6 +375,8 @@ function runStartupDiagnostics() {
   });
 }
 setTimeout(runStartupDiagnostics, 3000);
+setTimeout(setupAgentProfile, 6000);
+setTimeout(setupGigs, 10000);
 
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
