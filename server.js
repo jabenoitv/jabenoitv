@@ -660,7 +660,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a></div>
+<div class="footer"><a href="/">Refrescar</a> · build v4-loadfix</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -762,49 +762,60 @@ function ethLine(eth){
   return s;
 }
 
-async function load(){
-  try{
-    var r=await Promise.all([
-      afetch('/api/status').catch(function(){return null;}),
-      afetch('/api/logs').catch(function(){return [];}),
-      afetch('/api/jobs').catch(function(){return null;}),
-      afetch('/api/price').catch(function(){return null;}),
-      afetch('/api/market').catch(function(){return null;})
-    ]);
-    var st=r[0],ls=r[1],jd=r[2],pr=r[3],mk=r[4];
-    if(!st)return;
+function loadStatus(){
+  afetch('/api/status').then(function(st){
+    if(!st||!st.status)return;
     document.getElementById('st').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status;
-    document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime);
-    document.getElementById('up').textContent=fmt(st.uptime);
+    document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime||0);
+    document.getElementById('up').textContent=fmt(st.uptime||0);
     document.getElementById('wal').textContent=st.wallet?st.wallet.slice(0,6)+'...'+st.wallet.slice(-4):'-';
     document.getElementById('poll-cnt').textContent=st.pollCount||0;
     document.getElementById('claim-cnt').textContent=st.claimAttempts||0;
-    if(pr&&pr.usd>0){ethUsd=pr.usd;ethClp=pr.clp;document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());}
-    if(jd){
-      updateEarnings(jd.totalEarned||0);
-      var jcount=jd.count||0;
-      if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}}
-      prevJC=jcount;
-      var jobs=jd.jobs||[];
-      document.getElementById('jbadge').textContent=(jd.completed||0)+' completados';
-      document.getElementById('jcnt').textContent=jobs.length?(jd.completed||0)+' completados - '+jobs.length+' total':'Sin trabajos aun';
-      var jel=document.getElementById('jlist');
-      jel.innerHTML=jobs.length?jobs.map(function(j){
-        var es=j.earnedEth?'<div class="je">'+ethLine(j.earnedEth)+'</div>':'';
-        return '<div class="jr"><span class="bdg '+j.status+'">' +j.status+'</span><div class="jb"><div class="jd">'+j.description.replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
-      }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
-    }
-    updateMarket(mk);
+  }).catch(function(e){
+    document.getElementById('hst').innerHTML='<span class="dot off"></span>offline ('+(e&&e.message?e.message.slice(0,30):'fetch fail')+')';
+  });
+}
+function loadPrice(){
+  afetch('/api/price').then(function(pr){
+    if(!pr||!pr.usd)return;
+    ethUsd=pr.usd;ethClp=pr.clp;
+    document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD';
+  }).catch(function(){});
+}
+function loadJobs(){
+  afetch('/api/jobs').then(function(jd){
+    if(!jd)return;
+    updateEarnings(jd.totalEarned||0);
+    var jcount=jd.count||0;
+    if(jcount>prevJC&&prevJC>0&&notifOk&&jd.jobs&&jd.jobs[0]){try{new Notification('Nuevo trabajo',{body:jd.jobs[0].description.slice(0,80),tag:'cj',requireInteraction:false});}catch(ex){}}
+    prevJC=jcount;
+    var jobs=jd.jobs||[];
+    document.getElementById('jbadge').textContent=(jd.completed||0)+' completados';
+    document.getElementById('jcnt').textContent=jobs.length?(jd.completed||0)+' completados - '+jobs.length+' total':'Sin trabajos aun';
+    var jel=document.getElementById('jlist');
+    jel.innerHTML=jobs.length?jobs.map(function(j){
+      var es=j.earnedEth?'<div class="je">'+ethLine(j.earnedEth)+'</div>':'';
+      return '<div class="jr"><span class="bdg '+j.status+'">' +j.status+'</span><div class="jb"><div class="jd">'+(j.description||'').replace(/</g,'&lt;')+'</div><div class="jm">'+fdate(j.startTime)+' - '+fdur(j.startTime,j.completedTime)+'</div></div>'+es+'</div>';
+    }).join(''):'<div class="empty">Esperando primer trabajo del marketplace...</div>';
+  }).catch(function(){});
+}
+function loadMarket(){
+  afetch('/api/market').then(function(mk){updateMarket(mk);}).catch(function(){});
+}
+function loadLogs(){
+  afetch('/api/logs').then(function(ls){
+    if(!Array.isArray(ls))return;
     document.getElementById('lcnt').textContent=ls.length+' eventos';
     var lel=document.getElementById('llist');
     lel.innerHTML=ls.length?[].concat(ls).reverse().map(function(l){
-      var msg=l.msg.replace(/</g,'&lt;');
+      var msg=(l.msg||'').replace(/</g,'&lt;');
       var em=msg.match(/([0-9.]+)\\s*ETH/);
       if(em&&ethUsd){var eth=parseFloat(em[1]);msg+=' <span style="color:#4ade80;font-weight:bold">($'+fN(eth*ethUsd,2)+' USD / $'+Math.round(eth*ethClp).toLocaleString('es-CL')+' CLP)</span>';}
       return '<div class="log '+(l.type||'')+'"><span class="t">'+ftime(l.time)+'</span><span class="msg">'+msg+'</span></div>';
     }).join(''):'<div class="empty">Sin actividad aun</div>';
-  }catch(e){}
+  }).catch(function(){});
 }
+function load(){loadStatus();loadPrice();loadJobs();loadMarket();loadLogs();}
 
 function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
 
