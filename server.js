@@ -586,11 +586,9 @@ header h1{font-size:1.1em;color:#38bdf8}
 .empty{padding:28px;text-align:center;color:#475569;font-size:.86em}
 .footer{text-align:center;padding:12px;color:#475569;font-size:.72em;margin-top:12px}
 .footer a{color:#38bdf8;text-decoration:none}
-#diag{position:sticky;top:0;background:#fbbf24;color:#000;padding:6px 12px;font-size:.7em;font-family:monospace;font-weight:700;z-index:9999;text-align:center}
 </style>
 </head>
 <body>
-<div id="diag">DIAG: html parsed, esperando JS...</div>
 <header>
   <div>
     <h1>CashClaw</h1>
@@ -662,11 +660,8 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v5-diag</div>
+<div class="footer"><a href="/">Refrescar</a> · build v6-fix</div>
 <script>
-function _diag(msg,color){try{var d=document.getElementById('diag');if(d){d.textContent='DIAG: '+msg;if(color)d.style.background=color;}}catch(e){}}
-window.onerror=function(msg,src,ln,col,err){_diag('JS ERROR '+ln+':'+(err&&err.message||msg).slice(0,80),'#ef4444');return false;};
-_diag('JS arrancando v5...','#fbbf24');
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
 function _tq(u){return _tk?u+(u.indexOf('?')>=0?'&':'?')+'token='+_tk:u;}
@@ -768,9 +763,7 @@ function ethLine(eth){
 }
 
 function loadStatus(){
-  _diag('fetch /api/status...','#fbbf24');
   afetch('/api/status').then(function(st){
-    _diag('status OK: '+(st&&st.status||'?'),'#86efac');
     if(!st||!st.status)return;
     document.getElementById('st').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status;
     document.getElementById('hst').innerHTML='<span class="'+(dC[st.status]||'dot')+'"></span>'+st.status+' - '+fmt(st.uptime||0);
@@ -779,7 +772,6 @@ function loadStatus(){
     document.getElementById('poll-cnt').textContent=st.pollCount||0;
     document.getElementById('claim-cnt').textContent=st.claimAttempts||0;
   }).catch(function(e){
-    _diag('status FAIL: '+((e&&e.message||'')+'').slice(0,60),'#ef4444');
     document.getElementById('hst').innerHTML='<span class="dot off"></span>offline ('+(e&&e.message?e.message.slice(0,30):'fetch fail')+')';
   });
 }
@@ -848,7 +840,7 @@ document.getElementById('cpybtn').addEventListener('click',function(){
     if(t&&m)lines.push('['+t.textContent.trim()+'] '+m.textContent.trim());
   });
   if(!lines.length){return;}
-  var txt=lines.join('\n');
+  var txt=lines.join('\\n');
   var btn=document.getElementById('cpybtn');
   if(navigator.clipboard){
     navigator.clipboard.writeText(txt).then(function(){
