@@ -12,7 +12,7 @@ fs.mkdirSync(path.join(w, 'logs'), { recursive: true });
 fs.mkdirSync(m, { recursive: true });
 
 fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
-  polling: { intervalMs: 30000, urgentIntervalMs: 10000 },
+  polling: { intervalMs: 60000, urgentIntervalMs: 30000 },
   pricing: { strategy: 'fixed', baseRateEth: '0.005', maxRateEth: '0.05' },
   specialties: [
     'writing','copywriting','content-creation','blog-writing',
@@ -212,15 +212,19 @@ function loadState() {
     if (s.ethPrice && s.ethPrice.usd) ethPrice = s.ethPrice;
     if (typeof s.pollCount === 'number') pollCount = s.pollCount;
     if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
+    if (s.marketplaceSetupDone) marketplaceSetupDone = true;
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
 }
+
+let marketplaceSetupDone = false;
 
 function saveState() {
   try {
     fs.writeFileSync(STATE_FILE, JSON.stringify({
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
-      jobs: jobs.slice(0, MAX_JOBS), ethPrice, lastSync: new Date().toISOString()
+      jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone,
+      lastSync: new Date().toISOString()
     }));
   } catch (e) { console.log('Error guardando estado:', e.message); }
 }
@@ -336,8 +340,15 @@ function setupGigs() {
         console.log('[GIGS] Gigs existentes: ' + existing.size);
       } catch(e) {}
     }
-    GIGS.forEach(gig => {
-      if (existing.has(gig.title)) { console.log('[GIGS] Ya existe: ' + gig.title); return; }
+    let pending = 0;
+    const toCreate = GIGS.filter(g => !existing.has(g.title));
+    if (toCreate.length === 0) {
+      marketplaceSetupDone = true; saveState();
+      console.log('[GIGS] Todos los gigs ya existen');
+      return;
+    }
+    pending = toCreate.length;
+    toCreate.forEach(gig => {
       execFile(mltlBin, [
         'gig', 'create', '--agent', agentId,
         '--title', gig.title, '--description', gig.description,
@@ -346,6 +357,8 @@ function setupGigs() {
       ], { timeout: 30000 }, (e, o, se) => {
         if (e) console.log('[GIGS] Error "' + gig.title + '":', ((se || '').trim() || e.message).slice(0, 200));
         else console.log('[GIGS] Creada: ' + gig.title + ' @ ' + gig.price + ' ETH');
+        pending--;
+        if (pending === 0) { marketplaceSetupDone = true; saveState(); console.log('[GIGS] Setup completo, guardado en estado'); }
       });
     });
   });
@@ -375,8 +388,13 @@ function runStartupDiagnostics() {
   });
 }
 setTimeout(runStartupDiagnostics, 3000);
-setTimeout(setupAgentProfile, 6000);
-setTimeout(setupGigs, 10000);
+if (!marketplaceSetupDone) {
+  console.log('[SETUP] Primera vez — configurando perfil y gigs en marketplace...');
+  setTimeout(setupAgentProfile, 8000);
+  setTimeout(setupGigs, 12000);
+} else {
+  console.log('[SETUP] Perfil y gigs ya configurados, saltando (KV limitado)');
+}
 
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
