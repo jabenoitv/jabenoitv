@@ -979,26 +979,29 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify({ jobs, totalEarned: totalEarnedEth, completed: completedJobsCount, count: jobs.length }));
   }
   if (url === '/connect-farcaster') {
-    const siwnUrl = 'https://app.neynar.com/login?client_id=' + NEYNAR_CLIENT_ID + '&redirect_uri=' + encodeURIComponent(PUBLIC_URL + '/siwn');
     res.writeHead(200, { 'Content-Type': 'text/html' });
-    return res.end('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectar Farcaster</title></head><body style="font-family:-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><div style="text-align:center;padding:40px"><h1 style="color:#38bdf8;margin-bottom:16px">Conectar Farcaster</h1><p style="color:#94a3b8;margin-bottom:32px">Toca el boton para conectar @jabenoitv con el agente. Solo una vez.</p><a href="' + siwnUrl + '" style="display:inline-block;background:#7c3aed;color:white;padding:16px 32px;border-radius:12px;text-decoration:none;font-size:1.1em;font-weight:700">Conectar con Farcaster</a><br><br><a href="/" style="color:#475569;font-size:.85em;margin-top:20px;display:inline-block">Volver al dashboard</a></div></body></html>');
+    return res.end('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectar Farcaster</title><script src="https://neynarxyz.github.io/siwn/raw/1.2.0/index.js" async><\/script></head><body style="font-family:-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><div style="text-align:center;padding:40px"><h1 style="color:#38bdf8;margin-bottom:16px">Conectar Farcaster</h1><p style="color:#94a3b8;margin-bottom:32px">Toca el boton para conectar @jabenoitv. Solo una vez.</p><div class="neynar_signin" data-client_id="' + NEYNAR_CLIENT_ID + '" data-success-callback="onSIWN" data-theme="dark" data-variant="warpcast"></div><br><br><div id="msg" style="color:#4ade80;margin-top:16px"></div><br><a href="/" style="color:#475569;font-size:.85em">Volver al dashboard</a></div><script>window.onSIWN=function(d){document.getElementById("msg").textContent="Guardando signer...";fetch("/siwn",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({signer_uuid:d.signer_uuid,fid:d.fid,username:d.username||"jabenoitv"})}).then(function(){document.getElementById("msg").textContent="Conectado! Redirigiendo...";setTimeout(function(){window.location.href="/";},1500);}).catch(function(){document.getElementById("msg").textContent="Error guardando. Intenta de nuevo.";});}<\/script></body></html>');
   }
   if (url === '/siwn') {
-    const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
-    const params = new URLSearchParams(qs);
-    const signerUuid = params.get('signer_uuid');
-    const username = params.get('username') || 'jabenoitv';
-    const fid = params.get('fid') || '';
-    if (signerUuid) {
+    const handleSiwn = (signerUuid, fid, username) => {
+      if (!signerUuid) { res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'no signer_uuid'})); }
       farcasterSignerUuid = signerUuid;
       saveState();
-      console.log('[FARCASTER] Signer guardado via SIWN: ' + signerUuid + ' (@' + username + ' FID:' + fid + ')');
-      addLog('Farcaster signer conectado: @' + username, 'info');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      return res.end('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectado</title></head><body style="font-family:-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><div style="text-align:center;padding:40px"><h1 style="color:#4ade80;font-size:2em">Farcaster Conectado</h1><p style="color:#94a3b8">El agente <b style="color:#f1f5f9">@' + username + '</b> ya puede postear automaticamente.</p><p style="color:#475569;font-size:.85em;margin-top:12px">Signer UUID guardado. No hay que hacer nada mas.</p><a href="/" style="display:inline-block;margin-top:24px;background:#1e293b;color:#38bdf8;padding:10px 24px;border-radius:8px;text-decoration:none;border:1px solid #334155">Ver Dashboard</a></div></body></html>');
+      console.log('[FARCASTER] Signer guardado via SIWN: ' + signerUuid + ' (@' + (username||'?') + ' FID:' + (fid||'?') + ')');
+      addLog('Farcaster conectado: @' + (username||'jabenoitv'), 'info');
+      res.writeHead(200, {'Content-Type':'application/json'});
+      res.end(JSON.stringify({ok:true}));
+    };
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', d => { body += d; });
+      req.on('end', () => { try { const d = JSON.parse(body); handleSiwn(d.signer_uuid, d.fid, d.username); } catch(e) { res.writeHead(400); res.end('bad json'); } });
+    } else {
+      const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
+      const p = new URLSearchParams(qs);
+      handleSiwn(p.get('signer_uuid'), p.get('fid'), p.get('username'));
     }
-    res.writeHead(400, { 'Content-Type': 'text/plain' });
-    return res.end('No signer_uuid recibido. Intenta de nuevo: ' + PUBLIC_URL + '/connect-farcaster');
+    return;
   }
   res.writeHead(200, {
     'Content-Type': 'text/html',
