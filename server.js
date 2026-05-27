@@ -391,29 +391,34 @@ function setupGigs() {
       postToFarcaster('6 gigs live on @moltlaunch: tweet threads, landing copy, GitHub PRs, competitive teardowns, web scraping, EN↔ES translation. From 0.0001 ETH. moltlaunch.com/agents/51049');
       return;
     }
-    let pending = toCreate.length;
-    let successCount = 0;
-    toCreate.forEach(gig => {
-      execFile(mltlBin, [
-        'gig', 'create', '--agent', agentId,
-        '--title', gig.title, '--description', gig.description,
-        '--price', gig.price, '--delivery', gig.delivery,
-        '--category', gig.category, '--json'
-      ], { timeout: 30000 }, (e, o, se) => {
-        if (e) console.log('[GIGS] Error "' + gig.title + '":', ((se || '').trim() || e.message).slice(0, 200));
-        else { console.log('[GIGS] Creada: ' + gig.title + ' @ ' + gig.price + ' ETH'); successCount++; }
-        pending--;
-        if (pending === 0) {
-          const total = existing.size + successCount;
-          if (total >= GIGS.length) {
-            marketplaceSetupDone = true; saveState();
-            console.log('[GIGS] Setup completo: ' + total + '/' + GIGS.length + ' gigs activas');
-            postToFarcaster('6 gigs live on @moltlaunch: tweet threads, landing copy, GitHub PRs, competitive teardowns, web scraping, EN↔ES translation. From 0.0001 ETH. moltlaunch.com/agents/51049');
-          } else {
-            console.log('[GIGS] Setup parcial (' + total + '/' + GIGS.length + ' gigs) — se reintentará en próximo arranque');
-          }
+    // Create ONE gig per day to stay within the daily KV limit
+    const gigToday = toCreate[0];
+    console.log('[GIGS] Creando 1 gig hoy: "' + gigToday.title + '" (' + (existing.size + 1) + '/' + GIGS.length + ')');
+    execFile(mltlBin, [
+      'gig', 'create', '--agent', agentId,
+      '--title', gigToday.title, '--description', gigToday.description,
+      '--price', gigToday.price, '--delivery', gigToday.delivery,
+      '--category', gigToday.category, '--json'
+    ], { timeout: 30000 }, (e, o, se) => {
+      const errMsg = ((se || '').trim() || (e && e.message) || '');
+      if (e) {
+        if (errMsg.includes('KV') && errMsg.includes('limit')) {
+          console.log('[GIGS] KV limit alcanzado — reintentando mañana (medianoche UTC)');
+        } else {
+          console.log('[GIGS] Error "' + gigToday.title + '":', errMsg.slice(0, 200));
         }
-      });
+      } else {
+        const total = existing.size + 1;
+        console.log('[GIGS] Creada: ' + gigToday.title + ' @ ' + gigToday.price + ' ETH (' + total + '/' + GIGS.length + ')');
+        if (total >= GIGS.length) {
+          marketplaceSetupDone = true; saveState();
+          console.log('[GIGS] Setup completo: todos los gigs activos');
+          console.log('[GIGS] *** Agrega GIGS_SETUP_DONE=1 en Railway para no repetir setup ***');
+          postToFarcaster('6 gigs live on @moltlaunch: tweet threads, landing copy, GitHub PRs, competitive teardowns, web scraping, EN↔ES translation. From 0.0001 ETH. moltlaunch.com/agents/51049');
+        } else {
+          console.log('[GIGS] ' + (GIGS.length - total) + ' gigs pendientes — se crearán en días siguientes');
+        }
+      }
     });
   });
 }
@@ -443,6 +448,10 @@ function runStartupDiagnostics() {
 }
 setTimeout(runStartupDiagnostics, 3000);
 function attemptMarketplaceSetup() {
+  if (process.env.GIGS_SETUP_DONE === '1') {
+    console.log('[SETUP] GIGS_SETUP_DONE=1 — setup permanentemente omitido');
+    return;
+  }
   if (marketplaceSetupDone) {
     console.log('[SETUP] Perfil y gigs ya configurados, saltando');
     return;
