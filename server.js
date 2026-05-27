@@ -299,7 +299,20 @@ function detectJobEvent(line, time) {
 }
 
 function addLog(line, type) {
-  const entry = { time: new Date().toISOString(), msg: line.trim(), type };
+  const msg = line.trim();
+  // Deduplicate: if last log is the same message, just bump a counter
+  if (logs.length > 0) {
+    const last = logs[logs.length - 1];
+    if (last.msg === msg || (last._baseMsg && last._baseMsg === msg)) {
+      last.count = (last.count || 1) + 1;
+      last.msg = msg + ' (x' + last.count + ')';
+      last._baseMsg = msg;
+      last.time = new Date().toISOString();
+      broadcast({ type: 'update', totalEarned: totalEarnedEth, jobCount: jobs.length });
+      return;
+    }
+  }
+  const entry = { time: new Date().toISOString(), msg, type };
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
   lastActivity = entry.time;
