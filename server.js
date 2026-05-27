@@ -980,8 +980,8 @@ const server = http.createServer((req, res) => {
   }
   if (url === '/connect-farcaster') {
     const siwnUrl = 'https://app.neynar.com/login?client_id=' + NEYNAR_CLIENT_ID + '&redirect_uri=' + encodeURIComponent(PUBLIC_URL + '/siwn');
-    res.writeHead(302, { 'Location': siwnUrl });
-    return res.end();
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectar Farcaster</title></head><body style="font-family:-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><div style="text-align:center;padding:40px"><h1 style="color:#38bdf8;margin-bottom:16px">Conectar Farcaster</h1><p style="color:#94a3b8;margin-bottom:32px">Toca el boton para conectar @jabenoitv con el agente. Solo una vez.</p><a href="' + siwnUrl + '" style="display:inline-block;background:#7c3aed;color:white;padding:16px 32px;border-radius:12px;text-decoration:none;font-size:1.1em;font-weight:700">Conectar con Farcaster</a><br><br><a href="/" style="color:#475569;font-size:.85em;margin-top:20px;display:inline-block">Volver al dashboard</a></div></body></html>');
   }
   if (url === '/siwn') {
     const qs = req.url.includes('?') ? req.url.split('?')[1] : '';
