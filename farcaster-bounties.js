@@ -147,26 +147,34 @@ function estimateUsd(amount, token, ethPriceUsd) {
 }
 
 async function fetchBounties(apiKey) {
-  // Search casts that mention @bountybot using Neynar search
+  // Fetch @bountybot's (FID 20596) own reply casts — free Neynar endpoint.
+  // @bountybot replies to every bounty it acknowledges, so parent_hash on
+  // each reply points to the original bounty cast we should submit work to.
   const data = await neynarGet(
-    '/v2/farcaster/cast/search?q=%40bountybot&limit=50&priority_mode=false',
+    '/v2/farcaster/feed/user/casts?fid=20596&limit=50&include_replies=true',
     apiKey
   );
-  const casts = data.result && data.result.casts ? data.result.casts : (data.casts || []);
+  const casts = data.casts || [];
   return casts.filter(c => {
-    // Must be an original cast (not a reply to @bountybot - those are submissions)
-    if (c.parent_hash) return false;
-    // Must mention bountybot
-    const text = (c.text || '').toLowerCase();
-    return text.includes('bountybot') || text.includes('@bountybot');
-  }).map(c => ({
-    hash: c.hash,
-    authorFid: c.author && c.author.fid,
-    authorUsername: c.author && c.author.username,
-    text: c.text || '',
-    timestamp: c.timestamp,
-    ...parseBountyAmount(c.text || '')
-  }));
+    // Only process @bountybot's reply casts (not its own top-level posts)
+    if (!c.parent_hash) return false;
+    // Skip casts that look like payment confirmations ("paid", "closed")
+    const low = (c.text || '').toLowerCase();
+    if (/paid|closed|completed|winner|rewarded/i.test(low)) return false;
+    return true;
+  }).map(c => {
+    const { amount, token } = parseBountyAmount(c.text || '');
+    return {
+      hash: c.parent_hash,       // original bounty cast — where we reply
+      confirmHash: c.hash,       // bountybot's acknowledgement cast
+      authorUsername: (c.parent_author && c.parent_author.username) || 'unknown',
+      authorFid: c.parent_author && c.parent_author.fid,
+      text: c.text || '',        // bountybot's confirmation text (has task description)
+      timestamp: c.timestamp,
+      amount,
+      token
+    };
+  }).filter(b => b.hash);
 }
 
 async function classifyBounty(bounty, anthropicKey) {
