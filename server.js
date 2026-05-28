@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
+const { startBountyEngine } = require('./farcaster-bounties.js');
 
 const w = path.join(os.homedir(), '.workclaw');
 const m = path.join(os.homedir(), '.moltlaunch');
@@ -12,7 +13,7 @@ fs.mkdirSync(path.join(w, 'logs'), { recursive: true });
 fs.mkdirSync(m, { recursive: true });
 
 fs.writeFileSync(path.join(w, 'workclaw.json'), JSON.stringify({
-  polling: { intervalMs: 300000, urgentIntervalMs: 60000 },
+  polling: { intervalMs: 1800000, urgentIntervalMs: 600000 },
   pricing: { strategy: 'fixed', baseRateEth: '0.005', maxRateEth: '0.05' },
   specialties: [
     'writing','copywriting','content-creation','blog-writing',
@@ -207,6 +208,7 @@ let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
 let lastSetupDate = '';
 let lastFarcasterPost = 0;
+let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0 };
 
 // Estado persistente en disco
 const STATE_FILE = path.join(w, 'state.json');
@@ -225,6 +227,9 @@ function loadState() {
     if (typeof s.lastFarcasterPost === 'number') lastFarcasterPost = s.lastFarcasterPost;
     if (s.farcasterSignerUuid) farcasterSignerUuid = s.farcasterSignerUuid;
     if (Array.isArray(s.claimedBounties)) s.claimedBounties.forEach(id => claimedBounties.add(String(id)));
+    if (s.bountiesSeen) bountyState.bountiesSeen = s.bountiesSeen;
+    if (Array.isArray(s.bountiesSubmitted)) bountyState.bountiesSubmitted = s.bountiesSubmitted;
+    if (s.lastBountySubmit) bountyState.lastBountySubmit = s.lastBountySubmit;
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
 }
@@ -237,6 +242,9 @@ function saveState() {
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
       jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone, lastSetupDate, lastFarcasterPost, farcasterSignerUuid,
       claimedBounties: [...claimedBounties].slice(-200),
+      bountiesSeen: bountyState.bountiesSeen || {},
+      bountiesSubmitted: bountyState.bountiesSubmitted || [],
+      lastBountySubmit: bountyState.lastBountySubmit || 0,
       lastSync: new Date().toISOString()
     }));
   } catch (e) { console.log('Error guardando estado:', e.message); }
@@ -664,6 +672,23 @@ header h1{font-size:1.1em;color:#38bdf8}
 .empty{padding:28px;text-align:center;color:#475569;font-size:.86em}
 .footer{text-align:center;padding:12px;color:#475569;font-size:.72em;margin-top:12px}
 .footer a{color:#38bdf8;text-decoration:none}
+.bsec{margin:12px 20px 0;background:#1e1b2e;border-radius:10px;border:1px solid #3b1f6e;overflow:hidden}
+.bsec .sec-h{padding:10px 16px;border-bottom:1px solid #3b1f6e;font-size:.78em;color:#a78bfa;display:flex;justify-content:space-between;align-items:center}
+.bcards{display:flex;gap:10px;padding:12px 16px;flex-wrap:wrap}
+.bc{background:#0f0c1a;border-radius:8px;padding:10px 14px;flex:1;min-width:110px;border:1px solid #2d1b5e}
+.bc .bl{font-size:.63em;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px}
+.bc .bv{font-size:1.05em;font-weight:700;margin-top:4px;font-family:monospace;color:#e9d5ff}
+.bc .bs{font-size:.68em;color:#64748b;margin-top:2px}
+.bitem{padding:10px 16px;border-bottom:1px solid #1e1040;display:flex;gap:8px;align-items:flex-start;font-size:.76em}
+.bitem:last-child{border-bottom:none}
+.btag{padding:2px 7px;border-radius:8px;font-size:.66em;font-weight:700;white-space:nowrap;flex-shrink:0}
+.btag.dry{background:#1e1040;color:#a78bfa;border:1px solid #4c1d95}
+.btag.sent{background:#052e16;color:#4ade80;border:1px solid #166534}
+.bmsg{flex:1;min-width:0;color:#c4b5fd;word-break:break-word}
+.bamt{color:#a78bfa;font-weight:700;white-space:nowrap;font-family:monospace;font-size:.85em;margin-top:1px;flex-shrink:0}
+.mode-badge{padding:2px 9px;border-radius:10px;font-size:.68em;font-weight:700}
+.mode-dry{background:#1e1040;color:#a78bfa;border:1px solid #4c1d95}
+.mode-live{background:#052e16;color:#4ade80;border:1px solid #166534}
 </style>
 </head>
 <body>
@@ -738,7 +763,20 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v9</div>
+<div class="bsec">
+  <div class="sec-h">
+    <span>Bounties Farcaster <span id="bmode" class="mode-badge mode-dry">dry-run</span></span>
+    <span id="bts" style="color:#7c3aed">escaneando...</span>
+  </div>
+  <div class="bcards">
+    <div class="bc"><div class="bl">Descubiertos</div><div class="bv" id="b-seen">-</div><div class="bs">acumulado</div></div>
+    <div class="bc"><div class="bl">Enviados hoy</div><div class="bv" id="b-today">0</div><div class="bs" id="b-limit">máx 5/día</div></div>
+    <div class="bc"><div class="bl">Total enviados</div><div class="bv" id="b-total">0</div><div class="bs">histórico</div></div>
+    <div class="bc"><div class="bl">Próximo scan</div><div class="bv" id="b-next">25 min</div><div class="bs">interval</div></div>
+  </div>
+  <div id="blist"><div class="empty">Esperando primer ciclo de bounties...</div></div>
+</div>
+<div class="footer"><a href="/">Refrescar</a> · build v10-bounties</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -893,7 +931,27 @@ function loadLogs(){
     }).join(''):'<div class="empty">Sin actividad aun</div>';
   }).catch(function(){});
 }
-function load(){loadStatus();loadPrice();loadJobs();loadMarket();loadLogs();}
+function loadBounties(){
+  afetch('/api/bounties').then(function(bd){
+    if(!bd)return;
+    document.getElementById('b-seen').textContent=bd.seenTotal||0;
+    document.getElementById('b-today').textContent=bd.submittedToday||0;
+    document.getElementById('b-total').textContent=bd.submittedTotal||0;
+    var bmode=document.getElementById('bmode');
+    if(bd.dryRun===false){bmode.textContent='live';bmode.className='mode-badge mode-live';}
+    else{bmode.textContent='dry-run';bmode.className='mode-badge mode-dry';}
+    document.getElementById('bts').textContent='actualizado '+ftime(new Date().toISOString());
+    var bel=document.getElementById('blist');
+    var items=bd.recent||[];
+    bel.innerHTML=items.length?items.map(function(b){
+      var tag=b.dryRun?'<span class="btag dry">dry</span>':'<span class="btag sent">enviado</span>';
+      var desc=(b.bountyText||b.description||'').replace(/</g,'&lt;').slice(0,80);
+      var amt=b.amount?(b.amount+' '+b.token):'';
+      return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div>'+(amt?'<div class="bamt">'+amt+'</div>':'')+'</div>';
+    }).join(''):'<div class="empty">Sin bounties enviados aún...</div>';
+  }).catch(function(){});
+}
+function load(){loadStatus();loadPrice();loadJobs();loadMarket();loadLogs();loadBounties();}
 
 function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
 
@@ -996,6 +1054,18 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
+  if (url === '/api/bounties') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    const today = new Date().toISOString().slice(0, 10);
+    const submitted = bountyState.bountiesSubmitted || [];
+    return res.end(JSON.stringify({
+      submittedToday: submitted.filter(s => s.date === today).length,
+      submittedTotal: submitted.length,
+      recent: submitted.slice(-10).reverse(),
+      seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
+      dryRun: process.env.BOUNTY_AUTOPOST !== '1'
+    }));
+  }
   if (url === '/api/jobs') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({ jobs, totalEarned: totalEarnedEth, completed: completedJobsCount, count: jobs.length }));
@@ -1064,6 +1134,28 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
   startCashclaw();
+  startBountyEngine({
+    neynarApiKey: NEYNAR_API_KEY,
+    signerUuid: farcasterSignerUuid,
+    anthropicKey: process.env.ANTHROPIC_API_KEY || '',
+    verifiedAddress: '0xccba4f45bc42877e9d4abc5fc3f66c208c9bb1cb',
+    getEthPriceUsd: () => ethPrice.usd || 0,
+    getState: () => bountyState,
+    saveState: (s) => { bountyState = s; saveState(); },
+    dryRun: process.env.BOUNTY_AUTOPOST !== '1',
+    onEvent: (type, data) => {
+      if (type === 'payout') {
+        const msg = 'Bounty pagado: ' + data.amount + ' ' + data.token;
+        addLog(msg, 'info');
+        broadcast({ type: 'update' });
+        postToFarcaster('Bounty completed + paid on @bountycaster! ' + data.amount + ' ' + data.token + ' received. Autonomous agent @jabenoitv open for work on Farcaster.');
+      } else if (type === 'bounty_submitted') {
+        broadcast({ type: 'update' });
+      } else {
+        addLog(String(data || type), type === 'warn' ? 'warn' : 'info');
+      }
+    }
+  });
   setTimeout(() => {
     postToFarcaster('CashClaw #' + AGENT_ID + ' online on @moltlaunch. Writing, coding, research, data extraction, EN↔ES translation — 1-4h delivery, never sleeps. moltlaunch.com/agents/51049');
   }, 60000);
