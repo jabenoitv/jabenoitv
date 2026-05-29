@@ -256,8 +256,12 @@ async function submitBounty(bounty, deliverable, apiKey, signerUuid) {
 }
 
 function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAddress, getEthPriceUsd, getState, saveState, onEvent, dryRun }) {
-  if (!neynarApiKey || !signerUuid || !anthropicKey) {
-    onEvent('warn', '[BOUNTY] Falta NEYNAR_API_KEY, FARCASTER_SIGNER_UUID o ANTHROPIC_API_KEY — motor inactivo');
+  const missing = [];
+  if (!neynarApiKey) missing.push('NEYNAR_API_KEY');
+  if (!signerUuid) missing.push('FARCASTER_SIGNER_UUID');
+  if (!anthropicKey) missing.push('ANTHROPIC_API_KEY');
+  if (missing.length) {
+    onEvent('warn', '[BOUNTY] Motor inactivo — faltan env vars: ' + missing.join(', '));
     return;
   }
 

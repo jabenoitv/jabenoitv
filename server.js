@@ -1001,8 +1001,10 @@ function copySnapshot(){
   });
   var txt=lines.join('\n');
   var btn=document.getElementById('snpbtn');
-  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);});}
-  else{var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);}catch(e){}document.body.removeChild(ta);}
+  function markOk(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);}
+  function doFallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();try{if(document.execCommand('copy'))markOk();else showModal(txt);}catch(e){showModal(txt);}document.body.removeChild(ta);}
+  function showModal(t){var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';m.innerHTML='<div style="background:#1e293b;border-radius:10px;padding:16px;max-width:95vw;width:540px;max-height:80vh;display:flex;flex-direction:column;gap:10px"><div style="color:#38bdf8;font-weight:bold;font-size:.9em">Selecciona todo y copia (Ctrl+A → Ctrl+C)</div><textarea readonly style="flex:1;min-height:260px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:6px;padding:10px;font-size:.75em;font-family:monospace;resize:none">'+t.replace(/</g,'&lt;')+'</textarea><button onclick="this.closest(\'div\').parentNode.remove()" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">Cerrar</button></div>';document.body.appendChild(m);}
+  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(markOk).catch(doFallback);}else{doFallback();}
 }
 document.getElementById('cpybtn').addEventListener('click',function(){
   var lines=[];
