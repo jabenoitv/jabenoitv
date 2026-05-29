@@ -1091,6 +1091,32 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify(logs));
   }
+  if (url === '/snapshot') {
+    if (!checkAuth(req, res, params)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const submitted = bountyState.bountiesSubmitted || [];
+    const lines = [
+      '=== CashClaw snapshot ' + new Date().toLocaleString('es-CL') + ' ===',
+      'Uptime: ' + (process.uptime() | 0) + 's',
+      'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
+      'Ganado total: ' + totalEarnedEth.toFixed(6) + ' ETH',
+      'Jobs completados: ' + completedJobsCount,
+      'ETH/USD: $' + (ethPrice.usd || 0),
+      '--- Mercado ---',
+      'Agentes: ' + (marketData.agents || '-') + ' | Mediana: ' + (marketData.median ? marketData.median.toFixed(6) : '-') + ' ETH',
+      'Nuestro precio: ' + (marketData.ourPrice ? marketData.ourPrice.toFixed(6) : '-') + ' ETH',
+      'Rango mercado: ' + (marketData.min ? marketData.min.toFixed(6) : '-') + ' – ' + (marketData.max ? marketData.max.toFixed(6) : '-') + ' ETH',
+      '--- Bounties Farcaster ---',
+      'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
+      'Descubiertos: ' + Object.keys(bountyState.bountiesSeen || {}).length,
+      'Enviados hoy: ' + submitted.filter(s => s.date === today).length,
+      'Enviados total: ' + submitted.length,
+      '--- Actividad reciente (ultimos 30) ---',
+      ...logs.slice(0, 30).map(l => '[' + (l.time || '') + '] ' + (l.msg || l.message || JSON.stringify(l)))
+    ];
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+    return res.end(lines.join('\n'));
+  }
   if (url === '/api/bounties') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     const today = new Date().toISOString().slice(0, 10);
