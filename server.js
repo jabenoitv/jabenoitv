@@ -699,6 +699,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   </div>
   <div class="hdr-r">
     <span id="hst" style="font-size:.75em;color:#94a3b8">conectando...</span>
+    <button class="nbtn" id="snpbtn" onclick="copySnapshot()">Copiar estado</button>
     <button class="nbtn" id="nb">Alertas</button>
   </div>
 </header>
@@ -968,6 +969,40 @@ function connectSSE(){
     }catch(ex){}
   };
   es.onerror=function(){ldot.classList.remove('on');es.close();setTimeout(connectSSE,5000);};
+}
+function copySnapshot(){
+  var lines=[];
+  var now=new Date().toLocaleString('es-CL');
+  lines.push('=== CashClaw snapshot '+now+' ===');
+  lines.push('Estado: '+(document.getElementById('st')||{}).textContent);
+  lines.push('Uptime: '+(document.getElementById('up')||{}).textContent);
+  lines.push('Wallet: '+(document.getElementById('wal')||{}).textContent);
+  lines.push('Ganado: '+(document.getElementById('earn-eth')||{}).textContent+' / '+(document.getElementById('earn-usd')||{}).textContent+' / '+(document.getElementById('earn-clp')||{}).textContent);
+  lines.push('Precio ETH: '+(document.getElementById('earn-ts')||{}).textContent);
+  lines.push('Trabajos: '+(document.getElementById('jcnt')||{}).textContent);
+  lines.push('Poll inbox: '+(document.getElementById('poll-cnt')||{}).textContent);
+  lines.push('Precio cobrado: '+(document.getElementById('prc-eth')||{}).textContent);
+  lines.push('--- Mercado ---');
+  lines.push('Mediana: '+(document.getElementById('mkt-med')||{}).textContent+' '+(document.getElementById('mkt-med-usd')||{}).textContent);
+  lines.push('Nuestro precio: '+(document.getElementById('mkt-our')||{}).textContent);
+  lines.push('Posicion: '+(document.getElementById('mkt-pct')||{}).textContent+' '+((document.getElementById('mkt-nagents')||{}).textContent||''));
+  lines.push('Rango: '+(document.getElementById('mkt-range')||{}).textContent);
+  lines.push('--- Bounties Farcaster ---');
+  lines.push('Modo: '+(document.getElementById('bmode')||{}).textContent);
+  lines.push('Descubiertos: '+(document.getElementById('b-seen')||{}).textContent);
+  lines.push('Enviados hoy: '+(document.getElementById('b-today')||{}).textContent);
+  lines.push('Total enviados: '+(document.getElementById('b-total')||{}).textContent);
+  var bitems=[];document.querySelectorAll('#blist .bitem').forEach(function(el){bitems.push(el.textContent.trim().replace(/\s+/g,' '));});
+  if(bitems.length)lines.push('Recientes: '+bitems.join(' | '));
+  lines.push('--- Actividad reciente ---');
+  document.querySelectorAll('#llist .log').forEach(function(el){
+    var t=el.querySelector('.t');var m=el.querySelector('.msg');
+    if(t&&m)lines.push('['+t.textContent.trim()+'] '+m.textContent.trim());
+  });
+  var txt=lines.join('\n');
+  var btn=document.getElementById('snpbtn');
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);});}
+  else{var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);}catch(e){}document.body.removeChild(ta);}
 }
 document.getElementById('cpybtn').addEventListener('click',function(){
   var lines=[];
