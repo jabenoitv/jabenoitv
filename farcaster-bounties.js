@@ -180,34 +180,42 @@ function estimateUsd(amount, token, ethPriceUsd) {
   return amount * 0.01; // unknown token, conservative
 }
 
-async function fetchBounties(apiKey) {
-  // Fetch @bountybot's (FID 20596) own reply casts — free Neynar endpoint.
-  // @bountybot replies to every bounty it acknowledges, so parent_hash on
-  // each reply points to the original bounty cast we should submit work to.
-  const data = await neynarGet(
-    '/v2/farcaster/feed/user/casts?fid=20596&limit=50&include_replies=true',
-    apiKey
-  );
-  const casts = data.casts || [];
-  return casts.filter(c => {
-    // Only process @bountybot's reply casts (not its own top-level posts)
-    if (!c.parent_hash) return false;
+async function fetchBounties(apiKey, onEvent) {
+  // Primary: /bounties channel feed — where users POST their bounties (actual task descriptions).
+  // Fallback: cast search for @bountybot mentions.
+  let data, endpoint;
+  const log = onEvent || (() => {});
+
+  try {
+    endpoint = '/v2/farcaster/feed/channels?channel_ids=bounties&limit=50&should_moderate=false';
+    data = await neynarGet(endpoint, apiKey);
+  } catch (e) {
+    log('warn', '[BOUNTY] Canal /bounties falló (' + e.message + '), usando búsqueda de menciones');
+    endpoint = '/v2/farcaster/cast/search?q=%40bountybot&limit=25&priority_mode=false';
+    data = await neynarGet(endpoint, apiKey);
+  }
+
+  // Neynar cast/search wraps results under result.casts; feed endpoints use top-level casts
+  const allCasts = (data.result && data.result.casts) || data.casts || [];
+  log('info', '[BOUNTY] API devolvió ' + allCasts.length + ' casts (endpoint: ' + endpoint.split('?')[0] + ')');
+
+  return allCasts.filter(c => {
+    // Skip bountybot's own system messages
+    if (c.author && Number(c.author.fid) === BOUNTYBOT_FID) return false;
     const low = (c.text || '').toLowerCase();
-    // Skip casts that look like payment confirmations ("paid", "closed")
+    // Skip paid/closed bounties
     if (/paid|closed|completed|winner|rewarded/i.test(low)) return false;
-    // Skip @bountybot error/not-found replies — these are not real bounties
-    // (e.g. "An error occured or we couldn't find an active Bountycaster post")
+    // Skip bountybot error replies that leaked into the channel
     if (/an error occured|couldn'?t find|could not find|no active bounty|not found|try again/i.test(low)) return false;
     return true;
   }).map(c => {
     const { amount, token } = parseBountyAmount(c.text || '');
     return {
-      hash: c.parent_hash,       // original bounty cast — where we reply
-      confirmHash: c.hash,       // bountybot's acknowledgement cast
-      authorUsername: (c.parent_author && c.parent_author.username) || 'unknown',
-      authorFid: c.parent_author && c.parent_author.fid,
-      hasParentAuthor: !!(c.parent_author && c.parent_author.fid),
-      text: c.text || '',        // bountybot's confirmation text (has task description)
+      hash: c.hash,                                            // bounty cast — reply here to submit
+      authorUsername: (c.author && c.author.username) || 'unknown',
+      authorFid: c.author && c.author.fid,
+      hasParentAuthor: !!(c.author && c.author.fid),
+      text: c.text || '',                                      // actual task description
       timestamp: c.timestamp,
       amount,
       token
@@ -341,8 +349,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
     let bounties;
     try {
-      bounties = await fetchBounties(neynarApiKey);
-      onEvent('info', '[BOUNTY] ' + bounties.length + ' bounties encontrados en Farcaster');
+      bounties = await fetchBounties(neynarApiKey, onEvent);
+      onEvent('info', '[BOUNTY] ' + bounties.length + ' bounties elegibles en Farcaster');
     } catch (e) {
       onEvent('warn', '[BOUNTY] Error fetching bounties: ' + e.message);
       return;
