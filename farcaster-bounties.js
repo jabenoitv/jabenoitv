@@ -254,6 +254,8 @@ The agent CAN do: writing, copywriting, research, summarization, Q&A, translatio
 
 The agent CANNOT do: write/run code, create images/video/audio, physical tasks, login to accounts, on-chain actions, "first to achieve X" competitions, anything NSFW or illegal.
 
+CRITICAL RULE — External content: if the task asks the agent to review, proofread, analyze, critique, or improve a specific piece of content (documentation, article, code, draft, website, etc.) that is NOT included inline in the bounty text, return eligible: false with reason "requires external content not provided". The agent cannot access URLs, uploaded files, or content outside this bounty text.
+
 Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "string", "confidence": 0.0-1.0, "reason": "one sentence", "deliverable_type": "string"}`;
 
   const text = await claudeChat(
@@ -283,10 +285,11 @@ async function generateDeliverable(bounty, anthropicKey) {
 Bounty: "${bounty.text}"
 
 Requirements:
+- FIRST: identify every specific constraint in the bounty (exact type, geography, audience, format, exclusions). Your deliverable must satisfy ALL of them — do not substitute, generalize, or include items that partially fit.
 - Deliver the actual work, not a description of it
 - Be concise but complete (Farcaster replies have a ~1024 char limit, so be efficient)
 - If translation EN→ES or ES→EN: provide the full translation
-- If research/Q&A: provide the answer directly with key facts
+- If research/Q&A: provide the answer directly with verified, specific facts — no padding
 - If writing/content: write the actual piece
 - Do NOT include meta-commentary like "Here is my submission" or "I hope this helps"
 - Start immediately with the deliverable`;

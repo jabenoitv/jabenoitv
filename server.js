@@ -230,7 +230,11 @@ let lastFarcasterPost = 0;
 let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0 };
 
 // Estado persistente en disco
-const STATE_FILE = path.join(w, 'state.json');
+// DATA_DIR: set to a Railway Volume mount path (e.g. /data) to persist state across redeploys.
+// Without a volume, state resets on each redeploy (Railway ephemeral filesystem).
+const DATA_DIR = process.env.DATA_DIR ? process.env.DATA_DIR : w;
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+const STATE_FILE = path.join(DATA_DIR, 'state.json');
 
 function loadState() {
   try {
