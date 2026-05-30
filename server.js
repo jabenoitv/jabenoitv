@@ -731,6 +731,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   </div>
   <div class="hdr-r">
     <span id="hst" style="font-size:.75em;color:#94a3b8">conectando...</span>
+    <button class="nbtn" id="rfrbtn" onclick="location.reload()" style="font-size:.9em;padding:7px 18px">⟳ Refrescar</button>
     <button class="nbtn" id="snpbtn" onclick="copySnapshot()">Copiar estado</button>
     <button class="nbtn" id="nb">Alertas</button>
   </div>
@@ -1119,8 +1120,8 @@ const server = http.createServer((req, res) => {
       'Descubiertos: ' + Object.keys(bountyState.bountiesSeen || {}).length,
       'Enviados hoy: ' + submitted.filter(s => s.date === today).length,
       'Enviados total: ' + submitted.length,
-      '--- Actividad reciente (ultimos 30) ---',
-      ...logs.slice(0, 30).map(l => '[' + (l.time || '') + '] ' + (l.msg || l.message || JSON.stringify(l)))
+      '--- Actividad reciente (' + logs.length + ' entradas) ---',
+      ...[...logs].reverse().map(l => '[' + (l.time || '') + '] ' + (l.msg || l.message || JSON.stringify(l)))
     ];
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
     return res.end(lines.join('\n'));
