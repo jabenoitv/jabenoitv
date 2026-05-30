@@ -10,6 +10,10 @@ RUN npm install --no-audit --no-fund --omit=optional \
 
 COPY . .
 
+# Run as the non-root "node" user (already present in node:20-slim).
+RUN chown -R node:node /app
+USER node
+
 ENV NODE_ENV=production
 EXPOSE 3777
 

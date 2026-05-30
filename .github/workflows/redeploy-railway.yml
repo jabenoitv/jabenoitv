@@ -1,10 +1,11 @@
 name: Redeploy Railway
 
+# Solo disparo manual. Railway ya redeploya automáticamente en cada push a main
+# cuando el repo está conectado, así que disparar también aquí causaría
+# doble-deploy. Usa "Run workflow" desde la pestaña Actions cuando necesites
+# forzar un redeploy manual.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   redeploy:
@@ -51,7 +52,7 @@ jobs:
               f.write(f'sid={sid}\neid={eid}\npid={pid}\n')
           PYEOF
 
-      - name: 2. Set NIXPACKS_NO_CACHE and correct start command
+      - name: 2. Set correct start command
         run: |
           python3 <<'PYEOF'
           import json, urllib.request, os, sys
@@ -61,24 +62,8 @@ jobs:
           eid = os.environ['EID']
           pid = os.environ['PID']
 
-          # Set cache-busting env vars
-          payload = {
-              "query": """mutation($pid:String!,$s:String!,$e:String!,$vars:EnvironmentVariables!){
-                  variableCollectionUpsert(input:{projectId:$pid,serviceId:$s,environmentId:$e,variables:$vars})
-              }""",
-              "variables": {
-                  "pid": pid, "s": sid, "e": eid,
-                  "vars": {"NIXPACKS_NO_CACHE": "1", "RAILPACK_NO_CACHE": "1"}
-              }
-          }
-          req = urllib.request.Request(
-              'https://backboard.railway.com/graphql/v2',
-              data=json.dumps(payload).encode(),
-              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-          )
-          with urllib.request.urlopen(req) as resp:
-              result = json.loads(resp.read())
-          print('Vars:', json.dumps(result))
+          # Cache de build deshabilitada a propósito NO: dejamos que Railway
+          # use su cache normal para builds rápidos/baratos.
 
           # Set correct start command to node server.js
           payload2 = {

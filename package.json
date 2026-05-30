@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "cashclaw-agent": "^0.1.0",
-    "moltlaunch": "latest"
+    "moltlaunch": "^2.17.0"
   }
 }

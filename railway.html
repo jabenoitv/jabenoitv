@@ -34,8 +34,14 @@ select{width:100%;padding:10px;background:#111;border:1px solid #333;border-radi
     <h1>🚂 Railway Redeploy</h1>
     <p class="sub">Esta página usa la Railway API vía un proxy CORS para redeployar tu servicio.</p>
     <h2>Railway API Token</h2>
-    <input id="token" placeholder="Bearer token" value="8d85c544-1bd9-4fb9-8c6d-ee6f85067c92">
+    <input id="token" placeholder="Pega tu Railway API token aquí" value="">
     <h2>Proxy CORS</h2>
+    <!-- ⚠️ ADVERTENCIA DE SEGURIDAD: los proxies CORS de terceros (corsproxy.io,
+         codetabs.com, thingproxy) reciben el header Authorization con tu token
+         Railway en texto plano y pueden registrarlo/interceptarlo. Usa esta página
+         solo localmente y rota el token después de usarla. Para producción usa
+         "Sin proxy (intento directo)" o un proxy propio de confianza. -->
+
     <select id="proxy">
       <option value="https://corsproxy.io/?url=">corsproxy.io</option>
       <option value="https://api.codetabs.com/v1/proxy?quest=">codetabs.com</option>
