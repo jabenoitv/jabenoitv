@@ -736,7 +736,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="hdr-r">
     <span id="hst" style="font-size:.75em;color:#94a3b8">conectando...</span>
     <button class="nbtn" id="rfrbtn" onclick="location.reload()" style="font-size:.9em;padding:7px 18px">⟳ Refrescar</button>
-    <button class="nbtn" id="snpbtn" onclick="copySnapshot()">Copiar estado</button>
+    <button class="nbtn" id="snpbtn" onclick="copySnapshot()">Copiar todo</button>
     <button class="nbtn" id="nb">Alertas</button>
   </div>
 </header>
@@ -798,7 +798,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div id="jlist"><div class="empty">Esperando primer trabajo del marketplace...</div></div>
 </div>
 <div class="sec">
-  <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><div style="display:flex;gap:8px;align-items:center"><button class="cpybtn" id="cpybtn">Copiar</button><span id="lcnt" style="color:#64748b">-</span></div></div>
+  <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><span id="lcnt" style="color:#64748b;font-size:.75em">-</span></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
 <div class="bsec">
@@ -1010,28 +1010,12 @@ function connectSSE(){
 function snapShowModal(t){var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';var inner=document.createElement('div');inner.style.cssText='background:#1e293b;border-radius:10px;padding:16px;max-width:95vw;width:540px;max-height:80vh;display:flex;flex-direction:column;gap:10px';var h=document.createElement('div');h.style.cssText='color:#38bdf8;font-weight:bold;font-size:.9em';h.textContent='Selecciona todo y copia (Ctrl+A entonces Ctrl+C)';var ta=document.createElement('textarea');ta.readOnly=true;ta.value=t;ta.style.cssText='flex:1;min-height:260px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:6px;padding:10px;font-size:.75em;font-family:monospace;resize:none';var b=document.createElement('button');b.textContent='Cerrar';b.style.cssText='background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer';b.onclick=function(){m.remove();};inner.appendChild(h);inner.appendChild(ta);inner.appendChild(b);m.appendChild(inner);document.body.appendChild(m);ta.focus();ta.select();}
 function copySnapshot(){
   var btn=document.getElementById('snpbtn');
-  function markOk(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);}
+  function markOk(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar todo';btn.classList.remove('on');},2500);}
   fetch(_tq('/snapshot')).then(function(r){return r.text();}).then(function(txt){
     function doFallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);if(ok)markOk();else snapShowModal(txt);}
     if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(markOk).catch(doFallback);}else{doFallback();}
-  }).catch(function(){btn.textContent='Error';setTimeout(function(){btn.textContent='Copiar estado';},2500);});
+  }).catch(function(){btn.textContent='Error';setTimeout(function(){btn.textContent='Copiar todo';},2500);});
 }
-document.getElementById('cpybtn').addEventListener('click',function(){
-  var lines=[];
-  document.querySelectorAll('#llist .log').forEach(function(el){
-    var t=el.querySelector('.t');var m=el.querySelector('.msg');
-    if(t&&m)lines.push('['+t.textContent.trim()+'] '+m.textContent.trim());
-  });
-  if(!lines.length){return;}
-  var txt=lines.join('\\n');
-  var btn=document.getElementById('cpybtn');
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(txt).then(function(){
-      btn.textContent='Copiado!';btn.classList.add('ok');
-      setTimeout(function(){btn.textContent='Copiar';btn.classList.remove('ok');},2000);
-    }).catch(function(){fallbackCopy(txt,btn);});
-  }else{fallbackCopy(txt,btn);}
-});
 function fallbackCopy(txt,btn){
   var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
   document.body.appendChild(ta);ta.select();
@@ -1108,23 +1092,30 @@ const server = http.createServer((req, res) => {
   if (url === '/snapshot') {
     const today = new Date().toISOString().slice(0, 10);
     const submitted = bountyState.bountiesSubmitted || [];
+    const sep = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
     const lines = [
-      '=== CashClaw snapshot ' + new Date().toLocaleString('es-CL') + ' ===',
+      '=== CashClaw · ' + new Date().toLocaleString('es-CL') + ' ===',
+      '',
       'Uptime: ' + (process.uptime() | 0) + 's',
       'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
       'Ganado total: ' + totalEarnedEth.toFixed(6) + ' ETH',
       'Jobs completados: ' + completedJobsCount,
       'ETH/USD: $' + (ethPrice.usd || 0),
+      '',
       '--- Mercado ---',
       'Agentes: ' + (marketData.agents || '-') + ' | Mediana: ' + (marketData.median ? marketData.median.toFixed(6) : '-') + ' ETH',
       'Nuestro precio: ' + (marketData.ourPrice ? marketData.ourPrice.toFixed(6) : '-') + ' ETH',
       'Rango mercado: ' + (marketData.min ? marketData.min.toFixed(6) : '-') + ' – ' + (marketData.max ? marketData.max.toFixed(6) : '-') + ' ETH',
+      '',
       '--- Bounties Farcaster ---',
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
       'Descubiertos: ' + Object.keys(bountyState.bountiesSeen || {}).length,
       'Enviados hoy: ' + submitted.filter(s => s.date === today).length,
       'Enviados total: ' + submitted.length,
-      '--- Actividad reciente (' + logs.length + ' entradas) ---',
+      '',
+      sep,
+      'REGISTROS (' + logs.length + ' entradas — más reciente primero)',
+      sep,
       ...[...logs].reverse().map(l => '[' + (l.time || '') + '] ' + (l.msg || l.message || JSON.stringify(l)))
     ];
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
