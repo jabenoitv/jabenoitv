@@ -4,6 +4,8 @@ const https = require('https');
 // @bountybot FID on Farcaster
 const BOUNTYBOT_FID = 20596;
 const ORIGIN = 'https://jabenoitv-production.up.railway.app';
+// Farcaster protocol epoch (seconds since this date → Unix ms)
+const FC_EPOCH_MS = new Date('2021-01-01T00:00:00Z').getTime();
 
 // Quality gates
 const MIN_CONFIDENCE = 0.80;
@@ -59,6 +61,25 @@ function neynarGet(path, apiKey) {
         try { resolve(JSON.parse(d)); } catch (e) { reject(new Error('Neynar parse: ' + d.slice(0, 80))); }
       });
     });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function hubApiGet(path, apiKey) {
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'hub-api.neynar.com', path, method: 'GET',
+      headers: { 'api_key': apiKey, 'Accept': 'application/json' }
+    }, res => {
+      let d = '';
+      res.on('data', c => { d += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return reject(new Error('HubAPI ' + res.statusCode + ': ' + d.slice(0, 150)));
+        try { resolve(JSON.parse(d)); } catch (e) { reject(new Error('HubAPI parse: ' + d.slice(0, 80))); }
+      });
+    });
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('HubAPI timeout')); });
     req.on('error', reject);
     req.end();
   });
@@ -181,46 +202,45 @@ function estimateUsd(amount, token, ethPriceUsd) {
 }
 
 async function fetchBounties(apiKey, onEvent) {
-  // Primary: /bounties channel feed — where users POST their bounties (actual task descriptions).
-  // Fallback: cast search for @bountybot mentions.
-  let data, endpoint;
   const log = onEvent || (() => {});
 
+  // Neynar Hub API: castsByMention fid=20596 — free tier, Farcaster protocol layer.
+  // Returns all casts that mention @bountybot (FID 20596) = the actual bounty posts.
+  // Response is protobuf JSON (different schema from Neynar API v2).
+  let messages = [];
   try {
-    endpoint = '/v2/farcaster/feed/channels?channel_ids=bounties&limit=50&should_moderate=false';
-    data = await neynarGet(endpoint, apiKey);
+    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=50', apiKey);
+    messages = data.messages || [];
+    log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
   } catch (e) {
-    log('warn', '[BOUNTY] Canal /bounties falló (' + e.message + '), usando búsqueda de menciones');
-    endpoint = '/v2/farcaster/cast/search?q=%40bountybot&limit=25&priority_mode=false';
-    data = await neynarGet(endpoint, apiKey);
+    log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
+    return [];
   }
 
-  // Neynar cast/search wraps results under result.casts; feed endpoints use top-level casts
-  const allCasts = (data.result && data.result.casts) || data.casts || [];
-  log('info', '[BOUNTY] API devolvió ' + allCasts.length + ' casts (endpoint: ' + endpoint.split('?')[0] + ')');
-
-  return allCasts.filter(c => {
-    // Skip bountybot's own system messages
-    if (c.author && Number(c.author.fid) === BOUNTYBOT_FID) return false;
-    const low = (c.text || '').toLowerCase();
-    // Skip paid/closed bounties
+  return messages.filter(msg => {
+    if (!msg.data || msg.data.type !== 'MESSAGE_TYPE_CAST_ADD') return false;
+    const body = msg.data.castAddBody || {};
+    const low = (body.text || '').toLowerCase();
     if (/paid|closed|completed|winner|rewarded/i.test(low)) return false;
-    // Skip bountybot error replies that leaked into the channel
     if (/an error occured|couldn'?t find|could not find|no active bounty|not found|try again/i.test(low)) return false;
     return true;
-  }).map(c => {
-    const { amount, token } = parseBountyAmount(c.text || '');
+  }).map(msg => {
+    const body = msg.data.castAddBody || {};
+    const { amount, token } = parseBountyAmount(body.text || '');
+    // Farcaster epoch → Unix ms. Hub hash is BLAKE3 bytes, base64-encoded in protobuf JSON.
+    const tsMs = (msg.data.timestamp || 0) * 1000 + FC_EPOCH_MS;
+    const hashHex = msg.hash ? ('0x' + Buffer.from(msg.hash, 'base64').toString('hex')) : '';
     return {
-      hash: c.hash,                                            // bounty cast — reply here to submit
-      authorUsername: (c.author && c.author.username) || 'unknown',
-      authorFid: c.author && c.author.fid,
-      hasParentAuthor: !!(c.author && c.author.fid),
-      text: c.text || '',                                      // actual task description
-      timestamp: c.timestamp,
+      hash: hashHex,
+      authorUsername: 'fid:' + msg.data.fid,
+      authorFid: msg.data.fid,
+      hasParentAuthor: true,
+      text: body.text || '',
+      timestamp: new Date(tsMs).toISOString(),
       amount,
       token
     };
-  }).filter(b => b.hash);
+  }).filter(b => b.hash && b.hash.length > 4);
 }
 
 async function classifyBounty(bounty, anthropicKey) {
