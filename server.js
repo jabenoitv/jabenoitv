@@ -977,41 +977,14 @@ function connectSSE(){
   };
   es.onerror=function(){ldot.classList.remove('on');es.close();setTimeout(connectSSE,5000);};
 }
+function snapShowModal(t){var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';var inner=document.createElement('div');inner.style.cssText='background:#1e293b;border-radius:10px;padding:16px;max-width:95vw;width:540px;max-height:80vh;display:flex;flex-direction:column;gap:10px';var h=document.createElement('div');h.style.cssText='color:#38bdf8;font-weight:bold;font-size:.9em';h.textContent='Selecciona todo y copia (Ctrl+A entonces Ctrl+C)';var ta=document.createElement('textarea');ta.readOnly=true;ta.value=t;ta.style.cssText='flex:1;min-height:260px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:6px;padding:10px;font-size:.75em;font-family:monospace;resize:none';var b=document.createElement('button');b.textContent='Cerrar';b.style.cssText='background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer';b.onclick=function(){m.remove();};inner.appendChild(h);inner.appendChild(ta);inner.appendChild(b);m.appendChild(inner);document.body.appendChild(m);ta.focus();ta.select();}
 function copySnapshot(){
-  var lines=[];
-  var now=new Date().toLocaleString('es-CL');
-  lines.push('=== CashClaw snapshot '+now+' ===');
-  lines.push('Estado: '+(document.getElementById('st')||{}).textContent);
-  lines.push('Uptime: '+(document.getElementById('up')||{}).textContent);
-  lines.push('Wallet: '+(document.getElementById('wal')||{}).textContent);
-  lines.push('Ganado: '+(document.getElementById('earn-eth')||{}).textContent+' / '+(document.getElementById('earn-usd')||{}).textContent+' / '+(document.getElementById('earn-clp')||{}).textContent);
-  lines.push('Precio ETH: '+(document.getElementById('earn-ts')||{}).textContent);
-  lines.push('Trabajos: '+(document.getElementById('jcnt')||{}).textContent);
-  lines.push('Poll inbox: '+(document.getElementById('poll-cnt')||{}).textContent);
-  lines.push('Precio cobrado: '+(document.getElementById('prc-eth')||{}).textContent);
-  lines.push('--- Mercado ---');
-  lines.push('Mediana: '+(document.getElementById('mkt-med')||{}).textContent+' '+(document.getElementById('mkt-med-usd')||{}).textContent);
-  lines.push('Nuestro precio: '+(document.getElementById('mkt-our')||{}).textContent);
-  lines.push('Posicion: '+(document.getElementById('mkt-pct')||{}).textContent+' '+((document.getElementById('mkt-nagents')||{}).textContent||''));
-  lines.push('Rango: '+(document.getElementById('mkt-range')||{}).textContent);
-  lines.push('--- Bounties Farcaster ---');
-  lines.push('Modo: '+(document.getElementById('bmode')||{}).textContent);
-  lines.push('Descubiertos: '+(document.getElementById('b-seen')||{}).textContent);
-  lines.push('Enviados hoy: '+(document.getElementById('b-today')||{}).textContent);
-  lines.push('Total enviados: '+(document.getElementById('b-total')||{}).textContent);
-  var bitems=[];document.querySelectorAll('#blist .bitem').forEach(function(el){bitems.push(el.textContent.trim().replace(/\s+/g,' '));});
-  if(bitems.length)lines.push('Recientes: '+bitems.join(' | '));
-  lines.push('--- Actividad reciente ---');
-  document.querySelectorAll('#llist .log').forEach(function(el){
-    var t=el.querySelector('.t');var m=el.querySelector('.msg');
-    if(t&&m)lines.push('['+t.textContent.trim()+'] '+m.textContent.trim());
-  });
-  var txt=lines.join('\n');
   var btn=document.getElementById('snpbtn');
   function markOk(){btn.textContent='Copiado!';btn.classList.add('on');setTimeout(function(){btn.textContent='Copiar estado';btn.classList.remove('on');},2500);}
-  function doFallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();try{if(document.execCommand('copy'))markOk();else showModal(txt);}catch(e){showModal(txt);}document.body.removeChild(ta);}
-  function showModal(t){var m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';m.innerHTML='<div style="background:#1e293b;border-radius:10px;padding:16px;max-width:95vw;width:540px;max-height:80vh;display:flex;flex-direction:column;gap:10px"><div style="color:#38bdf8;font-weight:bold;font-size:.9em">Selecciona todo y copia (Ctrl+A → Ctrl+C)</div><textarea readonly style="flex:1;min-height:260px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:6px;padding:10px;font-size:.75em;font-family:monospace;resize:none">'+t.replace(/</g,'&lt;')+'</textarea><button onclick="this.closest(\'div\').parentNode.remove()" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer">Cerrar</button></div>';document.body.appendChild(m);}
-  if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(markOk).catch(doFallback);}else{doFallback();}
+  fetch(_tq('/snapshot')).then(function(r){return r.text();}).then(function(txt){
+    function doFallback(){var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);if(ok)markOk();else snapShowModal(txt);}
+    if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(txt).then(markOk).catch(doFallback);}else{doFallback();}
+  }).catch(function(){btn.textContent='Error';setTimeout(function(){btn.textContent='Copiar estado';},2500);});
 }
 document.getElementById('cpybtn').addEventListener('click',function(){
   var lines=[];
