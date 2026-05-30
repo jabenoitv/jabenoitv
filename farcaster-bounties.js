@@ -34,7 +34,8 @@ const DISQUALIFY_PATTERNS = [
   /\b(nsfw|adult|illegal|hack|exploit)\b/i,
   /\b(onchain|on-chain|smart contract|solidity|deploy|mint|nft)\b/i,
   // "name your price" / open bidding — agent can't quote prices for its work
-  /\b(best (offer|bid|price)|name your price|bid|quote|pricing|how much|your rate)\b/i
+  // Matches "best offer", "best $ offer", "best price", "bid", etc.
+  /\bbest(\s+\$)?\s+(offer|bid|price)\b|name your price|\bquote\b|\byour rate\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
