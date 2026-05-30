@@ -1099,7 +1099,6 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(logs));
   }
   if (url === '/snapshot') {
-    if (!checkAuth(req, res, params)) return;
     const today = new Date().toISOString().slice(0, 10);
     const submitted = bountyState.bountiesSubmitted || [];
     const lines = [
