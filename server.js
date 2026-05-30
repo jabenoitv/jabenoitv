@@ -6,6 +6,13 @@ const path = require('path');
 const { spawn, execFile } = require('child_process');
 const { startBountyEngine } = require('./farcaster-bounties.js');
 
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH EVITADO] uncaughtException:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRASH EVITADO] unhandledRejection:', reason && reason.message ? reason.message : String(reason));
+});
+
 const w = path.join(os.homedir(), '.workclaw');
 const m = path.join(os.homedir(), '.moltlaunch');
 fs.mkdirSync(w, { recursive: true });
