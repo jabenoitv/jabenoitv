@@ -58,6 +58,11 @@ console.log('Config ready. AgentId:', process.env.AGENT_ID);
 console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
 console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
 console.log('Farcaster:', NEYNAR_API_KEY ? 'API key OK' : '(FALTA NEYNAR_API_KEY)', '/', farcasterSignerUuid ? 'signer OK' : 'pendiente SIWN — visita /connect-farcaster');
+if (!DASHBOARD_SECRET) {
+  console.warn('===========================================================');
+  console.warn('[SEGURIDAD] DASHBOARD_SECRET NO esta configurado: TODOS los endpoints estan PUBLICOS (fail-open). Configura DASHBOARD_SECRET para proteger el dashboard.');
+  console.warn('===========================================================');
+}
 
 const cashclawDist = path.join(process.cwd(), 'node_modules', 'cashclaw-agent', 'dist', 'index.js');
 let cashclawPatchOk = false;
@@ -75,8 +80,12 @@ try {
     console.log('Cashclaw parcheado y verificado: puerto ' + CASHCLAW_PORT);
     cashclawPatchOk = true;
   } else {
-    console.log('Cashclaw ya usa puerto correcto (' + CASHCLAW_PORT + ')');
-    cashclawPatchOk = true;
+    if (src.includes('var PORT = ' + CASHCLAW_PORT) || src.includes('localhost:' + CASHCLAW_PORT)) {
+      console.log('Cashclaw ya usa puerto correcto (' + CASHCLAW_PORT + ')');
+      cashclawPatchOk = true;
+    } else {
+      console.warn('[WARNING] Patron de puerto de cashclaw no encontrado (ni "var PORT = 3777" ni puerto correcto ' + CASHCLAW_PORT + '). El dist puede tener otra estructura; revisar manualmente.');
+    }
   }
 } catch (e) { console.log('No se pudo parchear cashclaw:', e.message); }
 
@@ -98,7 +107,7 @@ setInterval(() => {
 let ethPrice = { usd: 0, clp: 0, updatedAt: null };
 let ethFetchRetry = 0;
 function fetchEthPrice() {
-  https.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp',
+  const req = https.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,clp',
     { headers: { 'User-Agent': 'cashclaw-dashboard/1.0' } }, res => {
       let body = '';
       res.on('data', d => { body += d; });
@@ -123,6 +132,7 @@ function fetchEthPrice() {
       console.log('No se pudo obtener precio ETH (intento ' + ethFetchRetry + '):', e.message);
       setTimeout(fetchEthPrice, Math.min(ethFetchRetry * 30000, 300000));
     });
+  req.setTimeout(15000, () => req.destroy(new Error('timeout')));
 }
 fetchEthPrice();
 setInterval(fetchEthPrice, 5 * 60 * 1000);
@@ -133,7 +143,7 @@ const PRICE_CEIL  = 0.02;
 let marketData = { agents: 0, median: 0, ourPrice: 0.005, min: 0, max: 0, lastScan: null };
 
 function fetchMarketPrices() {
-  https.get('https://api.moltlaunch.com/api/agents', {
+  const req = https.get('https://api.moltlaunch.com/api/agents', {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': 'application/json, text/plain, */*',
@@ -191,6 +201,7 @@ function fetchMarketPrices() {
         } catch(e) { console.log('Error escaneando mercado:', e.message); }
       });
     }).on('error', e => { console.log('Error API mercado:', e.message); });
+  req.setTimeout(15000, () => req.destroy(new Error('timeout')));
 }
 fetchMarketPrices();
 setInterval(fetchMarketPrices, 30 * 60 * 1000);
@@ -206,6 +217,7 @@ let lastActivity = null;
 let cashclawProc = null;
 let cashclawStatus = 'starting';
 let restartCount = 0;
+let shuttingDown = false;
 const restartTimes = [];
 let pollCount = 0;
 let claimAttempts = 0;
@@ -245,7 +257,8 @@ let marketplaceSetupDone = false;
 
 function saveState() {
   try {
-    fs.writeFileSync(STATE_FILE, JSON.stringify({
+    const tmp = STATE_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify({
       totalEarnedEth, completedJobsCount, pollCount, claimAttempts,
       jobs: jobs.slice(0, MAX_JOBS), ethPrice, marketplaceSetupDone, lastSetupDate, lastFarcasterPost, farcasterSignerUuid,
       claimedBounties: [...claimedBounties].slice(-200),
@@ -254,12 +267,19 @@ function saveState() {
       lastBountySubmit: bountyState.lastBountySubmit || 0,
       lastSync: new Date().toISOString()
     }));
+    fs.renameSync(tmp, STATE_FILE);
   } catch (e) { console.log('Error guardando estado:', e.message); }
 }
 
 loadState();
 setInterval(saveState, 60000);
-process.on('SIGTERM', () => { console.log('SIGTERM recibido - guardando estado...'); saveState(); process.exit(0); });
+process.on('SIGTERM', () => {
+  console.log('SIGTERM recibido - guardando estado...');
+  shuttingDown = true;
+  saveState();
+  if (cashclawProc) { try { cashclawProc.kill('SIGTERM'); } catch(e){} }
+  process.exit(0);
+});
 
 function postToFarcaster(text) {
   if (!NEYNAR_API_KEY || !farcasterSignerUuid) return;
@@ -286,6 +306,7 @@ function postToFarcaster(text) {
     });
   });
   req.on('error', e => { console.log('[FARCASTER] Error de red:', e.message); lastFarcasterPost = 0; });
+  req.setTimeout(15000, () => req.destroy(new Error('timeout')));
   req.write(body); req.end();
 }
 
@@ -541,12 +562,12 @@ function claimOpenBounties() {
       console.log('Bounties disponibles: ' + fresh.length + ' - intentando reclamar...');
       const agentId = process.env.AGENT_ID || '51049';
       fresh.slice(0, 5).forEach(b => {
-        claimedBounties.add(String(b.id));
         execFile(mltlBin, ['bounty', 'claim', '--task', String(b.id), '--agent', agentId, '--json'], { timeout: 20000 }, (e, o, se) => {
           if (e) {
             const ed = (se || '').trim() || (o || '').trim() || e.message;
             console.log('Error reclamando bounty ' + b.id + ':', ed.slice(0, 300));
           } else {
+            claimedBounties.add(String(b.id));
             addLog('Bounty ' + b.id + ' reclamada: ' + (b.task || '').trim().slice(0, 60), 'info');
             saveState();
             postToFarcaster('Claimed a bounty on @moltlaunch. Available for new tasks 24/7. Check my gigs: moltlaunch.com/agents/51049');
@@ -580,6 +601,7 @@ const binPath = path.join(process.cwd(), 'node_modules', '.bin', 'cashclaw');
 const bin = fs.existsSync(binPath) ? binPath : 'cashclaw';
 
 function startCashclaw() {
+  if (cashclawProc && !cashclawProc.killed) return;
   cashclawStatus = 'running';
   const augmentedEnv = Object.assign({}, process.env, {
     PATH: localBin + path.delimiter + (process.env.PATH || '')
@@ -592,6 +614,8 @@ function startCashclaw() {
     d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stderr.write(l + '\n'); addLog(l, 'error'); })
   );
   cashclawProc.on('exit', code => {
+    cashclawProc = null;
+    if (shuttingDown) { cashclawStatus = 'stopped'; return; }
     restartCount++;
     const now = Date.now();
     restartTimes.push(now);
@@ -601,6 +625,7 @@ function startCashclaw() {
       const msg = 'Restart loop detectado (' + restartTimes.length + ' reinicios en 5min) - pausando 5 minutos';
       console.log(msg); addLog(msg, 'warn');
       cashclawStatus = 'restarting';
+      restartTimes.length = 0;
       setTimeout(startCashclaw, 5 * 60 * 1000);
     } else {
       const msg = 'CashClaw salio (codigo ' + code + ') reiniciando en 15s (#' + restartCount + ')';
@@ -1028,6 +1053,10 @@ function checkAuth(req, res) {
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
+  if (url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    return res.end(JSON.stringify({ ok: true, status: cashclawStatus, uptime: Math.floor((Date.now() - startTime) / 1000) }));
+  }
   if (!checkAuth(req, res)) return;
   if (url === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
@@ -1142,7 +1171,12 @@ const server = http.createServer((req, res) => {
   }
   if (url === '/siwn') {
     const handleSiwn = (signerUuid, fid, username) => {
+      console.warn('[SEGURIDAD] *** /siwn recibido *** signer_uuid=' + (signerUuid||'(vacio)') + ' fid=' + (fid||'?') + ' username=' + (username||'?') + ' ip=' + (req.socket && req.socket.remoteAddress || '?'));
       if (!signerUuid) { res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'no signer_uuid'})); }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(signerUuid)) {
+        console.warn('[SEGURIDAD] /siwn RECHAZADO: signer_uuid con formato invalido');
+        res.writeHead(400, {'Content-Type':'application/json'}); return res.end(JSON.stringify({error:'invalid signer_uuid format'}));
+      }
       farcasterSignerUuid = signerUuid;
       saveState();
       console.log('[FARCASTER] *** SIGNER UUID GUARDADO ***');

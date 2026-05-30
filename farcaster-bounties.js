@@ -33,6 +33,19 @@ const DISQUALIFY_PATTERNS = [
   /\b(onchain|on-chain|smart contract|solidity|deploy|mint|nft)\b/i
 ];
 
+// Purge bountiesSeen entries older than 7 days to keep state.json bounded.
+// Entries are { hash: timestamp(ms) }; non-numeric timestamps are dropped.
+const SEEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+function purgeSeen(seen) {
+  const out = {};
+  const now = Date.now();
+  for (const hash in seen) {
+    const ts = Number(seen[hash]);
+    if (Number.isFinite(ts) && (now - ts) < SEEN_TTL_MS) out[hash] = ts;
+  }
+  return out;
+}
+
 function neynarGet(path, apiKey) {
   return new Promise((resolve, reject) => {
     const req = https.request({
@@ -75,7 +88,7 @@ function neynarPost(path, body, apiKey) {
   });
 }
 
-function claudeChat(messages, system, anthropicKey) {
+function claudeChatOnce(messages, system, anthropicKey) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: 'claude-sonnet-4-6',
@@ -93,7 +106,11 @@ function claudeChat(messages, system, anthropicKey) {
       let d = '';
       res.on('data', c => { d += c; });
       res.on('end', () => {
-        if (res.statusCode !== 200) return reject(new Error('Claude ' + res.statusCode + ': ' + d.slice(0, 120)));
+        if (res.statusCode !== 200) {
+          const err = new Error('Claude ' + res.statusCode + ': ' + d.slice(0, 120));
+          err.statusCode = res.statusCode;
+          return reject(err);
+        }
         try {
           const r = JSON.parse(d);
           resolve(r.content && r.content[0] ? r.content[0].text : '');
@@ -104,6 +121,23 @@ function claudeChat(messages, system, anthropicKey) {
     req.write(body);
     req.end();
   });
+}
+
+// Retry wrapper: backoff on 429 (rate limit) / 529 (overloaded). 3 attempts: 2s, 4s, 8s.
+async function claudeChat(messages, system, anthropicKey) {
+  const delays = [2000, 4000, 8000];
+  let lastErr;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await claudeChatOnce(messages, system, anthropicKey);
+    } catch (e) {
+      lastErr = e;
+      const retryable = e && (e.statusCode === 429 || e.statusCode === 529);
+      if (!retryable || attempt >= delays.length) throw e;
+      await new Promise(r => setTimeout(r, delays[attempt]));
+    }
+  }
+  throw lastErr;
 }
 
 function baseRpc(method, params) {
@@ -172,6 +206,7 @@ async function fetchBounties(apiKey) {
       confirmHash: c.hash,       // bountybot's acknowledgement cast
       authorUsername: (c.parent_author && c.parent_author.username) || 'unknown',
       authorFid: c.parent_author && c.parent_author.fid,
+      hasParentAuthor: !!(c.parent_author && c.parent_author.fid),
       text: c.text || '',        // bountybot's confirmation text (has task description)
       timestamp: c.timestamp,
       amount,
@@ -197,8 +232,16 @@ Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "stri
     anthropicKey
   );
   try {
-    const clean = text.replace(/```json?|```/g, '').trim();
-    return JSON.parse(clean);
+    const m = (text || '').match(/\{[\s\S]*\}/);
+    const clean = m ? m[0] : (text || '').replace(/```[jJ][sS][oO][nN]?|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    const conf = Number(parsed.confidence);
+    parsed.confidence = Number.isFinite(conf) ? conf : 0;
+    if (!Number.isFinite(conf)) {
+      parsed.eligible = false;
+      if (!parsed.reason) parsed.reason = 'invalid confidence';
+    }
+    return parsed;
   } catch (e) {
     return { eligible: false, confidence: 0, reason: 'parse error', category: 'unknown' };
   }
@@ -243,8 +286,15 @@ Return ONLY valid JSON: {"score": 0-10, "issues": ["issue1", "issue2"]}`;
     anthropicKey
   );
   try {
-    const clean = text.replace(/```json?|```/g, '').trim();
-    return JSON.parse(clean);
+    const m = (text || '').match(/\{[\s\S]*\}/);
+    const clean = m ? m[0] : (text || '').replace(/```[jJ][sS][oO][nN]?|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    const sc = Number(parsed.score);
+    parsed.score = Number.isFinite(sc) ? sc : 0;
+    if (!Number.isFinite(sc)) {
+      parsed.issues = (parsed.issues && parsed.issues.length) ? parsed.issues : ['invalid score'];
+    }
+    return parsed;
   } catch (e) {
     return { score: 0, issues: ['parse error'] };
   }
@@ -253,7 +303,13 @@ Return ONLY valid JSON: {"score": 0-10, "issues": ["issue1", "issue2"]}`;
 async function submitBounty(bounty, deliverable, apiKey, signerUuid) {
   // Reply to the bounty cast with the deliverable
   // Farcaster cast limit is 1024 chars
-  const text = deliverable.slice(0, 1020);
+  var text = deliverable || '';
+  if (text.length > 1020) {
+    var cut = text.slice(0, 1019);
+    var lastSpace = cut.search(/\s\S*$/); // index of last whitespace
+    if (lastSpace > 200) cut = cut.slice(0, lastSpace); // avoid over-trimming short text
+    text = cut.replace(/\s+$/, '') + '…';
+  }
   const body = { signer_uuid: signerUuid, text, parent: { hash: bounty.hash } };
   return neynarPost('/v2/farcaster/cast', body, apiKey);
 }
@@ -300,22 +356,30 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       if (seen[bounty.hash]) continue;
       if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN_MS) break;
 
-      // Mark seen regardless of outcome
-      seen[bounty.hash] = Date.now();
+      // NOTE: do NOT mark seen up-front. Mark only after a DEFINITIVE decision
+      // (not eligible / low score / submitted) so transient infra errors retry.
+
+      // Pre-filter: discard bounties without a valid parent_author (can't reliably attribute)
+      if (!bounty.hasParentAuthor) {
+        onEvent('info', '[BOUNTY] Descartado — sin parent_author válido: "' + bounty.text.slice(0, 60) + '"');
+        seen[bounty.hash] = Date.now();
+        continue;
+      }
 
       // Pre-filter: skip cheap dust
       const usdValue = estimateUsd(bounty.amount, bounty.token, ethUsd);
       if (usdValue < MIN_BOUNTY_VALUE_USD && bounty.amount > 0) {
+        seen[bounty.hash] = Date.now();
         continue;
       }
 
       // Pre-filter: hard disqualifiers (cheap, no Claude call)
       const disqualified = DISQUALIFY_PATTERNS.some(p => p.test(bounty.text));
-      if (disqualified) continue;
+      if (disqualified) { seen[bounty.hash] = Date.now(); continue; }
 
       // Pre-filter: must have at least one eligible keyword
       const hasEligible = ELIGIBLE_CATEGORIES.some(kw => bounty.text.toLowerCase().includes(kw));
-      if (!hasEligible) continue;
+      if (!hasEligible) { seen[bounty.hash] = Date.now(); continue; }
 
       onEvent('info', '[BOUNTY] Candidato: "' + bounty.text.slice(0, 80) + '" (' + bounty.amount + ' ' + bounty.token + ')');
 
@@ -324,12 +388,16 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       try {
         classification = await classifyBounty(bounty, anthropicKey);
       } catch (e) {
-        onEvent('warn', '[BOUNTY] Error clasificando: ' + e.message);
+        // Transient infra error — do NOT mark seen, retry next scan
+        onEvent('warn', '[BOUNTY] Error clasificando (reintentable): ' + e.message);
         continue;
       }
 
-      if (!classification.eligible || classification.confidence < MIN_CONFIDENCE) {
+      const confidence = Number(classification.confidence);
+      if (!classification.eligible || !Number.isFinite(confidence) || confidence < MIN_CONFIDENCE) {
+        // Definitive decision: not eligible
         onEvent('info', '[BOUNTY] Skip (' + (classification.reason || 'no eligible') + ')');
+        seen[bounty.hash] = Date.now();
         continue;
       }
 
@@ -340,7 +408,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       try {
         draft = await generateDeliverable(bounty, anthropicKey);
       } catch (e) {
-        onEvent('warn', '[BOUNTY] Error generando entregable: ' + e.message);
+        // Transient infra error — do NOT mark seen, retry next scan
+        onEvent('warn', '[BOUNTY] Error generando entregable (reintentable): ' + e.message);
         continue;
       }
 
@@ -349,22 +418,27 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       try {
         critique = await critiqueDeliverable(bounty, draft, anthropicKey);
       } catch (e) {
-        onEvent('warn', '[BOUNTY] Error en auto-revisión: ' + e.message);
+        // Transient infra error — do NOT mark seen, retry next scan
+        onEvent('warn', '[BOUNTY] Error en auto-revisión (reintentable): ' + e.message);
         continue;
       }
 
+      const score = Number(critique.score);
       onEvent('info', '[BOUNTY] Auto-score: ' + critique.score + '/10' + (critique.issues && critique.issues.length ? ' — ' + critique.issues[0] : ''));
 
-      if (critique.score < MIN_SELF_SCORE) {
+      if (!Number.isFinite(score) || score < MIN_SELF_SCORE) {
+        // Definitive decision: insufficient quality
         onEvent('info', '[BOUNTY] Score insuficiente (' + critique.score + '<' + MIN_SELF_SCORE + '), descartando');
+        seen[bounty.hash] = Date.now();
         continue;
       }
 
       if (dryRun) {
         onEvent('info', '[BOUNTY] DRY-RUN — NO posteado (score ' + critique.score + '/10, ' + bounty.amount + ' ' + bounty.token + ')');
         onEvent('info', '[BOUNTY] Entregable: ' + draft.slice(0, 200));
+        seen[bounty.hash] = Date.now();
         const s = getState();
-        s.bountiesSeen = seen;
+        s.bountiesSeen = purgeSeen(seen);
         saveState(s);
         continue;
       }
@@ -372,7 +446,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       // Submit
       try {
         await submitBounty(bounty, draft, neynarApiKey, signerUuid);
-        todaySubmissions + 1; // for local guard
+        seen[bounty.hash] = Date.now(); // definitive: submitted successfully
+        todaySubmissions++; // for local guard
         const entry = {
           hash: bounty.hash,
           date: today,
@@ -386,18 +461,19 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
         onEvent('info', '[BOUNTY] Enviado: ' + bounty.amount + ' ' + bounty.token.toUpperCase() + ' — score ' + critique.score + '/10');
         onEvent('bounty_submitted', entry);
         const s = getState();
-        s.bountiesSeen = seen;
+        s.bountiesSeen = purgeSeen(seen);
         s.bountiesSubmitted = submitted.slice(-200);
         s.lastBountySubmit = Date.now();
         saveState(s);
       } catch (e) {
-        onEvent('warn', '[BOUNTY] Error enviando: ' + e.message);
+        // Transient infra error on submit — do NOT mark seen, retry next scan
+        onEvent('warn', '[BOUNTY] Error enviando (reintentable): ' + e.message);
       }
     }
 
-    // Save seen state
+    // Save seen state (purged of stale entries)
     const s = getState();
-    s.bountiesSeen = seen;
+    s.bountiesSeen = purgeSeen(seen);
     saveState(s);
   }
 
