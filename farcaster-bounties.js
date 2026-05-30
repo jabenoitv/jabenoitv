@@ -158,9 +158,12 @@ async function fetchBounties(apiKey) {
   return casts.filter(c => {
     // Only process @bountybot's reply casts (not its own top-level posts)
     if (!c.parent_hash) return false;
-    // Skip casts that look like payment confirmations ("paid", "closed")
     const low = (c.text || '').toLowerCase();
+    // Skip casts that look like payment confirmations ("paid", "closed")
     if (/paid|closed|completed|winner|rewarded/i.test(low)) return false;
+    // Skip @bountybot error/not-found replies — these are not real bounties
+    // (e.g. "An error occured or we couldn't find an active Bountycaster post")
+    if (/an error occured|couldn'?t find|could not find|no active bounty|not found|try again/i.test(low)) return false;
     return true;
   }).map(c => {
     const { amount, token } = parseBountyAmount(c.text || '');
