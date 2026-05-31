@@ -232,6 +232,7 @@ async function fetchBounties(apiKey, onEvent) {
     const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=200&reverse=true', apiKey);
     messages = data.messages || [];
     log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
+    if (messages.length > 0) log('info', '[BOUNTY] hash sample: ' + JSON.stringify(messages[0].hash).slice(0, 60));
   } catch (e) {
     log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
     return [];
@@ -247,9 +248,18 @@ async function fetchBounties(apiKey, onEvent) {
   }).map(msg => {
     const body = msg.data.castAddBody || {};
     const { amount, token } = parseBountyAmount(body.text || '');
-    // Farcaster epoch → Unix ms. Hub hash is BLAKE3 bytes, base64-encoded in protobuf JSON.
+    // Farcaster epoch → Unix ms.
     const tsMs = (msg.data.timestamp || 0) * 1000 + FC_EPOCH_MS;
-    const hashHex = msg.hash ? ('0x' + Buffer.from(msg.hash, 'base64').toString('hex')) : '';
+    // Hub HTTP API returns hash as hex (40 chars), not protobuf base64.
+    // Detect format: pure hex → prefix with 0x; otherwise fall back to base64 decode.
+    let hashHex = '';
+    if (msg.hash) {
+      if (/^[0-9a-fA-F]{20,}$/.test(msg.hash)) {
+        hashHex = '0x' + msg.hash.toLowerCase();
+      } else {
+        hashHex = '0x' + Buffer.from(msg.hash, 'base64').toString('hex');
+      }
+    }
     return {
       hash: hashHex,
       authorUsername: 'fid:' + msg.data.fid,
