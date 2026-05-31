@@ -1,11 +1,8 @@
 [build]
   publish = "."
-  command = "echo 'No build needed'"
+  command = ""
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[dev]
-  port = 3000
