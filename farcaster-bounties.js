@@ -35,7 +35,9 @@ const DISQUALIFY_PATTERNS = [
   /\b(onchain|on-chain|smart contract|solidity|deploy|mint|nft)\b/i,
   // "name your price" / open bidding — agent can't quote prices for its work
   // Matches "best offer", "best $ offer", "best price", "bid", etc.
-  /\bbest(\s+\$)?\s+(offer|bid|price)\b|name your price|\bquote\b|\byour rate\b/i
+  /\bbest(\s+\$)?\s+(offer|bid|price)\b|name your price|\bquote\b|\byour rate\b/i,
+  // Music streaming platforms — creating playlists requires account login
+  /\b(spotify|soundcloud|apple music|youtube music|tidal|deezer)\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
@@ -212,7 +214,8 @@ async function fetchBounties(apiKey, onEvent) {
   // Response is protobuf JSON (different schema from Neynar API v2).
   let messages = [];
   try {
-    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=50', apiKey);
+    // reverse=1: newest mentions first (hub default is oldest-first, missing recent bounties)
+    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=100&reverse=1', apiKey);
     messages = data.messages || [];
     log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
   } catch (e) {
