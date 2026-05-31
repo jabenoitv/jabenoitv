@@ -41,7 +41,12 @@ const DISQUALIFY_PATTERNS = [
   // Personal networking / introductions — requires real-world connections
   /\bintro(duce|duction)?\s+(me\s+to|to\s+someone|to\s+anyone)\b|\bdo\s+you\s+know\s+(anyone|someone)\b|\bconnection\s+(with|at)\b/i,
   // Live interview / meeting — requires real-time in-person interaction
-  /\b(interview|user research|user study|usability test)\b.*\b(join|meet|call|zoom|google meet|schedule)\b|\b(join|meet|schedule)\b.*\b(interview|user research)\b/i
+  /\b(interview|user research|user study|usability test)\b.*\b(join|meet|call|zoom|google meet|schedule)\b|\b(join|meet|schedule)\b.*\b(interview|user research)\b/i,
+  // Token-holding / "sign in with" spam — common Farcaster spam campaign pattern
+  /\bhold\s+[\d,]+\s*\$\w+\s+to\s+unlock\b/i,
+  /\bsign\s+in\s+with\b/i,
+  // Referral / follow / like / recast engagement spam
+  /\b(follow\s+me|recast\s+this|like\s+\d+\s+post|follow\s+&\s+recast)\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
@@ -193,12 +198,14 @@ function baseRpc(method, params) {
   });
 }
 
-// Parse bounty amount from cast text (e.g. "10 USDC", "$50", "0.01 ETH", "100 DEGEN")
+// Parse bounty amount from cast text (e.g. "10 USDC", "$50", "0.01 ETH", "100,000 DEGEN")
+// Lookbehind (?<![0-9,]) prevents matching digits inside larger comma-separated numbers
+// (e.g. "000" inside "164,000 $SKY" must not produce amount=0).
 function parseBountyAmount(text) {
-  const m = text.match(/(\d+(?:\.\d+)?)\s*(usdc|eth|degen|op|usd|\$)/i)
-    || text.match(/\$(\d+(?:\.\d+)?)/i);
+  const m = text.match(/(?<![0-9,])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(usdc|eth|degen|op|usd|\$)/i)
+    || text.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/i);
   if (!m) return { amount: 0, token: 'unknown' };
-  const raw = m[1] || m[0].replace(/[^0-9.]/g, '');
+  const raw = (m[1] || m[0]).replace(/[^0-9.]/g, '');
   const token = (m[2] || 'usd').toLowerCase().replace('$', 'usd');
   return { amount: parseFloat(raw) || 0, token };
 }
@@ -400,7 +407,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const ethUsd = getEthPriceUsd();
     const lastSubmitTime = state.lastBountySubmit || 0;
     const stats = { alreadySeen: 0, noAmount: 0, dust: 0, disqualified: 0, noKeyword: 0, candidates: 0 };
-    const MAX_CLAUDE_CALLS_PER_SCAN = 10; // avoid API spam; real filter is confidence threshold
+    const MAX_CLAUDE_CALLS_PER_SCAN = 20; // avoid API spam; real filter is confidence threshold
     let claudeCalls = 0;
 
     for (const bounty of bounties) {
