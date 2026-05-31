@@ -394,10 +394,11 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
     const ethUsd = getEthPriceUsd();
     const lastSubmitTime = state.lastBountySubmit || 0;
+    const stats = { alreadySeen: 0, noAmount: 0, dust: 0, disqualified: 0, noKeyword: 0, candidates: 0 };
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
-      if (seen[bounty.hash]) continue;
+      if (seen[bounty.hash]) { stats.alreadySeen++; continue; }
       if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN_MS) break;
 
       // NOTE: do NOT mark seen up-front. Mark only after a DEFINITIVE decision
@@ -405,27 +406,29 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
       // Pre-filter: discard bounties without a valid parent_author (can't reliably attribute)
       if (!bounty.hasParentAuthor) {
-        onEvent('info', '[BOUNTY] Descartado — sin parent_author válido: "' + bounty.text.slice(0, 60) + '"');
+        stats.noAmount++;
         seen[bounty.hash] = Date.now();
         continue;
       }
 
       // Pre-filter: skip cheap dust or unparseable amounts (token=unknown, amount=0 → meta-message)
       const usdValue = estimateUsd(bounty.amount, bounty.token, ethUsd);
-      if (bounty.token === 'unknown' && bounty.amount === 0) { seen[bounty.hash] = Date.now(); continue; }
+      if (bounty.token === 'unknown' && bounty.amount === 0) { stats.noAmount++; seen[bounty.hash] = Date.now(); continue; }
       if (usdValue < MIN_BOUNTY_VALUE_USD && bounty.amount > 0) {
+        stats.dust++;
         seen[bounty.hash] = Date.now();
         continue;
       }
 
       // Pre-filter: hard disqualifiers (cheap, no Claude call)
       const disqualified = DISQUALIFY_PATTERNS.some(p => p.test(bounty.text));
-      if (disqualified) { seen[bounty.hash] = Date.now(); continue; }
+      if (disqualified) { stats.disqualified++; seen[bounty.hash] = Date.now(); continue; }
 
       // Pre-filter: must have at least one eligible keyword
       const hasEligible = ELIGIBLE_CATEGORIES.some(kw => bounty.text.toLowerCase().includes(kw));
-      if (!hasEligible) { seen[bounty.hash] = Date.now(); continue; }
+      if (!hasEligible) { stats.noKeyword++; seen[bounty.hash] = Date.now(); continue; }
 
+      stats.candidates++;
       onEvent('info', '[BOUNTY] Candidato: "' + bounty.text.slice(0, 80) + '" (' + bounty.amount + ' ' + bounty.token + ')');
 
       // Classify with Claude
@@ -515,6 +518,9 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
         onEvent('warn', '[BOUNTY] Error enviando (reintentable): ' + e.message);
       }
     }
+
+    // Log filter breakdown so we can tune thresholds
+    onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' sinKW:' + stats.noKeyword + ' candidatos:' + stats.candidates);
 
     // Save seen state (purged of stale entries)
     const s = getState();
