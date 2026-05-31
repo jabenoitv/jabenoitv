@@ -222,7 +222,7 @@ async function fetchBounties(apiKey, onEvent) {
   let messages = [];
   try {
     // reverse=1: newest mentions first (hub default is oldest-first, missing recent bounties)
-    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=100&reverse=true', apiKey);
+    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=200&reverse=true', apiKey);
     messages = data.messages || [];
     log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
   } catch (e) {
@@ -395,6 +395,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const ethUsd = getEthPriceUsd();
     const lastSubmitTime = state.lastBountySubmit || 0;
     const stats = { alreadySeen: 0, noAmount: 0, dust: 0, disqualified: 0, noKeyword: 0, candidates: 0 };
+    const MAX_CLAUDE_CALLS_PER_SCAN = 10; // avoid API spam; real filter is confidence threshold
+    let claudeCalls = 0;
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
@@ -424,11 +426,10 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       const disqualified = DISQUALIFY_PATTERNS.some(p => p.test(bounty.text));
       if (disqualified) { stats.disqualified++; seen[bounty.hash] = Date.now(); continue; }
 
-      // Pre-filter: must have at least one eligible keyword
-      const hasEligible = ELIGIBLE_CATEGORIES.some(kw => bounty.text.toLowerCase().includes(kw));
-      if (!hasEligible) { stats.noKeyword++; seen[bounty.hash] = Date.now(); continue; }
+      if (claudeCalls >= MAX_CLAUDE_CALLS_PER_SCAN) break;
 
       stats.candidates++;
+      claudeCalls++;
       onEvent('info', '[BOUNTY] Candidato: "' + bounty.text.slice(0, 80) + '" (' + bounty.amount + ' ' + bounty.token + ')');
 
       // Classify with Claude
@@ -520,7 +521,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     }
 
     // Log filter breakdown so we can tune thresholds
-    onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' sinKW:' + stats.noKeyword + ' candidatos:' + stats.candidates);
+    onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' candidatos:' + stats.candidates);
 
     // Save seen state (purged of stale entries)
     const s = getState();
