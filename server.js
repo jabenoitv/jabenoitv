@@ -209,8 +209,8 @@ setInterval(fetchMarketPrices, 30 * 60 * 1000);
 // Estado del agente
 const logs = [];
 const MAX_LOGS = 500;
-const logDedup = new Map(); // msg → { entry, timer } — 30-min window dedup
-const LOG_DEDUP_WINDOW_MS = 30 * 60 * 1000;
+const logDedup = new Map(); // msg → { entry, timer } — 60-min window dedup
+const LOG_DEDUP_WINDOW_MS = 60 * 60 * 1000;
 const jobs = [];
 const MAX_JOBS = 100;
 let totalEarnedEth = 0;
