@@ -527,6 +527,9 @@ function attemptMarketplaceSetup() {
 attemptMarketplaceSetup();
 setInterval(attemptMarketplaceSetup, 6 * 60 * 60 * 1000);
 
+// Moltlaunch poll errors are external infrastructure noise — suppress from dashboard, still logged to Railway console.
+const isMltlNoise = l => /poll error.*mltl|mltl.*poll error|command failed.*mltl inbox|mltl inbox.*command failed/i.test(l);
+
 // Tail del log de cashclaw para ver actividad del heartbeat
 function tailCashclawLog() {
   const today = new Date().toISOString().slice(0, 10);
@@ -542,7 +545,7 @@ function tailCashclawLog() {
       lastCashclawLogSize = stat.size;
       buf.toString('utf8').split('\n').forEach(line => {
         const match = line.match(/^-\s*`(\d{2}:\d{2}:\d{2})`\s+(.+)/);
-        if (match) addLog(match[2].trim(), 'info');
+        if (match && !isMltlNoise(match[2].trim())) addLog(match[2].trim(), 'info');
       });
     }
   } catch (e) { /* log file may not exist yet */ }
@@ -615,9 +618,6 @@ function startCashclaw() {
     PATH: localBin + path.delimiter + (process.env.PATH || '')
   });
   cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: augmentedEnv });
-  // moltlaunch poll errors are an external infrastructure issue (their backend rate-limits/errors).
-  // They still appear in Railway console (process.stdout/stderr) but not in the dashboard log.
-  const isMltlNoise = l => /poll error.*mltl|mltl.*poll error|command failed.*mltl inbox|mltl inbox.*command failed/i.test(l);
   cashclawProc.stdout.on('data', d =>
     d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stdout.write(l + '\n'); if (!isMltlNoise(l)) addLog(l, 'info'); })
   );
