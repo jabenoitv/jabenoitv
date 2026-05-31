@@ -232,7 +232,6 @@ async function fetchBounties(apiKey, onEvent) {
     const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=200&reverse=true', apiKey);
     messages = data.messages || [];
     log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
-    if (messages.length > 0) log('info', '[BOUNTY] hash sample: ' + JSON.stringify(messages[0].hash).slice(0, 60));
   } catch (e) {
     log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
     return [];
@@ -250,14 +249,16 @@ async function fetchBounties(apiKey, onEvent) {
     const { amount, token } = parseBountyAmount(body.text || '');
     // Farcaster epoch → Unix ms.
     const tsMs = (msg.data.timestamp || 0) * 1000 + FC_EPOCH_MS;
-    // Hub HTTP API returns hash as hex (40 chars), not protobuf base64.
-    // Detect format: pure hex → prefix with 0x; otherwise fall back to base64 decode.
+    // Hub HTTP API returns hashes already as '0x<hex>' strings.
+    // Handle all three possible formats defensively.
     let hashHex = '';
     if (msg.hash) {
-      if (/^[0-9a-fA-F]{20,}$/.test(msg.hash)) {
-        hashHex = '0x' + msg.hash.toLowerCase();
+      if (/^0x[0-9a-fA-F]+$/i.test(msg.hash)) {
+        hashHex = msg.hash.toLowerCase();          // already correct: 0x<hex>
+      } else if (/^[0-9a-fA-F]{20,}$/i.test(msg.hash)) {
+        hashHex = '0x' + msg.hash.toLowerCase();   // bare hex without prefix
       } else {
-        hashHex = '0x' + Buffer.from(msg.hash, 'base64').toString('hex');
+        hashHex = '0x' + Buffer.from(msg.hash, 'base64').toString('hex'); // protobuf base64
       }
     }
     return {
