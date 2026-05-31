@@ -182,6 +182,7 @@ function baseRpc(method, params) {
         catch (e) { reject(e); }
       });
     });
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('baseRpc timeout')); });
     req.on('error', reject);
     req.write(body);
     req.end();
