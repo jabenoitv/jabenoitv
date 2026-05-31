@@ -615,11 +615,14 @@ function startCashclaw() {
     PATH: localBin + path.delimiter + (process.env.PATH || '')
   });
   cashclawProc = spawn(bin, [], { stdio: ['inherit', 'pipe', 'pipe'], env: augmentedEnv });
+  // moltlaunch poll errors are an external infrastructure issue (their backend rate-limits/errors).
+  // They still appear in Railway console (process.stdout/stderr) but not in the dashboard log.
+  const isMltlNoise = l => /poll error.*mltl|mltl.*poll error|command failed.*mltl inbox|mltl inbox.*command failed/i.test(l);
   cashclawProc.stdout.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stdout.write(l + '\n'); addLog(l, 'info'); })
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stdout.write(l + '\n'); if (!isMltlNoise(l)) addLog(l, 'info'); })
   );
   cashclawProc.stderr.on('data', d =>
-    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stderr.write(l + '\n'); addLog(l, 'error'); })
+    d.toString().split('\n').filter(l => l.trim()).forEach(l => { process.stderr.write(l + '\n'); if (!isMltlNoise(l)) addLog(l, 'error'); })
   );
   cashclawProc.on('exit', code => {
     cashclawProc = null;
