@@ -215,7 +215,7 @@ async function fetchBounties(apiKey, onEvent) {
   let messages = [];
   try {
     // reverse=1: newest mentions first (hub default is oldest-first, missing recent bounties)
-    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=100&reverse=1', apiKey);
+    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=100&reverse=true', apiKey);
     messages = data.messages || [];
     log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
   } catch (e) {
