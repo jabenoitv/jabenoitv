@@ -340,6 +340,11 @@ Return ONLY valid JSON: {"score": 0-10, "issues": ["issue1", "issue2"]}`;
     }
     return parsed;
   } catch (e) {
+    // Fallback: extract score from prose ("score: 9", "9/10", "9 out of 10")
+    const nm = (text || '').match(/\bscore["\s:]+(\d+)/i)
+      || (text || '').match(/\b(\d+)\s*\/\s*10\b/)
+      || (text || '').match(/\b(\d+)\s+out\s+of\s+10\b/i);
+    if (nm) return { score: parseInt(nm[1], 10), issues: ['json parse failed'] };
     return { score: 0, issues: ['parse error'] };
   }
 }
@@ -354,7 +359,7 @@ async function submitBounty(bounty, deliverable, apiKey, signerUuid) {
     if (lastSpace > 200) cut = cut.slice(0, lastSpace); // avoid over-trimming short text
     text = cut.replace(/\s+$/, '') + '…';
   }
-  const body = { signer_uuid: signerUuid, text, parent: { hash: bounty.hash } };
+  const body = { signer_uuid: signerUuid, text, parent: bounty.hash };
   return neynarPost('/v2/farcaster/cast', body, apiKey);
 }
 
