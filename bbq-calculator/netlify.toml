@@ -1,6 +1,6 @@
 [build]
-  base = "bbq-calculator"
   publish = "."
+  command = "echo 'No build needed'"
 
 [[redirects]]
   from = "/*"
