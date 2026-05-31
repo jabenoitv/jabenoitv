@@ -108,6 +108,7 @@ function neynarPost(path, body, apiKey) {
         try { resolve(JSON.parse(d)); } catch (e) { resolve({}); }
       });
     });
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Neynar POST timeout')); });
     req.on('error', reject);
     req.write(buf);
     req.end();
@@ -143,6 +144,7 @@ function claudeChatOnce(messages, system, anthropicKey) {
         } catch (e) { reject(new Error('Claude parse: ' + d.slice(0, 80))); }
       });
     });
+    req.setTimeout(30000, () => { req.destroy(); reject(new Error('Claude timeout')); });
     req.on('error', reject);
     req.write(body);
     req.end();

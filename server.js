@@ -209,6 +209,8 @@ setInterval(fetchMarketPrices, 30 * 60 * 1000);
 // Estado del agente
 const logs = [];
 const MAX_LOGS = 500;
+const logDedup = new Map(); // msg → { entry, timer } — 30-min window dedup
+const LOG_DEDUP_WINDOW_MS = 30 * 60 * 1000;
 const jobs = [];
 const MAX_JOBS = 100;
 let totalEarnedEth = 0;
@@ -340,21 +342,23 @@ function detectJobEvent(line, time) {
 
 function addLog(line, type) {
   const msg = line.trim();
-  // Deduplicate: if last log is the same message, just bump a counter
-  if (logs.length > 0) {
-    const last = logs[logs.length - 1];
-    if (last.msg === msg || (last._baseMsg && last._baseMsg === msg)) {
-      last.count = (last.count || 1) + 1;
-      last.msg = msg + ' (x' + last.count + ')';
-      last._baseMsg = msg;
-      last.time = new Date().toISOString();
-      broadcast({ type: 'update', totalEarned: totalEarnedEth, jobCount: jobs.length });
-      return;
-    }
+  const now = Date.now();
+  // Map-based dedup: any identical message within 30 min gets collapsed (even non-consecutive)
+  if (logDedup.has(msg)) {
+    const d = logDedup.get(msg);
+    d.entry.count = (d.entry.count || 1) + 1;
+    d.entry.msg = msg + ' (x' + d.entry.count + ')';
+    d.entry._baseMsg = msg;
+    d.entry.time = new Date(now).toISOString();
+    broadcast({ type: 'update', totalEarned: totalEarnedEth, jobCount: jobs.length });
+    return;
   }
-  const entry = { time: new Date().toISOString(), msg, type };
+  const entry = { time: new Date(now).toISOString(), msg, type };
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
+  const t = setTimeout(() => logDedup.delete(msg), LOG_DEDUP_WINDOW_MS);
+  if (t.unref) t.unref();
+  logDedup.set(msg, { entry, timer: t });
   lastActivity = entry.time;
   if (/polled inbox|inbox.*task|polling inbox/i.test(line)) {
     pollCount++;
