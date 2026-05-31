@@ -37,7 +37,11 @@ const DISQUALIFY_PATTERNS = [
   // Matches "best offer", "best $ offer", "best price", "bid", etc.
   /\bbest(\s+\$)?\s+(offer|bid|price)\b|name your price|\bquote\b|\byour rate\b/i,
   // Music streaming platforms — creating playlists requires account login
-  /\b(spotify|soundcloud|apple music|youtube music|tidal|deezer)\b/i
+  /\b(spotify|soundcloud|apple music|youtube music|tidal|deezer)\b/i,
+  // Personal networking / introductions — requires real-world connections
+  /\bintro(duce|duction)?\s+(me\s+to|to\s+someone|to\s+anyone)\b|\bdo\s+you\s+know\s+(anyone|someone)\b|\bconnection\s+(with|at)\b/i,
+  // Live interview / meeting — requires real-time in-person interaction
+  /\b(interview|user research|user study|usability test)\b.*\b(join|meet|call|zoom|google meet|schedule)\b|\b(join|meet|schedule)\b.*\b(interview|user research)\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
@@ -406,8 +410,9 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
         continue;
       }
 
-      // Pre-filter: skip cheap dust
+      // Pre-filter: skip cheap dust or unparseable amounts (token=unknown, amount=0 → meta-message)
       const usdValue = estimateUsd(bounty.amount, bounty.token, ethUsd);
+      if (bounty.token === 'unknown' && bounty.amount === 0) { seen[bounty.hash] = Date.now(); continue; }
       if (usdValue < MIN_BOUNTY_VALUE_USD && bounty.amount > 0) {
         seen[bounty.hash] = Date.now();
         continue;
