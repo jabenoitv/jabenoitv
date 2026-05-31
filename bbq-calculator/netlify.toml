@@ -1,0 +1,11 @@
+[build]
+  base = "bbq-calculator"
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  port = 3000
