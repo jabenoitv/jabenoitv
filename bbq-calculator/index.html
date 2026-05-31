@@ -3,8 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔥 BBQ Smoking Calculator</title>
+    <title>🔥 Weber BBQ Calculator</title>
     <style>
+        /* ============================================================
+           WEBER GRILLS THEME — paleta de marca (rojo + carbón negro)
+           ============================================================ */
+        :root {
+            --weber-red: #C8102E;
+            --weber-red-hover: #E11D38;
+            --weber-red-dark: #9B0E22;
+            --ember: #FF8C1A;
+            --ember-soft: #FFB259;
+
+            --bg-darkest: #0c0c0d;
+            --bg-dark: #141416;
+            --surface: #1c1c1f;
+            --surface-2: #242428;
+            --surface-3: #2d2d32;
+
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.16);
+            --border-red: rgba(200, 16, 46, 0.45);
+
+            --text: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --text-dim: #71717a;
+
+            --success: #4ade80;
+            --warning: #fb923c;
+            --error: #f87171;
+            --info: #60a5fa;
+
+            --radius: 14px;
+            --radius-sm: 10px;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,47 +47,56 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background:
+                radial-gradient(1200px 600px at 80% -10%, rgba(200, 16, 46, 0.12), transparent 60%),
+                linear-gradient(160deg, var(--bg-darkest) 0%, var(--bg-dark) 100%);
+            background-attachment: fixed;
             min-height: 100vh;
             padding: 0;
             display: flex;
             flex-direction: column;
-            color: #e2e8f0;
+            color: var(--text);
+            line-height: 1.5;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
             width: 100%;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 0;
-            box-shadow: none;
-            padding: 0;
-            animation: slideIn 0.5s ease-out;
+            background: transparent;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            animation: slideIn 0.5s ease-out;
         }
 
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* ---------------- HEADER ---------------- */
         .app-header {
-            padding: 40px 40px 20px;
-            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+            padding: 32px 40px 24px;
+            background: linear-gradient(180deg, rgba(28, 28, 31, 0.9) 0%, rgba(20, 20, 22, 0.6) 100%);
+            border-bottom: 1px solid var(--border);
             position: relative;
             overflow: hidden;
         }
 
-        .app-header::before {
+        .app-header::after {
             content: '';
             position: absolute;
-            top: 0;
-            right: -100px;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
+            left: 0;
+            bottom: 0;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, var(--weber-red) 0%, var(--ember) 100%);
         }
 
         .header-content {
@@ -61,142 +104,123 @@
             z-index: 1;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 18px;
         }
 
         .logo-container {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
-            border-radius: 12px;
+            width: 64px;
+            height: 64px;
+            background: radial-gradient(circle at 30% 30%, #2a2a2e 0%, #161618 70%);
+            border: 2px solid var(--weber-red);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
-            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.3);
+            font-size: 32px;
+            box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35), inset 0 0 12px rgba(0,0,0,0.6);
             flex-shrink: 0;
         }
 
-        .header-text {
-            flex: 1;
-        }
+        .header-text { flex: 1; }
 
         .app-header h1 {
             margin: 0;
-            font-size: 2.5em;
-            font-weight: 700;
-            background: linear-gradient(135deg, #f87171 0%, #fbbf24 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 2.1em;
+            font-weight: 800;
+            color: var(--text);
             letter-spacing: -0.5px;
         }
 
+        .app-header h1 .accent { color: var(--weber-red); }
+
         .app-header .subtitle {
-            margin: 8px 0 0 0;
-            color: #94a3b8;
-            font-size: 1em;
+            margin: 6px 0 0 0;
+            color: var(--text-muted);
+            font-size: 0.95em;
             font-weight: 400;
         }
 
+        /* ---------------- TABS ---------------- */
         .tab-navigation {
             display: flex;
-            gap: 2px;
+            gap: 4px;
             padding: 0 40px;
-            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+            border-bottom: 1px solid var(--border);
             overflow-x: auto;
-            background: transparent;
+            background: rgba(12, 12, 13, 0.6);
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(12px);
         }
 
-        .tab-navigation::-webkit-scrollbar {
-            height: 4px;
-        }
-
-        .tab-navigation::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
+        .tab-navigation::-webkit-scrollbar { height: 4px; }
+        .tab-navigation::-webkit-scrollbar-track { background: transparent; }
         .tab-navigation::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.3);
+            background: var(--border-strong);
             border-radius: 2px;
         }
 
         .tab-button {
-            padding: 16px 24px;
+            padding: 16px 22px;
             background: transparent;
             border: none;
             border-bottom: 2px solid transparent;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             white-space: nowrap;
             font-size: 0.95em;
-            position: relative;
         }
 
         .tab-button:hover {
-            color: #cbd5e1;
-            background: rgba(148, 163, 184, 0.1);
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
         }
 
         .tab-button.active {
-            color: #f87171;
-            border-bottom-color: #f87171;
-            background: rgba(248, 113, 113, 0.05);
+            color: #fff;
+            border-bottom-color: var(--weber-red);
         }
 
-        .tab-button.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, #ef4444, #f97316);
-        }
-
+        /* ---------------- TAB CONTENT ---------------- */
         .tab-content {
             flex: 1;
             display: none;
-            padding: 30px 20px;
+            padding: 32px 40px 48px;
             overflow-y: auto;
+            animation: fadeIn 0.3s ease-out;
         }
 
-        .tab-content.active {
-            display: block;
+        .tab-content.active { display: block; }
+
+        .tab-content h2 {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text);
         }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .tab-content h2 .accent { color: var(--weber-red); }
 
-        h1 {
-            color: #333;
-            margin-bottom: 5px;
-            font-size: 2em;
-            text-align: center;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 25px;
+        .section-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 24px;
             font-size: 0.95em;
         }
 
+        /* ---------------- FORM / INPUTS ---------------- */
         .input-section {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
-            margin-bottom: 30px;
-            padding: 30px;
-            background: rgba(30, 41, 59, 0.6);
-            border-radius: 12px;
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            backdrop-filter: blur(10px);
+            margin-bottom: 28px;
+            padding: 28px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
         }
 
         .form-group {
@@ -207,40 +231,40 @@
         .form-group label {
             font-weight: 600;
             margin-bottom: 8px;
-            color: #cbd5e1;
-            font-size: 0.9em;
-            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-size: 0.82em;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
         }
 
         .form-group select,
         .form-group input {
-            padding: 12px 16px;
-            border: 1px solid rgba(71, 85, 105, 0.5);
-            border-radius: 8px;
+            padding: 12px 14px;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
             font-size: 0.95em;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             font-family: inherit;
-            background: rgba(15, 23, 42, 0.8);
-            color: #e2e8f0;
+            background: var(--bg-dark);
+            color: var(--text);
         }
 
-        .form-group select option {
-            background: #1e293b;
-            color: #e2e8f0;
+        .form-group select option,
+        .form-group optgroup {
+            background: var(--surface-2);
+            color: var(--text);
         }
 
         .form-group select:hover,
         .form-group input:hover {
-            border-color: rgba(248, 113, 113, 0.5);
-            background: rgba(15, 23, 42, 0.95);
+            border-color: var(--border-red);
         }
 
         .form-group select:focus,
         .form-group input:focus {
             outline: none;
-            border-color: #f87171;
-            background: rgba(15, 23, 42, 0.95);
-            box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+            border-color: var(--weber-red);
+            box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.2);
         }
 
         .weight-input-group,
@@ -250,33 +274,26 @@
         }
 
         .weight-input-group input,
-        .temp-input-group input {
-            flex: 1;
-        }
+        .temp-input-group input { flex: 1; }
 
         .unit-toggle {
             padding: 12px 14px;
-            background: rgba(248, 113, 113, 0.2);
-            color: #f87171;
-            border: 1px solid rgba(248, 113, 113, 0.4);
-            border-radius: 8px;
+            background: rgba(200, 16, 46, 0.16);
+            color: var(--ember-soft);
+            border: 1px solid var(--border-red);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            font-weight: 700;
+            transition: all 0.2s ease;
             white-space: nowrap;
             font-size: 0.9em;
-            min-width: 50px;
+            min-width: 52px;
         }
 
-        .unit-toggle:hover {
-            background: rgba(248, 113, 113, 0.3);
-            border-color: rgba(248, 113, 113, 0.6);
-        }
+        .unit-toggle:hover { background: rgba(200, 16, 46, 0.28); color: #fff; }
+        .unit-toggle:active { transform: scale(0.95); }
 
-        .unit-toggle:active {
-            transform: scale(0.95);
-        }
-
+        /* ---------------- BUTTONS ---------------- */
         .button-group {
             grid-column: 1 / -1;
             display: grid;
@@ -286,210 +303,152 @@
 
         .calculate-btn {
             padding: 14px 28px;
-            background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+            background: linear-gradient(135deg, var(--weber-red) 0%, var(--weber-red-dark) 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             font-size: 1em;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(200, 16, 46, 0.35);
+            letter-spacing: 0.3px;
         }
 
         .calculate-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+            background: linear-gradient(135deg, var(--weber-red-hover) 0%, var(--weber-red) 100%);
+            box-shadow: 0 8px 22px rgba(200, 16, 46, 0.45);
         }
 
-        .calculate-btn:active {
-            transform: translateY(0);
-        }
+        .calculate-btn:active { transform: translateY(0); }
 
         .secondary-btn {
             padding: 12px 18px;
-            background: rgba(71, 85, 105, 0.2);
-            color: #cbd5e1;
-            border: 1px solid rgba(71, 85, 105, 0.4);
-            border-radius: 8px;
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
             font-size: 0.9em;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .secondary-btn:hover {
-            background: rgba(71, 85, 105, 0.3);
-            border-color: rgba(248, 113, 113, 0.5);
-            color: #f87171;
+            background: var(--surface-3);
+            border-color: var(--border-red);
+            color: #fff;
         }
 
-        .results-section {
-            animation: fadeIn 0.5s ease-out;
-            display: none;
+        .action-btn {
+            padding: 12px 24px;
+            background: rgba(200, 16, 46, 0.16);
+            color: var(--ember-soft);
+            border: 1px solid var(--border-red);
+            border-radius: var(--radius-sm);
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .results-section.show {
-            display: block;
-        }
+        .action-btn:hover { background: rgba(200, 16, 46, 0.28); color: #fff; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        /* ---------------- RESULTS ---------------- */
+        .results-section { display: none; animation: fadeIn 0.5s ease-out; }
+        .results-section.show { display: block; }
 
         .result-header {
             text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
         }
 
         .result-header h2 {
             font-size: 2em;
-            background: linear-gradient(135deg, #fbbf24 0%, #fb923c 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-            font-weight: 700;
+            color: var(--weber-red);
+            margin-bottom: 6px;
+            font-weight: 800;
         }
 
-        .result-weight {
-            color: #94a3b8;
-            font-size: 0.95em;
-        }
-
-        .result-weight span {
-            color: #64748b;
-        }
+        .result-weight { color: var(--text-muted); font-size: 0.95em; }
+        .result-weight .muted { color: var(--text-dim); }
 
         .result-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
         }
 
+        /* ---------------- CARDS ---------------- */
         .card {
-            background: rgba(30, 41, 59, 0.6);
+            background: var(--surface);
             padding: 24px;
-            border-radius: 12px;
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            border-left: 3px solid rgba(248, 113, 113, 0.5);
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            border-top: 3px solid var(--weber-red);
+            transition: all 0.2s ease;
         }
 
         .card.primary {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
-            color: #cbd5e1;
-            border-left-color: #f87171;
-            border: 1px solid rgba(248, 113, 113, 0.3);
+            background: linear-gradient(150deg, rgba(200, 16, 46, 0.18) 0%, rgba(28,28,31,0.9) 70%);
+            border-top-color: var(--ember);
         }
 
         .card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(248, 113, 113, 0.5);
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);
-        }
-
-        .card.primary:hover {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.25) 100%);
+            transform: translateY(-3px);
+            border-color: var(--border-strong);
+            box-shadow: var(--shadow);
         }
 
         .card h3 {
             margin-bottom: 16px;
-            font-size: 1.05em;
-            color: #cbd5e1;
-            font-weight: 600;
+            font-size: 1.02em;
+            color: var(--text);
+            font-weight: 700;
         }
 
-        .card.primary h3 {
-            color: #fbbf24;
-        }
+        .card.primary h3 { color: var(--ember-soft); }
 
-        .card .note {
-            font-size: 0.8em;
-            opacity: 0.8;
-            margin-top: 8px;
-        }
+        .card .note { font-size: 0.82em; color: var(--text-muted); margin-top: 8px; }
 
         .time-display {
             display: flex;
             align-items: baseline;
             gap: 8px;
-            font-size: 2em;
-            font-weight: 700;
+            font-size: 2.2em;
+            font-weight: 800;
+            color: var(--ember-soft);
         }
 
-        .time-display .minutes {
-            font-size: 1em;
-            opacity: 0.9;
-        }
+        .time-display .minutes { font-size: 0.6em; opacity: 0.9; }
 
-        .temp-range p {
-            margin: 8px 0;
-            font-size: 0.95em;
-            color: #cbd5e1;
-        }
+        .temp-range p { margin: 8px 0; font-size: 0.95em; color: var(--text); }
+        .temp-range strong { color: var(--ember-soft); font-weight: 700; }
+        .temp-range .secondary-unit { color: var(--text-dim); font-size: 0.85em; margin-left: 6px; }
 
-        .temp-range strong {
-            color: #fbbf24;
-            font-weight: 700;
-        }
-
-        .temp-range .secondary-unit {
-            color: #64748b;
-            font-size: 0.85em;
-            font-weight: 400;
-            margin-left: 6px;
-        }
-
-        .card.primary .temp-range strong {
-            color: #fbbf24;
-        }
-
-        .card.primary .temp-range .secondary-unit {
-            color: #94a3b8;
-        }
-
-        .holding-time {
-            text-align: center;
-        }
-
+        .holding-time { text-align: center; }
         .holding-time .duration {
             display: block;
             font-size: 2em;
-            font-weight: 700;
-            margin: 12px 0;
-            color: #fbbf24;
+            font-weight: 800;
+            margin: 10px 0;
+            color: var(--ember-soft);
         }
 
-        .card.note {
-            color: #94a3b8;
-            font-size: 0.9em;
-        }
-
-        .card.primary .note {
-            color: #cbd5e1;
-        }
-
+        /* ---------------- TEMP CHART ---------------- */
         .temperature-chart {
-            background: rgba(30, 41, 59, 0.6);
+            background: var(--surface);
             padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            backdrop-filter: blur(10px);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
         }
 
-        .temperature-chart h3 {
-            margin-bottom: 20px;
-            color: #cbd5e1;
-            font-size: 1.1em;
-            font-weight: 600;
-        }
+        .temperature-chart h3 { margin-bottom: 18px; color: var(--text); font-size: 1.05em; font-weight: 700; }
 
         .bars {
             display: flex;
@@ -497,10 +456,10 @@
             justify-content: space-around;
             gap: 12px;
             height: 250px;
-            padding: 20px;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 8px;
-            border: 1px solid rgba(71, 85, 105, 0.3);
+            padding: 18px;
+            background: var(--bg-dark);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
         }
 
         .bar-item {
@@ -516,25 +475,20 @@
             border-radius: 6px 6px 0 0;
             transition: all 0.3s ease;
             min-height: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .temp-label {
             margin-top: 10px;
-            font-size: 0.75em;
+            font-size: 0.72em;
             font-weight: 600;
-            color: #cbd5e1;
+            color: var(--text-muted);
             text-align: center;
             white-space: nowrap;
             line-height: 1.2;
         }
 
-        .temp-label .secondary {
-            display: block;
-            color: #64748b;
-            font-size: 0.85em;
-            font-weight: 400;
-        }
+        .temp-label .secondary { display: block; color: var(--text-dim); font-size: 0.85em; font-weight: 400; }
 
         .stages {
             display: grid;
@@ -548,64 +502,40 @@
             align-items: center;
             gap: 10px;
             padding: 12px 14px;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 8px;
-            border-left: 3px solid rgba(248, 113, 113, 0.5);
+            background: var(--bg-dark);
+            border-radius: var(--radius-sm);
+            border-left: 3px solid var(--weber-red);
             font-size: 0.9em;
-            border: 1px solid rgba(71, 85, 105, 0.2);
         }
 
-        .stage-temp {
-            font-weight: 700;
-            color: #fbbf24;
-            min-width: 70px;
-        }
+        .stage-temp { font-weight: 700; color: var(--ember-soft); min-width: 70px; }
+        .stage-temp .secondary { color: var(--text-dim); font-weight: 400; font-size: 0.85em; }
+        .stage-name { color: var(--text-muted); }
 
-        .stage-temp .secondary {
-            color: #64748b;
-            font-weight: 400;
-            font-size: 0.85em;
-        }
-
-        .stage-name {
-            color: #94a3b8;
-        }
-
+        /* ---------------- TIPS ---------------- */
         .tips-section {
-            background: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(255, 140, 26, 0.1) 0%, rgba(200, 16, 46, 0.08) 100%);
             padding: 24px;
-            border-radius: 12px;
-            border-left: 3px solid #fb923c;
+            border-radius: var(--radius);
+            border: 1px solid rgba(255, 140, 26, 0.25);
             margin-bottom: 20px;
-            border: 1px solid rgba(249, 115, 22, 0.3);
         }
 
-        .tips-section h3 {
-            color: #fbbf24;
-            margin-bottom: 14px;
-            font-size: 1.1em;
-            font-weight: 600;
-        }
-
-        .tips-section ul {
-            list-style: none;
-            padding-left: 0;
-        }
-
+        .tips-section h3 { color: var(--ember-soft); margin-bottom: 14px; font-size: 1.05em; font-weight: 700; }
+        .tips-section ul { list-style: none; padding-left: 0; }
         .tips-section li {
-            color: #cbd5e1;
+            color: var(--text);
             margin: 10px 0;
             padding-left: 24px;
             position: relative;
             line-height: 1.6;
             font-size: 0.9em;
         }
-
         .tips-section li:before {
             content: '✓';
             position: absolute;
             left: 0;
-            color: #fb923c;
+            color: var(--ember);
             font-weight: bold;
             font-size: 1.1em;
         }
@@ -617,148 +547,159 @@
             flex-wrap: wrap;
         }
 
-        .action-btn {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);
-            color: #fbbf24;
-            border: 1px solid rgba(248, 113, 113, 0.4);
-            border-radius: 8px;
-            font-size: 0.9em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .action-btn:hover {
-            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%);
-            border-color: rgba(248, 113, 113, 0.6);
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 16px 24px;
-            background: rgba(30, 41, 59, 0.95);
-            color: #cbd5e1;
-            border-radius: 8px;
-            z-index: 1000;
-            animation: slideInUp 0.3s ease;
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        }
-
-        .toast.success {
-            background: rgba(34, 197, 94, 0.2);
-            border-color: rgba(34, 197, 94, 0.4);
-            color: #86efac;
-        }
-
-        .toast.warning {
-            background: rgba(249, 115, 22, 0.2);
-            border-color: rgba(249, 115, 22, 0.4);
-            color: #fed7aa;
-        }
-
-        .toast.error {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
-        }
-
-        @keyframes slideInUp {
-            from {
-                transform: translateY(100px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
+        /* ---------------- HISTORY / RECIPES ---------------- */
         .history-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 12px;
+            gap: 14px;
             margin-top: 20px;
         }
 
         .history-item {
             padding: 16px;
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid rgba(71, 85, 105, 0.3);
-            border-radius: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--weber-red);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             font-size: 0.9em;
-            color: #cbd5e1;
+            color: var(--text-muted);
         }
 
         .history-item:hover {
-            background: rgba(30, 41, 59, 0.8);
-            border-color: rgba(248, 113, 113, 0.5);
+            background: var(--surface-2);
+            border-color: var(--border-red);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            box-shadow: var(--shadow);
         }
 
-        .history-item strong {
-            color: #fbbf24;
-            display: block;
-            margin-bottom: 8px;
+        .history-item strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 1.05em; }
+        .history-item .meta { color: var(--text-dim); font-size: 0.85em; }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 48px 20px;
+            font-size: 0.95em;
         }
 
-        .history-item small {
-            color: #64748b;
+        /* ---------------- GENERIC GRID HELPERS ---------------- */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        .mt-20 { margin-top: 20px; }
+        .mb-24 { margin-bottom: 24px; }
+
+        .result-box {
+            padding: 12px 14px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--ember-soft);
+            font-size: 1.05em;
+            display: none;
+        }
+        .result-box.show { display: block; }
+
+        /* ---------------- DATA TABLE ---------------- */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: var(--text);
+            font-size: 0.9em;
+        }
+        .data-table thead { border-bottom: 1px solid var(--border-strong); }
+        .data-table th {
+            padding: 12px;
+            text-align: left;
+            color: var(--ember-soft);
+            font-weight: 700;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .data-table td { padding: 12px; border-bottom: 1px solid var(--border); }
+        .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        /* ---------------- RADIO CARDS ---------------- */
+        .radio-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+            padding: 14px;
+            background: var(--bg-dark);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+        }
+        .radio-card:hover { border-color: var(--border-red); }
+        .radio-card input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--weber-red); margin-top: 2px; }
+        .radio-card strong { color: var(--text); }
+        .radio-card p { font-size: 0.83em; color: var(--text-muted); margin-top: 4px; }
+
+        /* ---------------- TIMER ---------------- */
+        .timer-display {
+            font-size: 3.4em;
+            font-weight: 800;
+            color: var(--weber-red);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+            text-shadow: 0 0 24px rgba(200, 16, 46, 0.35);
         }
 
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.78em;
+            font-weight: 700;
+        }
+        .badge.on { background: rgba(74, 222, 128, 0.16); color: var(--success); }
+        .badge.off { background: rgba(248, 113, 113, 0.16); color: var(--error); }
+
+        /* ---------------- TOAST ---------------- */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 14px 20px;
+            background: var(--surface-2);
+            color: var(--text);
+            border-radius: var(--radius-sm);
+            z-index: 1000;
+            animation: slideInUp 0.3s ease;
+            border: 1px solid var(--border-strong);
+            box-shadow: var(--shadow);
+            max-width: 320px;
+        }
+        .toast.success { border-left: 3px solid var(--success); }
+        .toast.warning { border-left: 3px solid var(--warning); }
+        .toast.error { border-left: 3px solid var(--error); }
+        .toast.info { border-left: 3px solid var(--info); }
+
+        @keyframes slideInUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* ---------------- RESPONSIVE ---------------- */
         @media (max-width: 768px) {
-            .container {
-                padding: 0;
-                min-height: auto;
-            }
-
-            .app-header {
-                padding: 20px 15px 0;
-            }
-
-            h1 { font-size: 1.5em; }
-
-            .tab-navigation {
-                padding: 0 10px;
-                gap: 4px;
-            }
-
-            .tab-button {
-                padding: 12px 12px;
-                font-size: 0.85em;
-            }
-
-            .tab-content {
-                padding: 20px 15px;
-            }
-
-            .input-section {
-                grid-template-columns: 1fr;
-                gap: 12px;
-                padding: 15px;
-            }
-
-            .button-group {
-                grid-template-columns: 1fr;
-            }
-
+            .app-header { padding: 24px 18px 18px; }
+            .app-header h1 { font-size: 1.5em; }
+            .logo-container { width: 52px; height: 52px; font-size: 26px; }
+            .tab-navigation { padding: 0 10px; gap: 2px; }
+            .tab-button { padding: 14px 12px; font-size: 0.85em; }
+            .tab-content { padding: 22px 18px 40px; }
+            .input-section { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+            .button-group { grid-template-columns: 1fr; }
             .result-cards { grid-template-columns: 1fr; }
-
-            .bars {
-                height: 200px;
-                gap: 6px;
-            }
-
+            .grid-2 { grid-template-columns: 1fr; }
+            .bars { height: 200px; gap: 6px; }
             .stages { grid-template-columns: 1fr; }
-            .time-display { font-size: 1.5em; }
-            .holding-time .duration { font-size: 1.4em; }
+            .time-display { font-size: 1.7em; }
+            .timer-display { font-size: 2.4em; }
+            .holding-time .duration { font-size: 1.5em; }
         }
     </style>
 </head>
@@ -768,8 +709,8 @@
             <div class="header-content">
                 <div class="logo-container">🔥</div>
                 <div class="header-text">
-                    <h1>BBQ Smoking Calculator</h1>
-                    <p class="subtitle">Calcula tiempo y temperatura para tu ahumado perfecto</p>
+                    <h1>Weber <span class="accent">BBQ</span> Calculator</h1>
+                    <p class="subtitle">Ahumado · curado y monitoreo de cocción para el parrillero</p>
                 </div>
             </div>
         </div>
@@ -833,200 +774,259 @@
 
         <!-- TAB: MONITOR DE COCCIÓN -->
         <div id="monitor" class="tab-content">
-            <h2>⏱️ Monitor de Cocción en Vivo</h2>
-            <p style="color: #94a3b8; margin-bottom: 20px;">Registra temperatura y tiempo durante el ahumado</p>
+            <h2>⏱️ Monitor de <span class="accent">Cocción</span></h2>
+            <p class="section-subtitle">Cronómetro, registro de temperatura y recomendaciones en vivo</p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-                <!-- Sección de Cronómetro -->
+            <div class="grid-2 mb-24">
+                <!-- Cronómetro -->
                 <div class="card">
                     <h3>⏱️ Cronómetro</h3>
-                    <div style="text-align: center; margin: 20px 0;">
-                        <div style="font-size: 3.5em; font-weight: bold; color: #f87171; font-family: 'Courier New', monospace; letter-spacing: 3px;">
-                            <span id="timerDisplay">0:00:00</span>
-                        </div>
-                        <p id="timerElapsed" style="color: #94a3b8; margin-top: 8px; font-size: 0.9em;">Tiempo transcurrido</p>
+                    <div style="text-align: center; margin: 18px 0;">
+                        <div class="timer-display"><span id="timerDisplay">0:00:00</span></div>
+                        <p id="timerElapsed" class="note">Tiempo transcurrido · <span id="timerEstimate">sin estimación</span></p>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                        <button class="secondary-btn" onclick="cookingMonitor.startTimer()" style="grid-column: 1;">▶️ Iniciar</button>
-                        <button class="secondary-btn" onclick="cookingMonitor.pauseTimer()" style="grid-column: 2;">⏸️ Pausa</button>
-                        <button class="secondary-btn" onclick="cookingMonitor.resetTimer()" style="grid-column: 3;">🔄 Reset</button>
+                        <button class="secondary-btn" onclick="cookingMonitor.startTimer()">▶️ Iniciar</button>
+                        <button class="secondary-btn" onclick="cookingMonitor.pauseTimer()">⏸️ Pausa</button>
+                        <button class="secondary-btn" onclick="cookingMonitor.resetTimer()">🔄 Reset</button>
                     </div>
                 </div>
 
-                <!-- Sección de Resumen Actual -->
+                <!-- Estado Actual -->
                 <div class="card primary">
                     <h3>📊 Estado Actual</h3>
-                    <div style="margin: 15px 0;">
-                        <p style="margin: 8px 0;"><strong>Temp. Ahumador:</strong> <span id="currentOvenTemp">--</span>°C</p>
-                        <p style="margin: 8px 0;"><strong>Temp. Interna:</strong> <span id="currentMeatTemp">--</span>°C</p>
-                        <p style="margin: 8px 0;"><strong>Registros:</strong> <span id="recordCount">0</span> datos</p>
-                        <p style="margin: 8px 0;"><strong>Progreso:</strong> <span id="progressPercent">0</span>%</p>
+                    <div style="margin: 12px 0;">
+                        <p style="margin: 10px 0;"><strong>Temp. Ahumador:</strong> <span id="currentOvenTemp">--</span> °C</p>
+                        <p style="margin: 10px 0;"><strong>Temp. Interna:</strong> <span id="currentMeatTemp">--</span> °C</p>
+                        <p style="margin: 10px 0;"><strong>Registros:</strong> <span id="recordCount">0</span></p>
+                        <p style="margin: 10px 0;"><strong>Progreso:</strong> <span id="progressPercent">0</span>%</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Sección de Recomendaciones -->
-            <div class="card" style="margin-bottom: 30px; border-left-color: #fbbf24; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(249, 115, 22, 0.1) 100%); border: 1px solid rgba(251, 191, 36, 0.3);">
-                <h3 style="color: #fbbf24;">💡 Recomendaciones</h3>
-                <div id="recommendationsBox" style="color: #cbd5e1; font-size: 0.95em; line-height: 1.6;">
-                    <p style="color: #94a3b8;">Inicia la cocción para recibir recomendaciones</p>
+            <!-- Recomendaciones -->
+            <div class="tips-section mb-24">
+                <h3>💡 Recomendaciones</h3>
+                <div id="recommendationsBox">
+                    <p style="color: var(--text-muted);">Calcula un corte e inicia el cronómetro para recibir recomendaciones.</p>
                 </div>
             </div>
 
-            <!-- Sección de Configuración de Termómetro -->
-            <div class="card" style="margin-bottom: 30px; border-left-color: #60a5fa;">
-                <h3>🌡️ Tipo de Termómetro</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; background: rgba(96, 165, 250, 0.1); border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
-                        <input type="radio" name="thermometerType" value="manual" onchange="cookingMonitor.setThermometerType('manual')" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <!-- Tipo de Termómetro -->
+            <div class="card mb-24">
+                <h3>🌡️ Modo de Termómetro</h3>
+                <div class="grid-2" style="margin-top: 6px;">
+                    <label class="radio-card">
+                        <input type="radio" name="thermometerType" value="manual" onchange="cookingMonitor.setThermometerType('manual')" checked>
                         <span>
-                            <strong>📱 Termómetro Manual</strong>
-                            <p style="font-size: 0.85em; color: #94a3b8; margin-top: 4px;">Registro manual cada vez que reviso</p>
+                            <strong>📱 Termómetro de bolsillo</strong>
+                            <p>Registras la lectura cada vez que pinchas la carne.</p>
                         </span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; background: rgba(96, 165, 250, 0.1); border-radius: 8px; border: 1px solid rgba(96, 165, 250, 0.2);">
-                        <input type="radio" name="thermometerType" value="probe" onchange="cookingMonitor.setThermometerType('probe')" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label class="radio-card">
+                        <input type="radio" name="thermometerType" value="probe" onchange="cookingMonitor.setThermometerType('probe')">
                         <span>
-                            <strong>📡 Sonda Conectada (iGrill 2)</strong>
-                            <p style="font-size: 0.85em; color: #94a3b8; margin-top: 4px;">Captura automática cada 5 min</p>
+                            <strong>📡 Sonda iGrill 2 (con recordatorio)</strong>
+                            <p>La app te avisa cada X min para que copies la lectura desde tu app iGrill.</p>
                         </span>
                     </label>
                 </div>
+                <div id="probeOptions" style="display:none; margin-top: 14px;">
+                    <div class="form-group" style="max-width: 260px;">
+                        <label>Recordarme cada (minutos)</label>
+                        <input type="number" id="reminderInterval" value="15" min="1" max="120" step="1">
+                    </div>
+                </div>
+                <p id="thermometerHint" class="note" style="margin-top: 12px; padding: 10px 12px; background: var(--bg-dark); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                    💡 Termómetro de bolsillo: registra cada lectura manualmente cuando revises.
+                </p>
             </div>
 
-            <!-- Sección de Entrada de Datos -->
-            <div class="card" style="margin-bottom: 30px;">
+            <!-- Registrar Lectura -->
+            <div class="card mb-24">
                 <h3>📝 Registrar Lectura</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Temp. Ahumador (°C)</label>
-                        <input type="number" id="monitorOvenTemp" placeholder="ej: 110" min="40" max="150" step="1" style="width: 100%;">
+                        <input type="number" id="monitorOvenTemp" placeholder="ej: 110" min="40" max="180" step="1">
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Temp. Interna (°C)</label>
-                        <input type="number" id="monitorMeatTemp" placeholder="ej: 70" min="40" max="100" step="0.5">
+                        <input type="number" id="monitorMeatTemp" placeholder="ej: 70" min="0" max="100" step="0.5">
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Notas (opcional)</label>
-                        <input type="text" id="monitorNotes" placeholder="ej: Wrapped">
+                        <input type="text" id="monitorNotes" placeholder="ej: Wrap">
                     </div>
                     <button class="calculate-btn" onclick="cookingMonitor.addReading()" style="padding: 12px 20px; white-space: nowrap;">➕ Guardar</button>
                 </div>
-                <p id="thermometerHint" style="color: #94a3b8; font-size: 0.9em; margin-top: 12px; padding: 8px; background: rgba(148, 163, 184, 0.1); border-radius: 6px;">
-                    💡 Usando termómetro manual - registra lecturas manualmente
-                </p>
             </div>
 
             <!-- Tabla de Registros -->
-            <div class="card" style="margin-bottom: 30px;">
+            <div class="card mb-24">
                 <h3>📋 Historial de Registros</h3>
                 <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; color: #cbd5e1; font-size: 0.9em;">
-                        <thead style="border-bottom: 1px solid rgba(71, 85, 105, 0.3);">
+                    <table class="data-table">
+                        <thead>
                             <tr>
-                                <th style="padding: 12px; text-align: left; color: #fbbf24;">Tiempo</th>
-                                <th style="padding: 12px; text-align: center; color: #fbbf24;">Temp Ahumador</th>
-                                <th style="padding: 12px; text-align: center; color: #fbbf24;">Temp Interna</th>
-                                <th style="padding: 12px; text-align: center; color: #fbbf24;">Δ Temp</th>
-                                <th style="padding: 12px; text-align: left; color: #fbbf24;">Notas</th>
-                                <th style="padding: 12px; text-align: center; color: #fbbf24;">Acción</th>
+                                <th>Tiempo</th>
+                                <th style="text-align:center;">T. Ahumador</th>
+                                <th style="text-align:center;">T. Interna</th>
+                                <th style="text-align:center;">Δ</th>
+                                <th>Notas</th>
+                                <th style="text-align:center;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="monitorReadingsTable">
-                            <tr>
-                                <td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">Sin registros aún</td>
-                            </tr>
+                            <tr><td colspan="6" class="empty-state">Sin registros aún</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Gráfico de Progreso -->
+            <!-- Gráfico -->
             <div class="card">
-                <h3>📈 Gráfico de Temperatura Interna vs Tiempo</h3>
+                <h3>📈 Temperatura Interna vs Tiempo</h3>
                 <canvas id="tempChart" style="max-height: 300px; margin-top: 15px;"></canvas>
-                <p id="chartStatus" style="color: #94a3b8; text-align: center; padding: 40px 20px; margin-top: 0;">Sin datos para graficar aún</p>
+                <p id="chartStatus" class="empty-state">Registra al menos 2 lecturas para ver el gráfico</p>
             </div>
         </div>
 
         <!-- TAB: MIS RECETAS -->
         <div id="recetas" class="tab-content">
-            <div style="padding: 10px 0;">
-                <h2>Mis Recetas Guardadas</h2>
-                <p style="color: #666; margin-bottom: 20px;">Carga recetas anteriores o guarda nuevas</p>
-                <div class="history-list" id="historyList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;"></div>
-                <p id="emptyHistory" style="grid-column: 1/-1; text-align: center; color: #999; padding: 40px 20px;">Sin recetas guardadas aún</p>
-            </div>
+            <h2>📋 Mis <span class="accent">Recetas</span></h2>
+            <p class="section-subtitle">Carga recetas anteriores con un clic o guarda nuevas desde la pestaña Ahumado</p>
+            <div class="history-list" id="historyList"></div>
+            <p id="emptyHistory" class="empty-state">Aún no tienes recetas guardadas. Calcula un ahumado y presiona "Guardar receta".</p>
         </div>
 
         <!-- TAB: GADGETS -->
         <div id="gadgets" class="tab-content">
-            <h2>🛠️ Herramientas útiles para el parrillero</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+            <h2>🛠️ <span class="accent">Gadgets</span> del parrillero</h2>
+            <p class="section-subtitle">Herramientas rápidas para usar mientras cocinas</p>
+            <div class="grid-auto">
+                <!-- Conversor temperatura -->
                 <div class="card">
-                    <h3>🌡️ Convertidor de Temperatura</h3>
+                    <h3>🌡️ Conversor de Temperatura</h3>
                     <div class="form-group" style="margin-bottom: 10px;">
-                        <input id="gadgetTemp" type="number" value="110" placeholder="Temperaturan">
-                        <button class="secondary-btn" onclick="convertTempGadget()" style="margin-top: 8px; width: 100%;">Convertir</button>
+                        <label>Temperatura</label>
+                        <div style="display:flex; gap:8px;">
+                            <input id="gadgetTemp" type="number" value="110" placeholder="Temperatura" style="flex:1;">
+                            <select id="tempFrom" style="width: 90px;">
+                                <option value="C">°C</option>
+                                <option value="F">°F</option>
+                            </select>
+                        </div>
                     </div>
-                    <div id="tempResult" style="padding: 10px; background: #f0f0f0; border-radius: 6px; display: none;"></div>
+                    <button class="secondary-btn" onclick="convertTempGadget()" style="width: 100%; margin-bottom: 12px;">Convertir</button>
+                    <div id="tempResult" class="result-box"></div>
                 </div>
 
+                <!-- Conversor peso -->
                 <div class="card">
-                    <h3>⚖️ Convertidor de Peso</h3>
+                    <h3>⚖️ Conversor de Peso</h3>
                     <div class="form-group" style="margin-bottom: 10px;">
-                        <input id="gadgetWeight" type="number" value="3.0" placeholder="Peso">
-                        <select id="weightFrom" style="margin-top: 8px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
-                            <option value="kg">Kilogramos (kg)</option>
-                            <option value="lbs">Libras (lbs)</option>
-                        </select>
-                        <button class="secondary-btn" onclick="convertWeightGadget()" style="margin-top: 8px; width: 100%;">Convertir</button>
+                        <label>Peso</label>
+                        <div style="display:flex; gap:8px;">
+                            <input id="gadgetWeight" type="number" value="3.0" placeholder="Peso" style="flex:1;">
+                            <select id="weightFrom" style="width: 90px;">
+                                <option value="kg">kg</option>
+                                <option value="lbs">lbs</option>
+                            </select>
+                        </div>
                     </div>
-                    <div id="weightResult" style="padding: 10px; background: #f0f0f0; border-radius: 6px; display: none;"></div>
+                    <button class="secondary-btn" onclick="convertWeightGadget()" style="width: 100%; margin-bottom: 12px;">Convertir</button>
+                    <div id="weightResult" class="result-box"></div>
                 </div>
+
+                <!-- Dry brine / sal -->
+                <div class="card">
+                    <h3>🧂 Calculadora de Sal (Dry Brine)</h3>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Peso de la carne (kg)</label>
+                        <input id="saltWeight" type="number" value="3.0" min="0.1" step="0.1">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label>Porcentaje de sal</label>
+                        <select id="saltPercent">
+                            <option value="1.0">1.0% (suave)</option>
+                            <option value="1.5" selected>1.5% (recomendado)</option>
+                            <option value="2.0">2.0% (intenso)</option>
+                        </select>
+                    </div>
+                    <button class="secondary-btn" onclick="calcSalt()" style="width: 100%; margin-bottom: 12px;">Calcular</button>
+                    <div id="saltResult" class="result-box"></div>
+                </div>
+            </div>
+
+            <!-- Tabla de temperaturas internas -->
+            <div class="card mt-20">
+                <h3>🍖 Temperaturas Internas de Referencia</h3>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Carne / Término</th><th style="text-align:center;">Temp. interna (°C)</th><th style="text-align:center;">(°F)</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Vacuno — jugoso (medium rare)</td><td style="text-align:center; color:var(--ember-soft);">54–57</td><td style="text-align:center; color:var(--text-dim);">130–135</td></tr>
+                            <tr><td>Vacuno — a punto (medium)</td><td style="text-align:center; color:var(--ember-soft);">60–63</td><td style="text-align:center; color:var(--text-dim);">140–145</td></tr>
+                            <tr><td>Brisket / Tapapecho (fall-apart)</td><td style="text-align:center; color:var(--ember-soft);">90–96</td><td style="text-align:center; color:var(--text-dim);">195–205</td></tr>
+                            <tr><td>Pulled pork / Paleta de cerdo</td><td style="text-align:center; color:var(--ember-soft);">90–96</td><td style="text-align:center; color:var(--text-dim);">195–205</td></tr>
+                            <tr><td>Costillar de cerdo</td><td style="text-align:center; color:var(--ember-soft);">88–93</td><td style="text-align:center; color:var(--text-dim);">190–200</td></tr>
+                            <tr><td>Cerdo (corte magro)</td><td style="text-align:center; color:var(--ember-soft);">63</td><td style="text-align:center; color:var(--text-dim);">145</td></tr>
+                            <tr><td>Pollo / Pavo (seguro)</td><td style="text-align:center; color:var(--ember-soft);">74</td><td style="text-align:center; color:var(--text-dim);">165</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="note" style="margin-top:12px;">Tras retirar, deja reposar la carne para que los jugos se redistribuyan.</p>
             </div>
         </div>
 
         <!-- TAB: CONFIGURACIÓN -->
         <div id="configuracion" class="tab-content">
-            <h2>⚙️ Configuración</h2>
+            <h2>⚙️ <span class="accent">Configuración</span></h2>
+            <p class="section-subtitle">Preferencias, datos guardados e información del equipo</p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="grid-2">
                 <!-- Preferencias Generales -->
                 <div class="card">
-                    <h3>Preferencias Generales</h3>
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label>Unidades por defecto:</label>
-                        <div style="display: flex; gap: 10px; margin-top: 10px; flex-direction: column;">
-                            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                                <input type="radio" name="defaultUnit" value="metric" checked> Métrico (kg, °C)
+                    <h3>Preferencias</h3>
+                    <div class="form-group">
+                        <label>Unidades por defecto</label>
+                        <div style="display: flex; gap: 8px; margin-top: 10px; flex-direction: column;">
+                            <label class="radio-card">
+                                <input type="radio" name="defaultUnit" value="metric" checked>
+                                <span><strong>Métrico</strong><p>kilogramos y grados Celsius (°C)</p></span>
                             </label>
-                            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                                <input type="radio" name="defaultUnit" value="imperial"> Imperial (lbs, °F)
+                            <label class="radio-card">
+                                <input type="radio" name="defaultUnit" value="imperial">
+                                <span><strong>Imperial</strong><p>libras y grados Fahrenheit (°F)</p></span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Configuración de iGrill 2 -->
-                <div class="card" style="border-left-color: #60a5fa;">
-                    <h3>📡 Sonda iGrill 2</h3>
-                    <div style="margin-bottom: 15px;">
-                        <p style="font-size: 0.9em; color: #94a3b8; margin-bottom: 12px;">Conecta tu iGrill 2 para captura automática</p>
-                        <div id="igrillStatus" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; margin-bottom: 12px;">
-                            <p style="color: #fca5a5; font-size: 0.9em;">
-                                ⚫ Desconectado
-                            </p>
-                        </div>
-                        <button class="secondary-btn" onclick="stateManager.connectIGrill()" style="width: 100%;">🔗 Conectar iGrill 2</button>
-                        <p style="font-size: 0.8em; color: #64748b; margin-top: 8px;">Nota: Requiere acceso a tu red y API token</p>
-                    </div>
+                <!-- Info iGrill 2 -->
+                <div class="card">
+                    <h3>📡 Sobre la sonda iGrill 2</h3>
+                    <p class="note" style="margin-bottom: 12px;">
+                        Weber no ofrece una API pública para el iGrill 2, así que no es posible leer la sonda
+                        directamente desde el navegador. La forma práctica de usarla aquí es:
+                    </p>
+                    <ol style="color: var(--text-muted); font-size: 0.9em; padding-left: 18px; line-height: 1.7;">
+                        <li>Mira la temperatura en tu app oficial iGrill.</li>
+                        <li>Activa el modo <strong>"Sonda iGrill 2 (con recordatorio)"</strong> en el Monitor.</li>
+                        <li>La app te avisará cada X minutos para copiar la lectura.</li>
+                    </ol>
+                    <p class="note" style="margin-top: 12px;">
+                        Si tienes Home Assistant con integración iGrill, podrías automatizarlo a futuro.
+                    </p>
                 </div>
             </div>
 
             <!-- Sección de Datos -->
-            <div class="card" style="margin-top: 20px;">
-                <h3>📊 Datos y Privacidad</h3>
+            <div class="card mt-20">
+                <h3>📊 Datos y Respaldo</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <button class="secondary-btn" onclick="stateManager.exportData()">📥 Exportar Datos</button>
                     <button class="secondary-btn" onclick="stateManager.importData()">📤 Importar Datos</button>
@@ -1276,7 +1276,7 @@
                     const result = {
                         id: Date.now(),
                         meatType,
-                        meatName: formula.meatName,
+                        meatName: formula.name,
                         weightKg: Math.round(weightKg * 100) / 100,
                         weightLbs: this.kgToLbs(weightKg),
                         smokingTempC: Math.round(smokingTempC),
@@ -1519,27 +1519,6 @@
             }
 
             /**
-             * Conectar iGrill 2
-             */
-            connectIGrill() {
-                const token = prompt('Ingresa tu API token de iGrill 2:\n(Encontralo en tu cuenta de iGrill)');
-                if (!token) return;
-
-                // Guardar token en state
-                this.state.igrillToken = token;
-                this.save();
-
-                // En producción, aquí iría validación con API real de iGrill
-                const statusDiv = document.getElementById('igrillStatus');
-                statusDiv.innerHTML = '<p style="color: #86efac; font-size: 0.9em;">🟢 Conectado a iGrill 2</p>';
-                showToast('✓ iGrill 2 conectado (capturas automáticas cada 5 min)', 'success');
-
-                // Simular estado conectado
-                this.state.igrillConnected = true;
-                this.save();
-            }
-
-            /**
              * Limpiar historial
              */
             clearHistory() {
@@ -1613,15 +1592,27 @@
             setThermometerType(type) {
                 this.thermometerType = type;
                 const hint = document.getElementById('thermometerHint');
+                const probeOptions = document.getElementById('probeOptions');
 
                 if (type === 'manual') {
-                    hint.innerHTML = '💡 Usando termómetro manual - registra lecturas manualmente cada vez que revises';
+                    hint.innerHTML = '💡 Termómetro de bolsillo: registra cada lectura manualmente cuando revises.';
+                    if (probeOptions) probeOptions.style.display = 'none';
+                    this.stopReminder();
                 } else if (type === 'probe') {
-                    hint.innerHTML = '📡 Usando sonda conectada - se capturará temperatura automáticamente cada 5 minutos. Asegúrate de que iGrill 2 está conectado.';
+                    hint.innerHTML = '📡 Modo recordatorio: con el cronómetro corriendo, te avisaremos cada X minutos para copiar la lectura desde tu app iGrill.';
+                    if (probeOptions) probeOptions.style.display = 'block';
+                    // Si el cronómetro ya está corriendo, arranca el recordatorio
+                    if (this.isRunning) this.startReminder();
                 }
 
-                showToast(`✓ Tipo de termómetro: ${type === 'manual' ? 'Manual' : 'Sonda iGrill 2'}`, 'success');
+                showToast(`✓ Modo: ${type === 'manual' ? 'Termómetro de bolsillo' : 'Sonda iGrill 2 (recordatorio)'}`, 'success');
                 this.emit('thermometer-changed', type);
+            }
+
+            getReminderIntervalMs() {
+                const input = document.getElementById('reminderInterval');
+                const minutes = input ? parseInt(input.value, 10) : 15;
+                return Math.max(1, isNaN(minutes) ? 15 : minutes) * 60 * 1000;
             }
 
             startTimer() {
@@ -1635,58 +1626,49 @@
                     this.updateTimerDisplay();
                 }, 100);
 
-                // Si es sonda conectada, inicia captura automática
+                // En modo sonda, activa recordatorios periódicos
                 if (this.thermometerType === 'probe') {
-                    this.startProbeAutoCapture();
+                    this.startReminder();
                 }
 
                 showToast('⏱️ Cronómetro iniciado', 'success');
             }
 
-            startProbeAutoCapture() {
-                // Captura automática cada 5 minutos para sonda iGrill 2
+            startReminder() {
+                this.stopReminder();
+                // Recordatorio real: avisa al usuario que copie la lectura de su iGrill
                 this.probeAutoInterval = setInterval(() => {
-                    // En producción, esto se conectaría a la API real de iGrill
-                    // Por ahora, muestra un recordatorio
-                    if (this.thermometerType === 'probe') {
-                        showToast('📡 Intenta capturar datos de iGrill 2...', 'info');
-                        // this.captureProbeTemperature(); descomentar cuando haya API
-                    }
-                }, 5 * 60 * 1000); // 5 minutos
+                    showToast('📡 Recordatorio: revisa tu iGrill 2 y registra la temperatura interna.', 'warning');
+                }, this.getReminderIntervalMs());
             }
 
-            stopProbeAutoCapture() {
+            stopReminder() {
                 if (this.probeAutoInterval) {
                     clearInterval(this.probeAutoInterval);
                     this.probeAutoInterval = null;
                 }
             }
 
-            captureProbeTemperature() {
-                // Método stub para integración futura con iGrill 2 API
-                // En producción, aquí iría la llamada a la API de iGrill
-                console.log('Intento de captura de sonda iGrill 2 (API no implementada aún)');
-                showToast('⚠️ Integración iGrill 2 en desarrollo', 'warning');
-            }
-
             pauseTimer() {
                 if (!this.isRunning) return;
                 this.isRunning = false;
                 clearInterval(this.timerInterval);
-                this.stopProbeAutoCapture();
+                this.stopReminder();
                 showToast('⏸️ Cronómetro pausado', 'info');
             }
 
             resetTimer() {
                 this.isRunning = false;
                 clearInterval(this.timerInterval);
-                this.stopProbeAutoCapture();
+                this.stopReminder();
                 this.elapsedSeconds = 0;
                 this.startedAt = null;
                 this.readings = [];
                 this.targetMeatTemp = null;
                 this.updateTimerDisplay();
                 this.refreshReadingsTable();
+                this.updateStats();
+                this.drawChart();
                 showToast('🔄 Cronómetro reiniciado', 'info');
             }
 
@@ -1697,6 +1679,12 @@
                 const display = `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
                 const timerDisplay = document.getElementById('timerDisplay');
                 if (timerDisplay) timerDisplay.textContent = display;
+
+                // Mostrar estimación de tiempo total si hay cálculo previo
+                const est = document.getElementById('timerEstimate');
+                if (est && lastResult) {
+                    est.textContent = `estimado ${lastResult.estimatedCookingHours}h ${lastResult.estimatedCookingMinutes}m`;
+                }
                 this.updateRecommendations();
             }
 
@@ -1736,23 +1724,24 @@
             refreshReadingsTable() {
                 const tbody = document.getElementById('monitorReadingsTable');
                 if (this.readings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">Sin registros aún</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Sin registros aún</td></tr>';
                     return;
                 }
 
                 tbody.innerHTML = this.readings.map((r, i) => {
                     const timeStr = this.formatTime(r.time);
-                    const tempDelta = i > 0 ? (r.meatTemp - this.readings[i-1].meatTemp).toFixed(1) : '-';
-                    const deltaColor = i > 0 ? (parseFloat(tempDelta) > 0 ? '#86efac' : '#fca5a5') : '#94a3b8';
+                    const tempDelta = i > 0 ? (r.meatTemp - this.readings[i-1].meatTemp).toFixed(1) : '–';
+                    const deltaColor = i > 0 ? (parseFloat(tempDelta) >= 0 ? 'var(--success)' : 'var(--error)') : 'var(--text-dim)';
+                    const deltaPrefix = (i > 0 && parseFloat(tempDelta) > 0) ? '+' : '';
 
                     return `
-                        <tr style="border-bottom: 1px solid rgba(71, 85, 105, 0.2);">
-                            <td style="padding: 12px; text-align: left;"><strong>${timeStr}</strong></td>
-                            <td style="padding: 12px; text-align: center;">${r.ovenTemp}°C</td>
-                            <td style="padding: 12px; text-align: center; color: #fbbf24;"><strong>${r.meatTemp}°C</strong></td>
-                            <td style="padding: 12px; text-align: center; color: ${deltaColor};">${tempDelta}°C</td>
-                            <td style="padding: 12px; text-align: left; color: #94a3b8;">${r.notes}</td>
-                            <td style="padding: 12px; text-align: center;">
+                        <tr>
+                            <td><strong>${timeStr}</strong></td>
+                            <td style="text-align: center;">${r.ovenTemp}°C</td>
+                            <td style="text-align: center; color: var(--ember-soft);"><strong>${r.meatTemp}°C</strong></td>
+                            <td style="text-align: center; color: ${deltaColor};">${deltaPrefix}${tempDelta}</td>
+                            <td style="color: var(--text-muted);">${r.notes || '—'}</td>
+                            <td style="text-align: center;">
                                 <button class="secondary-btn" onclick="cookingMonitor.deleteReading(${i})" style="padding: 6px 10px; font-size: 0.8em;">🗑️</button>
                             </td>
                         </tr>
@@ -1855,7 +1844,7 @@
                 const box = document.getElementById('recommendationsBox');
 
                 if (!recs) {
-                    box.innerHTML = '<p style="color: #94a3b8;">Inicia la cocción para recibir recomendaciones</p>';
+                    box.innerHTML = '<p style="color: var(--text-muted);">Calcula un corte e inicia el cronómetro para recibir recomendaciones.</p>';
                     return;
                 }
 
@@ -1887,7 +1876,7 @@
                 const maxTime = this.readings[this.readings.length - 1].time;
 
                 // Dibujar ejes
-                ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(padding, height - padding);
@@ -1900,7 +1889,7 @@
                 ctx.stroke();
 
                 // Labels de ejes
-                ctx.fillStyle = '#94a3b8';
+                ctx.fillStyle = '#a1a1aa';
                 ctx.font = '12px system-ui';
                 ctx.textAlign = 'center';
                 ctx.fillText('Tiempo (h:mm)', width / 2, height - 10);
@@ -1912,8 +1901,8 @@
                 ctx.restore();
 
                 // Dibujar línea de temperatura interna
-                ctx.strokeStyle = '#fbbf24';
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#FF8C1A';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
 
                 this.readings.forEach((r, i) => {
@@ -1930,7 +1919,7 @@
                 ctx.stroke();
 
                 // Dibujar puntos
-                ctx.fillStyle = '#f87171';
+                ctx.fillStyle = '#C8102E';
                 this.readings.forEach(r => {
                     const x = padding + (r.time / maxTime) * (width - padding - 20);
                     const y = height - padding - (r.meatTemp / maxTemp) * (height - 2 * padding);
@@ -2005,12 +1994,12 @@
                 historyList.innerHTML = '';
                 emptyHistory.style.display = 'block';
             } else {
-                historyList.innerHTML = recipes.reverse().map(r => `
+                historyList.innerHTML = recipes.slice().reverse().map(r => `
                     <div class="history-item" onclick="stateManager.loadRecipe(${r.id}); switchTab('ahumado');">
-                        <strong>${r.meatName}</strong><br>
-                        ${r.weightKg}kg @ ${r.smokingTempC}°C<br>
-                        <small>${r.estimatedHours}h aprox.</small><br>
-                        <small style="color:#999;">${r.calculatedAt}</small>
+                        <strong>${r.meatName || 'Receta'}</strong>
+                        ${r.weightKg} kg · ${r.smokingTempC}°C<br>
+                        ~${r.estimatedHours}h de cocción
+                        <div class="meta" style="margin-top:6px;">${r.calculatedAt}</div>
                     </div>
                 `).join('');
                 emptyHistory.style.display = 'none';
@@ -2019,18 +2008,25 @@
 
         function convertTempGadget() {
             const input = parseFloat(document.getElementById('gadgetTemp').value);
+            const from = document.getElementById('tempFrom').value;
             const resultDiv = document.getElementById('tempResult');
 
             if (isNaN(input)) {
-                resultDiv.style.display = 'none';
+                resultDiv.classList.remove('show');
                 return;
             }
 
-            const celsius = input;
-            const fahrenheit = calculator.celsiusToFahrenheit(celsius);
+            let c, f;
+            if (from === 'C') {
+                c = input;
+                f = calculator.celsiusToFahrenheit(input);
+            } else {
+                f = input;
+                c = calculator.fahrenheitToCelsius(input);
+            }
 
-            resultDiv.innerHTML = `<strong>${celsius}°C</strong> = <strong>${fahrenheit}°F</strong>`;
-            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `<strong>${c}°C</strong> = <strong>${f}°F</strong>`;
+            resultDiv.classList.add('show');
         }
 
         function convertWeightGadget() {
@@ -2039,7 +2035,7 @@
             const resultDiv = document.getElementById('weightResult');
 
             if (isNaN(input)) {
-                resultDiv.style.display = 'none';
+                resultDiv.classList.remove('show');
                 return;
             }
 
@@ -2052,8 +2048,26 @@
                 kg = calculator.lbsToKg(input);
             }
 
-            resultDiv.innerHTML = `<strong>${kg.toFixed(1)} kg</strong> = <strong>${lbs.toFixed(1)} lbs</strong>`;
-            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `<strong>${kg.toFixed(2)} kg</strong> = <strong>${lbs.toFixed(2)} lbs</strong>`;
+            resultDiv.classList.add('show');
+        }
+
+        function calcSalt() {
+            const weightKg = parseFloat(document.getElementById('saltWeight').value);
+            const percent = parseFloat(document.getElementById('saltPercent').value);
+            const resultDiv = document.getElementById('saltResult');
+
+            if (isNaN(weightKg) || weightKg <= 0) {
+                resultDiv.classList.remove('show');
+                return;
+            }
+
+            const saltGrams = weightKg * 1000 * (percent / 100);
+            const teaspoons = saltGrams / 6; // ~6 g de sal kosher por cucharadita
+
+            resultDiv.innerHTML = `<strong>${saltGrams.toFixed(0)} g</strong> de sal (${percent}%)<br>` +
+                `<span style="font-size:0.85em; color:var(--text-muted);">≈ ${teaspoons.toFixed(1)} cucharaditas · aplica 12–24 h antes</span>`;
+            resultDiv.classList.add('show');
         }
 
         function displayResult(result) {
@@ -2063,9 +2077,9 @@
                 <div class="result-header">
                     <h2>${result.meatName}</h2>
                     <p class="result-weight">
-                        ${result.weightKg} kg <span style="color:#999;">(${result.weightLbs} lbs)</span>
+                        ${result.weightKg} kg <span class="muted">(${result.weightLbs} lbs)</span>
                         •
-                        ${result.smokingTempC}°C <span style="color:#999;">(${result.smokingTempF}°F)</span>
+                        ${result.smokingTempC}°C <span class="muted">(${result.smokingTempF}°F)</span>
                     </p>
                 </div>
 
@@ -2133,8 +2147,8 @@
                 </div>
 
                 <div class="actions-section">
-                    <button class="action-btn" onclick="stateManager.addRecipe(lastResult)">💾 Guardar esta Receta</button>
-                    <button class="action-btn" onclick="location.href='#'">🔄 Nueva Consulta</button>
+                    <button class="action-btn" onclick="stateManager.addRecipe(lastResult)">💾 Guardar Receta</button>
+                    <button class="action-btn" onclick="switchTab('monitor')">⏱️ Ir al Monitor</button>
                 </div>
             `;
 
@@ -2195,19 +2209,10 @@
         // ================================================================
         updateRecipesList();
 
-        // Verificar estado de iGrill 2
-        if (stateManager.state.igrillConnected) {
-            const statusDiv = document.getElementById('igrillStatus');
-            if (statusDiv) {
-                statusDiv.innerHTML = '<p style="color: #86efac; font-size: 0.9em;">🟢 Conectado a iGrill 2</p>';
-            }
-        }
-
-        console.log('✓ BBQ Calculator inicializado con arquitectura GSD-Lite');
-        console.log('✓ Navegación de pestañas implementada');
-        console.log('✓ Monitor de cocción en vivo disponible');
-        console.log('✓ Soporte para termómetro manual e iGrill 2');
-        console.log('✓ Gadgets: Conversión Temperatura y Peso');
+        console.log('✓ Weber BBQ Calculator inicializado');
+        console.log('✓ Tema Weber (rojo + carbón) aplicado');
+        console.log('✓ Monitor con cronómetro, recordatorios y gráfico');
+        console.log('✓ Gadgets: conversores + dry brine + tabla de temperaturas');
     </script>
 </body>
 </html>
