@@ -399,7 +399,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const seen = state.bountiesSeen || {};
     const submitted = state.bountiesSubmitted || [];
     const today = new Date().toISOString().slice(0, 10);
-    const todaySubmissions = submitted.filter(s => s.date === today).length;
+    let todaySubmissions = submitted.filter(s => s.date === today).length;
 
     if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) {
       onEvent('info', '[BOUNTY] Límite diario alcanzado (' + MAX_SUBMISSIONS_PER_DAY + '/día)');
@@ -416,7 +416,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     }
 
     const ethUsd = getEthPriceUsd();
-    const lastSubmitTime = state.lastBountySubmit || 0;
+    let lastSubmitTime = state.lastBountySubmit || 0;
     const stats = { alreadySeen: 0, noAmount: 0, dust: 0, disqualified: 0, noKeyword: 0, candidates: 0 };
     const MAX_CLAUDE_CALLS_PER_SCAN = 20; // avoid API spam; real filter is confidence threshold
     let claudeCalls = 0;
