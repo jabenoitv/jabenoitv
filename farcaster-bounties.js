@@ -560,8 +560,21 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
         s.lastBountySubmit = Date.now();
         saveState(s);
       } catch (e) {
-        // Transient infra error on submit — do NOT mark seen, retry next scan
-        onEvent('warn', '[BOUNTY] Error enviando (reintentable): ' + e.message);
+        const errMsg = e.message || '';
+        // Permanent errors: protocol restrictions, bad hash — mark seen, never retry
+        const permanent = /Pro subscription|not found|invalid.*parent|BadRequest.*parent/i.test(errMsg);
+        if (permanent) {
+          seen[bounty.hash] = Date.now();
+          const s2 = getState(); s2.bountiesSeen = purgeSeen(seen); saveState(s2);
+          if (/Pro subscription/i.test(errMsg)) {
+            onEvent('warn', '[BOUNTY] Farcaster Pro requerido para este cast — descartado (verifica cuenta en Warpcast)');
+          } else {
+            onEvent('warn', '[BOUNTY] Error permanente al enviar (skip): ' + errMsg.slice(0, 100));
+          }
+        } else {
+          // Transient infra error — do NOT mark seen, retry next scan
+          onEvent('warn', '[BOUNTY] Error enviando (reintentable): ' + errMsg.slice(0, 120));
+        }
       }
     }
 
