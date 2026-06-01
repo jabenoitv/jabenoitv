@@ -1288,8 +1288,11 @@ server.listen(PORT, '0.0.0.0', () => {
       } else if (type === 'nonpayer') {
         const { username, entry } = data;
         const tok = (entry.token || '').toUpperCase();
-        postToFarcaster('⚠️ Bounty de @' + username + ' (' + entry.amount + ' ' + tok + ') sin pago tras 14 días. Entregué respuesta calificada ' + entry.score + '/10. @bountybot #bountycaster');
-        addLog('[BOUNTY] No-pagador: @' + username + ' — ' + entry.amount + ' ' + tok, 'warn');
+        // Public post only if NONPAYER_AUTOPOST=1 — default off, requires explicit opt-in
+        if (process.env.NONPAYER_AUTOPOST === '1') {
+          postToFarcaster('⚠️ Bounty de @' + username + ' (' + entry.amount + ' ' + tok + ') sin pago tras 14 días. Entregué respuesta calificada ' + entry.score + '/10. @bountybot #bountycaster');
+        }
+        addLog('[BOUNTY] No-pagador detectado: @' + username + ' — ' + entry.amount + ' ' + tok + (process.env.NONPAYER_AUTOPOST !== '1' ? ' (activa NONPAYER_AUTOPOST=1 para publicar)' : ''), 'warn');
         broadcast({ type: 'update' });
       } else {
         addLog(String(data || type), type === 'warn' ? 'warn' : 'info');
