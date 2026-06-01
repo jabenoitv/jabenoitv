@@ -297,13 +297,13 @@ async function classifyBounty(bounty, anthropicKey) {
 
 Bounty text: "${bounty.text}"
 
-The agent CAN do: writing, copywriting, research, summarization, Q&A, translation (EN/ES), content drafting, analysis of provided text, brainstorming, compiling information, blog posts, threads, captions, plans, reports.
+ELIGIBLE (return eligible:true): writing, copywriting, research, Q&A, answering factual questions from training knowledge, translation (EN/ES/FR), content drafting, brainstorming, blog posts, threads, opinions, stating a preference, compiling information, plans, reports, educational content, summarization.
 
-The agent CANNOT do: write/run code, create images/video/audio, physical tasks, login to accounts, on-chain actions, "first to achieve X" competitions, anything NSFW or illegal.
+NOT ELIGIBLE (return eligible:false): requires writing/running code, creating images/video/audio, physical presence, logging into accounts, on-chain transactions, "first to achieve X" race competitions, NSFW/illegal content, OR requires accessing external content (URLs, files, documents, websites, drafts) NOT included inline in the bounty text.
 
-CRITICAL RULE — External content: if the task asks the agent to review, proofread, analyze, critique, or improve a specific piece of content (documentation, article, code, draft, website, etc.) that is NOT included inline in the bounty text, return eligible: false with reason "requires external content not provided". The agent cannot access URLs, uploaded files, or content outside this bounty text.
+IMPORTANT: If the reason field would say the agent CAN perform the task, then eligible MUST be true. Only return eligible:false if there is a concrete blocker listed above.
 
-Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "string", "confidence": 0.0-1.0, "reason": "one sentence", "deliverable_type": "string"}`;
+Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "string", "confidence": 0.0-1.0, "reason": "one sentence explaining the decision", "deliverable_type": "string"}`;
 
   const text = await claudeChat(
     [{ role: 'user', content: prompt }],
