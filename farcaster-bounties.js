@@ -51,9 +51,10 @@ const DISQUALIFY_PATTERNS = [
   /\bsign\s+in\s+with\b/i,
   // Referral / follow / like / recast engagement spam
   /\b(follow\s+me|recast\s+this|like\s+\d+\s+post|follow\s+&\s+recast)\b/i,
-  // "convince X to buy", "sell this to Y team" — requires getting named people to take financial action
-  /\b(convince|persuade)\s+\S+.*\b(buy|purchase|invest|bid)\b/i,
-  /\bsell\s+(this|the|my)\s+\S+\s+to\b/i
+  // "convince/convice/persuade X to buy" — typos included, requires getting named people to take financial action
+  /\bconv\w{2,}\s+\S+.*\b(buy|purchase|invest|bid)\b/i,
+  // "sell/selling this [X] to Y" — sales pitch to named person/team
+  /\bsell\w*\s+(this|the|my)(\s+\S+)?\s+to\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
