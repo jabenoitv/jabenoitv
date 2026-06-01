@@ -238,6 +238,7 @@ let lastScan = null;
 const DATA_DIR = process.env.DATA_DIR ? process.env.DATA_DIR : w;
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
+let persistInfo = { usingVolume: !!process.env.DATA_DIR, restored: false, seenCount: 0, submittedCount: 0 };
 
 function loadState() {
   try {
@@ -258,6 +259,9 @@ function loadState() {
     if (s.lastBountySubmit) bountyState.lastBountySubmit = s.lastBountySubmit;
     if (Array.isArray(s.bountiesPending)) bountyState.bountiesPending = s.bountiesPending;
     if (s.blacklistedFids) bountyState.blacklistedFids = s.blacklistedFids;
+    persistInfo.restored = true;
+    persistInfo.seenCount = Object.keys(bountyState.bountiesSeen || {}).length;
+    persistInfo.submittedCount = (bountyState.bountiesSubmitted || []).length;
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
 }
@@ -827,7 +831,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div id="bstatus" style="padding:8px 12px;font-size:.82em;color:#64748b;border-top:1px solid #1e293b">Esperando primer ciclo...</div>
   <div id="blist"></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v13</div>
+<div class="footer"><a href="/">Refrescar</a> · build v14</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -1153,6 +1157,7 @@ const server = http.createServer((req, res) => {
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
       'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length,
       submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
+      'Memoria: ' + (persistInfo.usingVolume ? '💾 persistente (Volume)' : '⚠️ temporal (se borra al redeploy)'),
       '',
       sep,
       'REGISTROS (' + logs.length + ' entradas — más reciente primero)',
@@ -1264,6 +1269,9 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
+  addLog(persistInfo.usingVolume
+    ? '💾 Memoria: Volumen persistente (' + DATA_DIR + ') — ' + (persistInfo.restored ? 'restaurada: ' + persistInfo.submittedCount + ' envíos, ' + persistInfo.seenCount + ' vistos' : 'vacía, primer arranque')
+    : '⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR)', 'info');
   startCashclaw();
   startBountyEngine({
     neynarApiKey: NEYNAR_API_KEY,
