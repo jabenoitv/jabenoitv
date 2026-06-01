@@ -229,7 +229,7 @@ let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
 let lastSetupDate = '';
 let lastFarcasterPost = 0;
-let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0 };
+let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], blacklistedFids: {} };
 let lastScan = null;
 
 // Estado persistente en disco
@@ -256,6 +256,8 @@ function loadState() {
     if (s.bountiesSeen) bountyState.bountiesSeen = s.bountiesSeen;
     if (Array.isArray(s.bountiesSubmitted)) bountyState.bountiesSubmitted = s.bountiesSubmitted;
     if (s.lastBountySubmit) bountyState.lastBountySubmit = s.lastBountySubmit;
+    if (Array.isArray(s.bountiesPending)) bountyState.bountiesPending = s.bountiesPending;
+    if (s.blacklistedFids) bountyState.blacklistedFids = s.blacklistedFids;
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
   } catch (e) { /* first run or corrupt state — no problem */ }
 }
@@ -272,6 +274,8 @@ function saveState() {
       bountiesSeen: bountyState.bountiesSeen || {},
       bountiesSubmitted: bountyState.bountiesSubmitted || [],
       lastBountySubmit: bountyState.lastBountySubmit || 0,
+      bountiesPending: bountyState.bountiesPending || [],
+      blacklistedFids: bountyState.blacklistedFids || {},
       lastSync: new Date().toISOString()
     }));
     fs.renameSync(tmp, STATE_FILE);
@@ -815,15 +819,15 @@ header h1{font-size:1.1em;color:#38bdf8}
     <span id="bts" style="color:#7c3aed">escaneando...</span>
   </div>
   <div class="bcards">
-    <div class="bc"><div class="bl">Evaluados</div><div class="bv" id="b-seen">-</div><div class="bs">total acumulado</div></div>
+    <div class="bc"><div class="bl">Trabajos enviados</div><div class="bv" id="b-total">0</div><div class="bs">pendiente de pago</div></div>
+    <div class="bc"><div class="bl">Esperando pago</div><div class="bv" id="b-pending">0</div><div class="bs" id="b-blacklist">0 bloqueados</div></div>
     <div class="bc"><div class="bl">Enviados hoy</div><div class="bv" id="b-today">0</div><div class="bs" id="b-limit">máx 5/día</div></div>
-    <div class="bc"><div class="bl">Total enviados</div><div class="bv" id="b-total">0</div><div class="bs">histórico</div></div>
-    <div class="bc"><div class="bl">Último envío</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
+    <div class="bc"><div class="bl">Último trabajo</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
   </div>
   <div id="bstatus" style="padding:8px 12px;font-size:.82em;color:#64748b;border-top:1px solid #1e293b">Esperando primer ciclo...</div>
   <div id="blist"></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v12</div>
+<div class="footer"><a href="/">Refrescar</a> · build v13</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -981,9 +985,10 @@ function loadLogs(){
 function loadBounties(){
   afetch('/api/bounties').then(function(bd){
     if(!bd)return;
-    document.getElementById('b-seen').textContent=bd.seenTotal||0;
     document.getElementById('b-today').textContent=bd.submittedToday||0;
     document.getElementById('b-total').textContent=bd.submittedTotal||0;
+    document.getElementById('b-pending').textContent=bd.pendingCount||0;
+    document.getElementById('b-blacklist').textContent=(bd.blacklistedCount||0)+' bloqueados';
     if(bd.lastSubmission){var ls=bd.lastSubmission;document.getElementById('b-lasttok').textContent=(ls.amount||'?')+' '+(ls.token||'');document.getElementById('b-lastscore').textContent='score '+(ls.score||'?')+'/10';}
     var bmode=document.getElementById('bmode');
     if(bd.dryRun===false){bmode.textContent='live';bmode.className='mode-badge mode-live';}
@@ -1167,6 +1172,8 @@ const server = http.createServer((req, res) => {
       submittedTotal: submitted.length,
       recent: submitted.slice(-5).reverse(),
       seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
+      pendingCount: (bountyState.bountiesPending || []).length,
+      blacklistedCount: Object.keys(bountyState.blacklistedFids || {}).length,
       dryRun: process.env.BOUNTY_AUTOPOST !== '1',
       lastSubmission: last ? {
         amount: last.amount,
@@ -1277,6 +1284,12 @@ server.listen(PORT, '0.0.0.0', () => {
         broadcast({ type: 'update' });
       } else if (type === 'scan_complete') {
         lastScan = data;
+        broadcast({ type: 'update' });
+      } else if (type === 'nonpayer') {
+        const { username, entry } = data;
+        const tok = (entry.token || '').toUpperCase();
+        postToFarcaster('⚠️ Bounty de @' + username + ' (' + entry.amount + ' ' + tok + ') sin pago tras 14 días. Entregué respuesta calificada ' + entry.score + '/10. @bountybot #bountycaster');
+        addLog('[BOUNTY] No-pagador: @' + username + ' — ' + entry.amount + ' ' + tok, 'warn');
         broadcast({ type: 'update' });
       } else {
         addLog(String(data || type), type === 'warn' ? 'warn' : 'info');

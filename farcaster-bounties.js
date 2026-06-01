@@ -15,6 +15,10 @@ const SUBMIT_COOLDOWN_MS = 10 * 60 * 1000;
 const MIN_BOUNTY_VALUE_USD = 1.0;
 const SCAN_INTERVAL_MS = 25 * 60 * 1000; // every 25 min
 const PAYOUT_POLL_MS = 5 * 60 * 1000;    // balance check every 5 min
+const NONPAYER_WAIT_DAYS = 14;            // days before declaring non-payer
+const WATCH_INTERVAL_MS = 6 * 60 * 60 * 1000; // pending check every 6h
+const OWN_FID = 3333320;                  // FID of @jabenoitv
+const OWN_USERNAME = 'jabenoitv';
 
 // Text-only competencies
 const ELIGIBLE_CATEGORIES = [
@@ -122,6 +126,42 @@ function neynarPost(path, body, apiKey) {
     req.write(buf);
     req.end();
   });
+}
+
+async function resolveUsername(fid, apiKey) {
+  try {
+    const data = await neynarGet('/v2/farcaster/user/bulk?fids=' + fid, apiKey);
+    const user = (data.users || [])[0];
+    return user ? user.username : 'fid:' + fid;
+  } catch (e) {
+    return 'fid:' + fid;
+  }
+}
+
+// Returns: 'paid_us' | 'paid_other' | 'unpaid' | 'unknown'
+async function checkBountyCast(hash, posterFid, apiKey) {
+  let bouncbotReplies = [];
+  try {
+    const data = await neynarGet('/v2/farcaster/cast/conversation?identifier=' + encodeURIComponent(hash) + '&type=hash&reply_depth=1', apiKey);
+    const replies = ((data.conversation || {}).cast || {}).direct_replies || [];
+    bouncbotReplies = replies.filter(r => ((r.author || {}).fid) === BOUNTYBOT_FID);
+  } catch (e) {
+    if (/402/.test(e.message)) {
+      // Paid tier endpoint — fallback to Hub API castsByParent (free)
+      try {
+        const hdata = await hubApiGet('/v1/castsByParent?fid=' + posterFid + '&hash=' + encodeURIComponent(hash), apiKey);
+        bouncbotReplies = (hdata.messages || [])
+          .filter(m => m.data && m.data.fid === BOUNTYBOT_FID)
+          .map(m => ({ author: { fid: BOUNTYBOT_FID }, text: ((m.data.castAddBody || {}).text || '') }));
+      } catch (e2) { return 'unknown'; }
+    } else { return 'unknown'; }
+  }
+
+  const award = bouncbotReplies.find(r => /award/i.test(r.text || ''));
+  if (!award) return 'unpaid';
+  const t = award.text || '';
+  if (t.includes('@' + OWN_USERNAME) || t.includes(String(OWN_FID))) return 'paid_us';
+  return 'paid_other';
 }
 
 function claudeChatOnce(messages, system, anthropicKey) {
@@ -439,10 +479,13 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const MAX_CLAUDE_CALLS_PER_SCAN = 20; // avoid API spam; real filter is confidence threshold
     let claudeCalls = 0;
     const scanSubmissions = [];
+    const blacklisted = state.blacklistedFids || {};
+    const pendingList = (state.bountiesPending || []).slice();
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
       if (seen[bounty.hash]) { stats.alreadySeen++; continue; }
+      if (blacklisted[bounty.authorFid]) { stats.disqualified++; seen[bounty.hash] = Date.now(); continue; }
       if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN_MS) break;
 
       // NOTE: do NOT mark seen up-front. Mark only after a DEFINITIVE decision
@@ -550,15 +593,18 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
           amount: bounty.amount,
           token: bounty.token,
           score: critique.score,
+          posterFid: bounty.authorFid,
           submittedAt: new Date().toISOString()
         };
         submitted.push(entry);
+        pendingList.push({ hash: bounty.hash, posterFid: bounty.authorFid, submittedAt: entry.submittedAt, amount: bounty.amount, token: bounty.token, text: bounty.text.slice(0, 120), score: critique.score });
         scanSubmissions.push({ amount: bounty.amount, token: bounty.token, score: critique.score, text: bounty.text.slice(0, 70) });
         onEvent('info', '[BOUNTY] Enviado: ' + bounty.amount + ' ' + bounty.token.toUpperCase() + ' — score ' + critique.score + '/10');
         onEvent('bounty_submitted', entry);
         const s = getState();
         s.bountiesSeen = purgeSeen(seen);
         s.bountiesSubmitted = submitted.slice(-200);
+        s.bountiesPending = pendingList;
         s.lastBountySubmit = Date.now();
         saveState(s);
       } catch (e) {
@@ -586,10 +632,64 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     // Emit scan summary for dashboard (plain-language status)
     onEvent('scan_complete', { ts: Date.now(), stats, submissions: scanSubmissions });
 
-    // Save seen state (purged of stale entries)
+    // Save seen + pending state
     const s = getState();
     s.bountiesSeen = purgeSeen(seen);
+    s.bountiesPending = pendingList;
     saveState(s);
+  }
+
+  // Non-payer watcher — checks pending submissions for payment resolution
+  async function processPendingBounties() {
+    const state = getState();
+    const pending = state.bountiesPending || [];
+    if (pending.length === 0) return;
+
+    const cutoff = Date.now() - NONPAYER_WAIT_DAYS * 24 * 60 * 60 * 1000;
+    const stillPending = [];
+    const blacklisted = Object.assign({}, state.blacklistedFids || {});
+    let changed = false;
+
+    for (const entry of pending) {
+      const submittedTs = new Date(entry.submittedAt).getTime();
+      if (submittedTs > cutoff) { stillPending.push(entry); continue; }
+
+      const result = await checkBountyCast(entry.hash, entry.posterFid, neynarApiKey).catch(() => 'unknown');
+
+      if (result === 'paid_us') {
+        onEvent('info', '[BOUNTY] ✅ Pago confirmado para bounty ' + entry.amount + ' ' + (entry.token || '').toUpperCase());
+        changed = true;
+      } else if (result === 'paid_other') {
+        onEvent('info', '[BOUNTY] Bounty ' + entry.amount + ' ' + (entry.token || '').toUpperCase() + ' fue pagado a otro participante');
+        changed = true;
+      } else if (result === 'unknown') {
+        stillPending.push(entry); // can't determine yet, keep watching
+      } else {
+        // 'unpaid' — non-payer
+        const username = await resolveUsername(entry.posterFid, neynarApiKey);
+        blacklisted[entry.posterFid] = { since: new Date().toISOString(), bountyText: entry.text, amount: entry.amount, token: entry.token };
+        changed = true;
+
+        // 1. Public Farcaster post (via server.js onEvent)
+        onEvent('nonpayer', { username, entry });
+
+        // 2. Reply to original bounty cast
+        const replyText = 'Respondí a este bounty hace ' + NONPAYER_WAIT_DAYS + '+ días (score ' + entry.score + '/10). Sin recompensa hasta ahora. Si el trabajo fue útil, el pago sigue abierto. /bounties';
+        try {
+          await neynarPost('/v2/farcaster/cast', { signer_uuid: signerUuid, text: replyText, parent: entry.hash }, neynarApiKey);
+          onEvent('info', '[BOUNTY] Reply de no-pago enviado al cast original');
+        } catch (e) {
+          onEvent('warn', '[BOUNTY] No se pudo enviar reply de no-pago: ' + e.message.slice(0, 80));
+        }
+      }
+    }
+
+    if (changed) {
+      const s = getState();
+      s.bountiesPending = stillPending;
+      s.blacklistedFids = blacklisted;
+      saveState(s);
+    }
   }
 
   // Payout watcher — reads ETH + USDC balance on Base
@@ -639,6 +739,14 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     checkPayout();
     setInterval(checkPayout, PAYOUT_POLL_MS);
   }, 60000);
+
+  // Non-payer watcher (first run 2 min after start, then every 6h)
+  setTimeout(() => {
+    processPendingBounties().catch(e => onEvent('warn', '[BOUNTY] watchPending error: ' + e.message));
+    setInterval(() => {
+      processPendingBounties().catch(e => onEvent('warn', '[BOUNTY] watchPending error: ' + e.message));
+    }, WATCH_INTERVAL_MS);
+  }, 2 * 60 * 1000);
 }
 
 module.exports = { startBountyEngine };
