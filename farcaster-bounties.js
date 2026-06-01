@@ -27,7 +27,7 @@ const ELIGIBLE_CATEGORIES = [
 
 // Hard disqualifiers (pre-Claude filter, cheap)
 const DISQUALIFY_PATTERNS = [
-  /\b(code|program|script|bug fix|pull request|pr|deploy|build|compile|execute|run)\b/i,
+  /\b(code|program|script|bug fix|pull request|pr|deploy|build|compile|execute)\b/i,
   /\b(design|logo|banner|image|video|audio|music|animation|art|illustration|photo)\b/i,
   /\b(first (one|to)|fastest|most|highest|win|competition)\b/i,
   /\b(login|account|password|credentials|personal data|kyc)\b/i,
@@ -198,26 +198,44 @@ function baseRpc(method, params) {
   });
 }
 
-// Parse bounty amount from cast text (e.g. "10 USDC", "$50", "0.01 ETH", "100,000 DEGEN")
-// Lookbehind (?<![0-9,]) prevents matching digits inside larger comma-separated numbers
-// (e.g. "000" inside "164,000 $SKY" must not produce amount=0).
+// Parse bounty amount from cast text. Handles:
+//   "10 USDC", "10 $USDC", "10 DEGEN", "10 $DEGEN" → {10, 'usdc'/'degen'}
+//   "$50"                                            → {50, 'usd'}
+//   "164,000 $SKY" (unknown token)                  → {164000, 'unknown'}
+// Lookbehind (?<![0-9,]) prevents "000" inside "164,000 $SKY" from matching.
 function parseBountyAmount(text) {
-  const m = text.match(/(?<![0-9,])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(usdc|eth|degen|op|usd|\$)/i)
-    || text.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/i);
+  const m =
+    // "10 $DEGEN" / "10 $USDC" — digits then $KNOWN_TOKEN
+    text.match(/(?<![0-9,])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*\$(usdc|eth|degen|op)/i) ||
+    // "10 DEGEN" / "10 USDC" / "10 USD" — digits then KNOWN_TOKEN (no $)
+    text.match(/(?<![0-9,])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s+(usdc|eth|degen|op|usd)\b/i) ||
+    // "$50" — dollar sign then digits (USD implied)
+    text.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\b/i) ||
+    // "164,000 $SKY" — digits before any $TOKEN (unknown token, still record the amount)
+    text.match(/(?<![0-9,])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*\$[A-Z]/i);
   if (!m) return { amount: 0, token: 'unknown' };
   const raw = (m[1] || m[0]).replace(/[^0-9.]/g, '');
-  const token = (m[2] || 'usd').toLowerCase().replace('$', 'usd');
+  const token = m[2] ? m[2].toLowerCase() : (/^\$/.test(m[0]) ? 'usd' : 'unknown');
   return { amount: parseFloat(raw) || 0, token };
 }
 
-// Estimate USD value of bounty
+// Estimate USD value of bounty (rough, for pre-filtering only)
 function estimateUsd(amount, token, ethPriceUsd) {
   if (!amount) return 0;
   if (token === 'usdc' || token === 'usd') return amount;
   if (token === 'eth') return amount * (ethPriceUsd || 2000);
-  if (token === 'degen') return amount * 0.002;
-  if (token === 'op') return amount * 1.5;
-  return amount * 0.01; // unknown token, conservative
+  if (token === 'degen') return amount * 0.003;
+  if (token === 'op') return amount * 1.2;
+  return amount * 0.001; // unknown token: assume low value, don't filter out
+}
+
+// Extract deadline date from bounty text. Returns Date or null.
+function parseDeadline(text) {
+  const m = text.match(/\b(?:deadline|expir(?:y|es?)|due)[:\s]+(\d{4}-\d{2}-\d{2})/i)
+    || text.match(/\b(?:deadline|expir(?:y|es?)|due)[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+  if (!m) return null;
+  const d = new Date(m[1]);
+  return Number.isFinite(d.getTime()) ? d : null;
 }
 
 async function fetchBounties(apiKey, onEvent) {
@@ -417,7 +435,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
     const ethUsd = getEthPriceUsd();
     let lastSubmitTime = state.lastBountySubmit || 0;
-    const stats = { alreadySeen: 0, noAmount: 0, dust: 0, disqualified: 0, noKeyword: 0, candidates: 0 };
+    const stats = { alreadySeen: 0, expired: 0, noAmount: 0, dust: 0, disqualified: 0, candidates: 0 };
     const MAX_CLAUDE_CALLS_PER_SCAN = 20; // avoid API spam; real filter is confidence threshold
     let claudeCalls = 0;
 
@@ -428,6 +446,10 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
       // NOTE: do NOT mark seen up-front. Mark only after a DEFINITIVE decision
       // (not eligible / low score / submitted) so transient infra errors retry.
+
+      // Pre-filter: skip bounties with expired deadline
+      const dl = parseDeadline(bounty.text);
+      if (dl && dl < new Date()) { stats.expired++; seen[bounty.hash] = Date.now(); continue; }
 
       // Pre-filter: discard bounties without a valid parent_author (can't reliably attribute)
       if (!bounty.hasParentAuthor) {
@@ -544,7 +566,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     }
 
     // Log filter breakdown so we can tune thresholds
-    onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' candidatos:' + stats.candidates);
+    onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' vencidos:' + stats.expired + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' candidatos:' + stats.candidates);
 
     // Save seen state (purged of stale entries)
     const s = getState();

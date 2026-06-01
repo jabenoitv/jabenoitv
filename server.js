@@ -814,14 +814,14 @@ header h1{font-size:1.1em;color:#38bdf8}
     <span id="bts" style="color:#7c3aed">escaneando...</span>
   </div>
   <div class="bcards">
-    <div class="bc"><div class="bl">Descubiertos</div><div class="bv" id="b-seen">-</div><div class="bs">acumulado</div></div>
+    <div class="bc"><div class="bl">Evaluados</div><div class="bv" id="b-seen">-</div><div class="bs">total acumulado</div></div>
     <div class="bc"><div class="bl">Enviados hoy</div><div class="bv" id="b-today">0</div><div class="bs" id="b-limit">máx 5/día</div></div>
     <div class="bc"><div class="bl">Total enviados</div><div class="bv" id="b-total">0</div><div class="bs">histórico</div></div>
-    <div class="bc"><div class="bl">Próximo scan</div><div class="bv" id="b-next">25 min</div><div class="bs">interval</div></div>
+    <div class="bc"><div class="bl">Último envío</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
   </div>
   <div id="blist"><div class="empty">Esperando primer ciclo de bounties...</div></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v10-bounties</div>
+<div class="footer"><a href="/">Refrescar</a> · build v11</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -982,6 +982,7 @@ function loadBounties(){
     document.getElementById('b-seen').textContent=bd.seenTotal||0;
     document.getElementById('b-today').textContent=bd.submittedToday||0;
     document.getElementById('b-total').textContent=bd.submittedTotal||0;
+    if(bd.lastSubmission){var ls=bd.lastSubmission;document.getElementById('b-lasttok').textContent=(ls.amount||'?')+' '+(ls.token||'');document.getElementById('b-lastscore').textContent='score '+(ls.score||'?')+'/10';}
     var bmode=document.getElementById('bmode');
     if(bd.dryRun===false){bmode.textContent='live';bmode.className='mode-badge mode-live';}
     else{bmode.textContent='dry-run';bmode.className='mode-badge mode-dry';}
@@ -989,10 +990,12 @@ function loadBounties(){
     var bel=document.getElementById('blist');
     var items=bd.recent||[];
     bel.innerHTML=items.length?items.map(function(b){
-      var tag=b.dryRun?'<span class="btag dry">dry</span>':'<span class="btag sent">enviado</span>';
-      var desc=(b.bountyText||b.description||'').replace(/</g,'&lt;').slice(0,80);
-      var amt=b.amount?(b.amount+' '+b.token):'';
-      return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div>'+(amt?'<div class="bamt">'+amt+'</div>':'')+'</div>';
+      var tag='<span class="btag sent">enviado</span>';
+      var desc=(b.text||b.bountyText||b.description||'').replace(/</g,'&lt;').slice(0,90);
+      var amt=b.amount?('<strong>'+(b.amount)+' '+(b.token||'').toUpperCase()+'</strong>'):'';
+      var sc=b.score?(' · score '+b.score+'/10'):'';
+      var ts=b.submittedAt?' · '+ftime(b.submittedAt):'';
+      return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div><div class="bamt">'+amt+sc+ts+'</div></div>';
     }).join(''):'<div class="empty">Sin bounties enviados aún...</div>';
   }).catch(function(){});
 }
@@ -1107,7 +1110,7 @@ const server = http.createServer((req, res) => {
       'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
       'Ganado total: ' + totalEarnedEth.toFixed(6) + ' ETH',
       'Jobs completados: ' + completedJobsCount,
-      'ETH/USD: $' + (ethPrice.usd || 0),
+      'ETH/USD: ' + (ethPrice.usd ? '$' + ethPrice.usd : 'N/A'),
       '',
       '--- Mercado ---',
       'Agentes: ' + (marketData.agents || '-') + ' | Mediana: ' + (marketData.median ? marketData.median.toFixed(6) : '-') + ' ETH',
@@ -1116,9 +1119,8 @@ const server = http.createServer((req, res) => {
       '',
       '--- Bounties Farcaster ---',
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
-      'Descubiertos: ' + Object.keys(bountyState.bountiesSeen || {}).length,
-      'Enviados hoy: ' + submitted.filter(s => s.date === today).length,
-      'Enviados total: ' + submitted.length,
+      'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length,
+      submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
       '',
       sep,
       'REGISTROS (' + logs.length + ' entradas — más reciente primero)',
@@ -1132,12 +1134,20 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     const today = new Date().toISOString().slice(0, 10);
     const submitted = bountyState.bountiesSubmitted || [];
+    const last = submitted.length > 0 ? submitted[submitted.length - 1] : null;
     return res.end(JSON.stringify({
       submittedToday: submitted.filter(s => s.date === today).length,
       submittedTotal: submitted.length,
-      recent: submitted.slice(-10).reverse(),
+      recent: submitted.slice(-5).reverse(),
       seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
-      dryRun: process.env.BOUNTY_AUTOPOST !== '1'
+      dryRun: process.env.BOUNTY_AUTOPOST !== '1',
+      lastSubmission: last ? {
+        amount: last.amount,
+        token: (last.token || '').toUpperCase(),
+        score: last.score,
+        text: (last.text || '').slice(0, 100),
+        at: last.submittedAt
+      } : null
     }));
   }
   if (url === '/api/jobs') {
