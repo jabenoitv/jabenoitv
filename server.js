@@ -230,6 +230,7 @@ let lastCashclawLogDate = '';
 let lastSetupDate = '';
 let lastFarcasterPost = 0;
 let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0 };
+let lastScan = null;
 
 // Estado persistente en disco
 // DATA_DIR: set to a Railway Volume mount path (e.g. /data) to persist state across redeploys.
@@ -819,9 +820,10 @@ header h1{font-size:1.1em;color:#38bdf8}
     <div class="bc"><div class="bl">Total enviados</div><div class="bv" id="b-total">0</div><div class="bs">histórico</div></div>
     <div class="bc"><div class="bl">Último envío</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
   </div>
-  <div id="blist"><div class="empty">Esperando primer ciclo de bounties...</div></div>
+  <div id="bstatus" style="padding:8px 12px;font-size:.82em;color:#64748b;border-top:1px solid #1e293b">Esperando primer ciclo...</div>
+  <div id="blist"></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v11</div>
+<div class="footer"><a href="/">Refrescar</a> · build v12</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -987,6 +989,31 @@ function loadBounties(){
     if(bd.dryRun===false){bmode.textContent='live';bmode.className='mode-badge mode-live';}
     else{bmode.textContent='dry-run';bmode.className='mode-badge mode-dry';}
     document.getElementById('bts').textContent='actualizado '+ftime(new Date().toISOString());
+    // Plain-Spanish scan summary
+    var statusEl=document.getElementById('bstatus');
+    var bl=bd.lastScan;
+    if(bl){
+      var s=bl.stats||{};
+      var newBounties=(s.expired||0)+(s.noAmount||0)+(s.dust||0)+(s.disqualified||0)+(s.candidates||0);
+      var ago=Math.round((Date.now()-bl.ts)/60000);
+      var agoStr=ago<1?'hace menos de 1 min':'hace '+ago+' min';
+      var msg;
+      if(newBounties===0){
+        msg='<strong>Sin bounties nuevos</strong> — esperando que lleguen nuevos en Farcaster';
+      } else if(bl.submissions&&bl.submissions.length>0){
+        var subs=bl.submissions.map(function(sub){
+          return '✅ <strong>Enviado</strong>: "'+sub.text.replace(/</g,'&lt;').slice(0,55)+'…" — <strong>'+sub.amount+' '+(sub.token||'').toUpperCase()+'</strong>, score '+sub.score+'/10';
+        }).join('<br>');
+        msg=newBounties+' bounties nuevos revisados<br>'+subs;
+      } else if(s.candidates>0){
+        msg=newBounties+' bounties nuevos revisados · '+s.candidates+' evaluados con IA · <strong>ninguno pasó el mínimo de calidad (8/10)</strong>';
+      } else {
+        msg=newBounties+' bounties nuevos, <strong>ninguno elegible</strong> (filtrados antes de IA)';
+      }
+      statusEl.innerHTML='<span style="color:#94a3b8">'+agoStr+'</span> — '+msg;
+    } else {
+      statusEl.textContent='Esperando primer ciclo de bounties...';
+    }
     var bel=document.getElementById('blist');
     var items=bd.recent||[];
     bel.innerHTML=items.length?items.map(function(b){
@@ -996,7 +1023,7 @@ function loadBounties(){
       var sc=b.score?(' · score '+b.score+'/10'):'';
       var ts=b.submittedAt?' · '+ftime(b.submittedAt):'';
       return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div><div class="bamt">'+amt+sc+ts+'</div></div>';
-    }).join(''):'<div class="empty">Sin bounties enviados aún...</div>';
+    }).join(''):'';
   }).catch(function(){});
 }
 function load(){loadStatus();loadPrice();loadJobs();loadMarket();loadLogs();loadBounties();}
@@ -1147,7 +1174,8 @@ const server = http.createServer((req, res) => {
         score: last.score,
         text: (last.text || '').slice(0, 100),
         at: last.submittedAt
-      } : null
+      } : null,
+      lastScan
     }));
   }
   if (url === '/api/jobs') {
@@ -1246,6 +1274,9 @@ server.listen(PORT, '0.0.0.0', () => {
         broadcast({ type: 'update' });
         postToFarcaster('Bounty completed + paid on @bountycaster! ' + data.amount + ' ' + data.token + ' received. Autonomous agent @jabenoitv open for work on Farcaster.');
       } else if (type === 'bounty_submitted') {
+        broadcast({ type: 'update' });
+      } else if (type === 'scan_complete') {
+        lastScan = data;
         broadcast({ type: 'update' });
       } else {
         addLog(String(data || type), type === 'warn' ? 'warn' : 'info');

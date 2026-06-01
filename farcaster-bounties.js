@@ -438,6 +438,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const stats = { alreadySeen: 0, expired: 0, noAmount: 0, dust: 0, disqualified: 0, candidates: 0 };
     const MAX_CLAUDE_CALLS_PER_SCAN = 20; // avoid API spam; real filter is confidence threshold
     let claudeCalls = 0;
+    const scanSubmissions = [];
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
@@ -552,6 +553,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
           submittedAt: new Date().toISOString()
         };
         submitted.push(entry);
+        scanSubmissions.push({ amount: bounty.amount, token: bounty.token, score: critique.score, text: bounty.text.slice(0, 70) });
         onEvent('info', '[BOUNTY] Enviado: ' + bounty.amount + ' ' + bounty.token.toUpperCase() + ' — score ' + critique.score + '/10');
         onEvent('bounty_submitted', entry);
         const s = getState();
@@ -580,6 +582,9 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
     // Log filter breakdown so we can tune thresholds
     onEvent('info', '[BOUNTY] Filtros → vistos:' + stats.alreadySeen + ' vencidos:' + stats.expired + ' sinMonto:' + stats.noAmount + ' polvo:' + stats.dust + ' desc:' + stats.disqualified + ' candidatos:' + stats.candidates);
+
+    // Emit scan summary for dashboard (plain-language status)
+    onEvent('scan_complete', { ts: Date.now(), stats, submissions: scanSubmissions });
 
     // Save seen state (purged of stale entries)
     const s = getState();
