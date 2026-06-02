@@ -58,6 +58,7 @@ console.log('Config ready. AgentId:', process.env.AGENT_ID);
 console.log('Wallet address:', process.env.WALLET_ADDRESS || '(no configurada)');
 console.log('Private key:', process.env.WALLET_PRIVATE_KEY ? '***configurada***' : '(FALTA WALLET_PRIVATE_KEY)');
 console.log('Farcaster:', NEYNAR_API_KEY ? 'API key OK' : '(FALTA NEYNAR_API_KEY)', '/', farcasterSignerUuid ? 'signer OK' : 'pendiente SIWN — visita /connect-farcaster');
+console.log('[DIAG] HOME:', os.homedir(), '| UID:', process.getuid ? process.getuid() : 'n/a', '| workclaw dir:', w);
 if (!DASHBOARD_SECRET) {
   console.warn('===========================================================');
   console.warn('[SEGURIDAD] DASHBOARD_SECRET NO esta configurado: TODOS los endpoints estan PUBLICOS (fail-open). Configura DASHBOARD_SECRET para proteger el dashboard.');
@@ -1210,6 +1211,7 @@ const server = http.createServer((req, res) => {
       '',
       'Uptime: ' + (process.uptime() | 0) + 's',
       'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
+      '[DIAG] HOME=' + os.homedir() + ' UID=' + (process.getuid ? process.getuid() : 'n/a') + ' DATA_DIR=' + (process.env.DATA_DIR || 'no set') + ' writable=' + _dataDirWritable,
       'Wallet ETH: ' + (walletEth !== null ? walletEth.toFixed(6) + ' ETH' : 'sin datos (espera ~1 min)'),
       'Wallet USDC: ' + (walletUsdc !== null ? walletUsdc.toFixed(2) + ' USDC' : 'sin datos'),
       'Jobs Moltlaunch: ' + completedJobsCount,
