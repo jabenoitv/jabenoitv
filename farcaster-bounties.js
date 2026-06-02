@@ -54,7 +54,10 @@ const DISQUALIFY_PATTERNS = [
   // "convince/convice/persuade X to buy" — typos included, requires getting named people to take financial action
   /\bconv\w{2,}\s+\S+.*\b(buy|purchase|invest|bid)\b/i,
   // "sell/selling this [X] to Y" — sales pitch to named person/team
-  /\bsell\w*\s+(this|the|my)(\s+\S+)?\s+to\b/i
+  /\bsell\w*\s+(this|the|my)(\s+\S+)?\s+to\b/i,
+  // Bountycaster meta-instructions: "reply/respond with 'add X'" — admin messages, not real tasks
+  /\b(reply|respond)\s+with\s+["']?\s*add\s+\d/i,
+  /^add\s+\d+\s*(usdc|eth|degen|op)\b/i
 ];
 
 // Purge bountiesSeen entries older than 7 days to keep state.json bounded.
