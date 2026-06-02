@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
-const { startBountyEngine } = require('./farcaster-bounties.js');
+const { startBountyEngine, getClaudeCallCount } = require('./farcaster-bounties.js');
 
 process.on('uncaughtException', (err) => {
   console.error('[CRASH EVITADO] uncaughtException:', err.message);
@@ -231,6 +231,10 @@ let lastSetupDate = '';
 let lastFarcasterPost = 0;
 let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], blacklistedFids: {} };
 let lastScan = null;
+let walletEth = null;
+let walletUsdc = null;
+let walletLastCheck = null;
+let warnCount = 0;
 
 // Estado persistente en disco
 // DATA_DIR: set to a Railway Volume mount path (e.g. /data) to persist state across redeploys.
@@ -366,6 +370,7 @@ function addLog(line, type) {
     broadcast({ type: 'update', totalEarned: totalEarnedEth, jobCount: jobs.length });
     return;
   }
+  if (type === 'warn') warnCount++;
   const entry = { time: new Date(now).toISOString(), msg, type };
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
@@ -754,6 +759,8 @@ header h1{font-size:1.1em;color:#38bdf8}
     <p style="color:#94a3b8;font-size:.73em;margin-top:2px">ID #${AGENT_ID} - Moltlaunch Marketplace</p>
   </div>
   <div class="hdr-r">
+    <span id="clock" style="font-size:.78em;color:#94a3b8;font-variant-numeric:tabular-nums;margin-right:10px"></span>
+    <span id="errbadge" style="display:none;background:#dc2626;color:#fff;border-radius:10px;padding:1px 8px;font-size:.72em;cursor:pointer;margin-right:6px" onclick="showErrors()">0 err</span>
     <span id="hst" style="font-size:.75em;color:#94a3b8">conectando...</span>
     <button class="nbtn" id="rfrbtn" onclick="location.reload()" style="font-size:.9em;padding:7px 18px">⟳ Refrescar</button>
     <button class="nbtn" id="snpbtn" onclick="copySnapshot()">Copiar todo</button>
@@ -761,14 +768,16 @@ header h1{font-size:1.1em;color:#38bdf8}
   </div>
 </header>
 <div class="earn" id="earn">
-  <div class="earn-lbl">Ganancias totales</div>
-  <div class="earn-eth" id="earn-eth">0.000000 ETH</div>
+  <div class="earn-lbl">Wallet Base (en vivo)</div>
+  <div class="earn-eth" id="earn-eth">cargando...</div>
   <div class="earn-fiat">
-    <span id="earn-usd">$ 0.00 USD</span>
-    <span class="sep">|</span>
-    <span id="earn-clp">$ 0 CLP</span>
+    <span id="earn-usdc">USDC: —</span>
+    <span class="sep"> | </span>
+    <span id="earn-usd">$ — USD</span>
+    <span class="sep"> | </span>
+    <span id="earn-clp">$ — CLP</span>
   </div>
-  <div class="earn-ts" id="earn-ts">conectando...</div>
+  <div class="earn-ts" id="earn-ts">sin datos aún · actualiza cada 5 min</div>
 </div>
 <div class="cards">
   <div class="card"><label>Estado</label><div class="v" id="st"><span class="dot warn"></span>...</div></div>
@@ -821,6 +830,15 @@ header h1{font-size:1.1em;color:#38bdf8}
   <div class="sec-h"><span><span class="ldot" id="ldot"></span>Actividad reciente</span><span id="lcnt" style="color:#64748b;font-size:.75em">-</span></div>
   <div id="llist"><div class="empty">Cargando...</div></div>
 </div>
+<div class="sec">
+  <div class="sec-h"><span>Costos y ROI</span><span id="roi-ts" style="color:#64748b;font-size:.75em">—</span></div>
+  <div class="bcards">
+    <div class="bc"><div class="bl">Llamadas Claude</div><div class="bv" id="roi-calls">0</div><div class="bs" id="roi-cost">~$0.00</div></div>
+    <div class="bc"><div class="bl">Pendiente cobro</div><div class="bv" id="roi-pend">$0</div><div class="bs">USDC enviados sin pagar</div></div>
+    <div class="bc"><div class="bl">Railway est.</div><div class="bv">~$5</div><div class="bs">/mes (Hobby)</div></div>
+    <div class="bc"><div class="bl">Veredicto</div><div class="bv" id="roi-net" style="font-size:.85em">—</div><div class="bs" id="roi-verdict"></div></div>
+  </div>
+</div>
 <div class="bsec">
   <div class="sec-h">
     <span>Bounties Farcaster <span id="bmode" class="mode-badge mode-dry">dry-run</span></span>
@@ -834,8 +852,9 @@ header h1{font-size:1.1em;color:#38bdf8}
   </div>
   <div id="bstatus" style="padding:8px 12px;font-size:.82em;color:#64748b;border-top:1px solid #1e293b">Esperando primer ciclo...</div>
   <div id="blist"></div>
+  <div id="bmore" style="display:none;text-align:center;padding:8px"><button class="nbtn" style="font-size:.8em" onclick="loadMoreBounties()">Ver todo el historial</button></div>
 </div>
-<div class="footer"><a href="/">Refrescar</a> · build v14</div>
+<div class="footer"><a href="/">Refrescar</a> · build v15</div>
 <script>
 var ethUsd=0,ethClp=0,prevEarned=0,prevJC=0,notifOk=false,loadTmr=null,ourPrice=0;
 var _tk=new URLSearchParams(window.location.search).get('token')||'';
@@ -852,17 +871,26 @@ function fUsd(v){return '$ '+fN(v,2)+' USD';}
 function fClp(v){return '$ '+Math.round(v).toLocaleString('es-CL')+' CLP';}
 var dC={running:'dot',restarting:'dot warn',starting:'dot warn',stopped:'dot off'};
 
-(function(){
-  try{
-    var s=JSON.parse(localStorage.getItem('claw')||'null');
-    if(s&&s.eth>0){
-      document.getElementById('earn-eth').textContent=s.eth.toFixed(6)+' ETH';
-      if(s.usd)document.getElementById('earn-usd').textContent='$ '+s.usd+' USD';
-      if(s.clp)document.getElementById('earn-clp').textContent='$ '+s.clp+' CLP';
-      prevEarned=s.eth;
+setInterval(function(){var d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
+
+function loadWallet(){
+  afetch('/api/wallet').then(function(w){
+    var eth=w.eth,usdc=w.usdc;
+    if(eth!==null&&eth!==undefined){
+      document.getElementById('earn-eth').textContent=eth.toFixed(6)+' ETH';
+      var usd=eth*(ethUsd||0);
+      if(ethUsd){document.getElementById('earn-usd').textContent='$ '+fN(usd,2)+' USD';document.getElementById('earn-clp').textContent='$ '+Math.round(usd*(ethClp||0)).toLocaleString('es-CL')+' CLP';}
     }
-  }catch(e){}
-})();
+    if(usdc!==null&&usdc!==undefined)document.getElementById('earn-usdc').textContent='USDC: '+fN(usdc,2);
+    if(w.lastCheck)document.getElementById('earn-ts').textContent='Actualizado: '+ftime(new Date(w.lastCheck).toISOString())+' · prox. 5 min';
+    var calls=w.claudeCalls||0,cost=calls*0.003;
+    document.getElementById('roi-calls').textContent=calls;
+    document.getElementById('roi-cost').textContent='~$'+fN(cost,2)+' USD';
+    document.getElementById('roi-ts').textContent='actualizado '+ftime(new Date().toISOString());
+    var wc=w.warnCount||0;
+    if(wc>0){var b=document.getElementById('errbadge');b.textContent=wc+' err';b.style.display='inline-block';}
+  }).catch(function(){});
+}
 
 var nb=document.getElementById('nb');
 function setNOn(){notifOk=true;nb.textContent='Alertas ON';nb.classList.add('on');}
@@ -890,16 +918,8 @@ function flashBanner(){
 }
 
 function updateEarnings(te){
-  if(te!==prevEarned){
-    animNum(document.getElementById('earn-eth'),prevEarned,te,800,fEth);
-    if(ethUsd){animNum(document.getElementById('earn-usd'),prevEarned*ethUsd,te*ethUsd,800,fUsd);animNum(document.getElementById('earn-clp'),prevEarned*ethClp,te*ethClp,800,fClp);}
-    if(te>prevEarned){flashBanner();if(notifOk){var d=(te-prevEarned).toFixed(6);try{new Notification('Pago recibido',{body:d+' ETH',tag:'cp',requireInteraction:false});}catch(ex){}}}
-    prevEarned=te;
-    try{localStorage.setItem('claw',JSON.stringify({eth:te,usd:ethUsd?(te*ethUsd).toFixed(2):'0.00',clp:ethClp?Math.round(te*ethClp).toString():'0'}));}catch(ex){}
-  }else{
-    document.getElementById('earn-eth').textContent=fEth(te);
-    if(ethUsd){document.getElementById('earn-usd').textContent=fUsd(te*ethUsd);document.getElementById('earn-clp').textContent=fClp(te*ethClp);}
-  }
+  if(te>prevEarned&&notifOk){var d=(te-prevEarned).toFixed(6);try{new Notification('Pago Moltlaunch',{body:d+' ETH',tag:'cp',requireInteraction:false});}catch(ex){}}
+  prevEarned=te;
 }
 
 function setPriceCards(p){
@@ -954,7 +974,7 @@ function loadPrice(){
   afetch('/api/price').then(function(pr){
     if(!pr||!pr.usd)return;
     ethUsd=pr.usd;ethClp=pr.clp;
-    document.getElementById('earn-ts').textContent='1 ETH = $'+fN(pr.usd,0)+' USD';
+    loadWallet();
   }).catch(function(){});
 }
 function loadJobs(){
@@ -1027,6 +1047,17 @@ function loadBounties(){
     } else {
       statusEl.textContent='Esperando primer ciclo de bounties...';
     }
+    var pendUsd=(bd.recent||[]).filter(function(b){return (b.token||'').toUpperCase()==='USDC';}).reduce(function(acc,b){return acc+(b.amount||0);},0);
+    document.getElementById('roi-pend').textContent='$'+fN(pendUsd,0);
+    var claudeCostEst=parseFloat((document.getElementById('roi-cost').textContent||'0').replace(/[^0-9.]/g,''))||0;
+    var roiNet=pendUsd-claudeCostEst;
+    var roiEl=document.getElementById('roi-net');
+    var roiV=document.getElementById('roi-verdict');
+    if(pendUsd>0&&claudeCostEst>0){
+      if(pendUsd>claudeCostEst){roiEl.textContent='+$'+fN(pendUsd-claudeCostEst,2);roiEl.style.color='#4ade80';roiV.textContent='positivo si te pagan';}
+      else{roiEl.textContent='-$'+fN(claudeCostEst-pendUsd,2);roiEl.style.color='#f87171';roiV.textContent='costo Claude > pendiente';}
+    }else if(pendUsd>0){roiEl.textContent='$'+fN(pendUsd,2)+' pend.';roiEl.style.color='#fbbf24';roiV.textContent='esperando que te paguen';}
+    else{roiEl.textContent='—';roiEl.style.color='#64748b';roiV.textContent='sin bounties enviados aún';}
     var bel=document.getElementById('blist');
     var items=bd.recent||[];
     bel.innerHTML=items.length?items.map(function(b){
@@ -1037,8 +1068,29 @@ function loadBounties(){
       var ts=b.submittedAt?' · '+ftime(b.submittedAt):'';
       return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div><div class="bamt">'+amt+sc+ts+'</div></div>';
     }).join(''):'';
+    var bmore=document.getElementById('bmore');
+    if((bd.submittedTotal||0)>5)bmore.style.display='block';
   }).catch(function(){});
 }
+var _allBountiesLoaded=false;
+function loadMoreBounties(){
+  if(_allBountiesLoaded)return;
+  _allBountiesLoaded=true;
+  afetch('/api/bounties?all=1').then(function(bd){
+    if(!bd||!bd.recent)return;
+    var bel=document.getElementById('blist');
+    bel.innerHTML=bd.recent.map(function(b){
+      var tag='<span class="btag sent">enviado</span>';
+      var desc=(b.text||b.bountyText||b.description||'').replace(/</g,'&lt;').slice(0,90);
+      var amt=b.amount?('<strong>'+(b.amount)+' '+(b.token||'').toUpperCase()+'</strong>'):'';
+      var sc=b.score?(' · score '+b.score+'/10'):'';
+      var ts=b.submittedAt?' · '+fdate(b.submittedAt):'';
+      return '<div class="bitem">'+tag+'<div class="bmsg">'+desc+'</div><div class="bamt">'+amt+sc+ts+'</div></div>';
+    }).join('');
+    document.getElementById('bmore').style.display='none';
+  }).catch(function(){});
+}
+function showErrors(){document.getElementById('llist').scrollIntoView({behavior:'smooth'});}
 function load(){loadStatus();loadPrice();loadJobs();loadMarket();loadLogs();loadBounties();}
 
 function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
@@ -1046,11 +1098,11 @@ function schedLoad(){clearTimeout(loadTmr);loadTmr=setTimeout(load,300);}
 var ldot=document.getElementById('ldot');
 function connectSSE(){
   var es=new EventSource(_tq('/events'));
-  es.addEventListener('open',function(){ldot.classList.add('on');document.getElementById('earn-ts').textContent='en vivo';});
+  es.addEventListener('open',function(){ldot.classList.add('on');});
   es.onmessage=function(ev){
     try{
       var d=JSON.parse(ev.data);
-      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(prevEarned>0){document.getElementById('earn-usd').textContent=fUsd(prevEarned*ethUsd);document.getElementById('earn-clp').textContent=fClp(prevEarned*ethClp);}document.getElementById('earn-ts').textContent='1 ETH = $'+fN(d.usd,0)+' USD - actualizado '+ftime(new Date().toISOString());if(ourPrice>0)setPriceCards(ourPrice);}
+      if(d.type==='price'){ethUsd=d.usd;ethClp=d.clp;if(ourPrice>0)setPriceCards(ourPrice);loadWallet();}
       if(d.type==='update')schedLoad();
       if(d.type==='market')updateMarket(d);
     }catch(ex){}
@@ -1075,7 +1127,9 @@ function fallbackCopy(txt,btn){
 }
 connectSSE();
 load();
+loadWallet();
 setInterval(load,30000);
+setInterval(loadWallet,5*60*1000);
 <\/script>
 </body></html>`;
 
@@ -1148,8 +1202,11 @@ const server = http.createServer((req, res) => {
       '',
       'Uptime: ' + (process.uptime() | 0) + 's',
       'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
-      'Ganado total: ' + totalEarnedEth.toFixed(6) + ' ETH',
-      'Jobs completados: ' + completedJobsCount,
+      'Wallet ETH: ' + (walletEth !== null ? walletEth.toFixed(6) + ' ETH' : 'sin datos (espera ~1 min)'),
+      'Wallet USDC: ' + (walletUsdc !== null ? walletUsdc.toFixed(2) + ' USDC' : 'sin datos'),
+      'Jobs Moltlaunch: ' + completedJobsCount,
+      'Claude calls: ' + getClaudeCallCount() + ' (~$' + (getClaudeCallCount() * 0.003).toFixed(2) + ' USD est.)',
+      'Alertas/errores: ' + warnCount,
       'ETH/USD: ' + (ethPrice.usd ? '$' + ethPrice.usd : 'N/A'),
       '',
       '--- Mercado ---',
@@ -1171,15 +1228,27 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
     return res.end(lines.join('\n'));
   }
+  if (url === '/api/wallet') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify({
+      eth: walletEth,
+      usdc: walletUsdc,
+      address: process.env.WALLET_ADDRESS || '0xccba4f45bc42877e9d4abc5fc3f66c208c9bb1cb',
+      lastCheck: walletLastCheck,
+      claudeCalls: getClaudeCallCount(),
+      warnCount
+    }));
+  }
   if (url === '/api/bounties') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     const today = new Date().toISOString().slice(0, 10);
     const submitted = bountyState.bountiesSubmitted || [];
     const last = submitted.length > 0 ? submitted[submitted.length - 1] : null;
+    const showAll = req.url.includes('all=1');
     return res.end(JSON.stringify({
       submittedToday: submitted.filter(s => s.date === today).length,
       submittedTotal: submitted.length,
-      recent: submitted.slice(-5).reverse(),
+      recent: showAll ? submitted.slice().reverse() : submitted.slice(-5).reverse(),
       seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
       pendingCount: (bountyState.bountiesPending || []).length,
       blacklistedCount: Object.keys(bountyState.blacklistedFids || {}).length,
@@ -1293,7 +1362,12 @@ server.listen(PORT, '0.0.0.0', () => {
     saveState: (s) => { bountyState = s; saveState(); },
     dryRun: process.env.BOUNTY_AUTOPOST !== '1',
     onEvent: (type, data) => {
-      if (type === 'payout') {
+      if (type === 'wallet_balance') {
+        walletEth = data.eth;
+        walletUsdc = data.usdc;
+        walletLastCheck = Date.now();
+        broadcast({ type: 'update' });
+      } else if (type === 'payout') {
         const msg = 'Bounty pagado: ' + data.amount + ' ' + data.token;
         addLog(msg, 'info');
         broadcast({ type: 'update' });

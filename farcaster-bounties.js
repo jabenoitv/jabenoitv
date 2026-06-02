@@ -171,7 +171,10 @@ async function checkBountyCast(hash, posterFid, apiKey) {
   return 'paid_other';
 }
 
+let _claudeCallsMade = 0;
+
 function claudeChatOnce(messages, system, anthropicKey) {
+  _claudeCallsMade++;
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: 'claude-sonnet-4-6',
@@ -722,6 +725,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       const usdcHex = await baseRpc('eth_call', [{ to: USDC_BASE, data: callData }, 'latest']);
       const usdcNow = parseInt(usdcHex, 16) / 1e6;
 
+      onEvent('wallet_balance', { eth: ethNow, usdc: usdcNow });
+
       if (baselineEth === null) { baselineEth = ethNow; baselineUsdc = usdcNow; return; }
 
       const ethDelta = ethNow - baselineEth;
@@ -763,4 +768,4 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
   }, 2 * 60 * 1000);
 }
 
-module.exports = { startBountyEngine };
+module.exports = { startBountyEngine, getClaudeCallCount: () => _claudeCallsMade };
