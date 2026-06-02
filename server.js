@@ -243,12 +243,13 @@ const _preferredDataDir = process.env.DATA_DIR ? process.env.DATA_DIR : w;
 try { fs.mkdirSync(_preferredDataDir, { recursive: true }); } catch (e) {}
 // Verify the directory is actually writable (a Volume env var set without actual mount is a common mistake)
 let _dataDirWritable = false;
+let _dataDirWriteErr = '';
 try {
   const _t = path.join(_preferredDataDir, '.write-test');
   fs.writeFileSync(_t, '');
   try { fs.unlinkSync(_t); } catch(e) {}
   _dataDirWritable = true;
-} catch (e) { _dataDirWritable = false; }
+} catch (e) { _dataDirWritable = false; _dataDirWriteErr = e.code + ': ' + e.message.slice(0, 80); }
 const DATA_DIR = (_dataDirWritable || !process.env.DATA_DIR) ? _preferredDataDir : w;
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
@@ -1350,7 +1351,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
   if (persistInfo.fallback) {
-    addLog('⚠️ Memoria: DATA_DIR=' + process.env.DATA_DIR + ' no es escribible (Volume no montado en Railway) — usando disco temporal. Ve a Service → Storage en Railway y adjunta el Volume con mount path /data.', 'warn');
+    addLog('⚠️ Memoria: DATA_DIR=' + process.env.DATA_DIR + ' no es escribible [' + _dataDirWriteErr + '] — usando disco temporal', 'warn');
   } else if (!persistInfo.usingVolume) {
     addLog('⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR con un Railway Volume)', 'warn');
   } else if (persistInfo.restored) {
