@@ -239,14 +239,21 @@ let warnCount = 0;
 // Estado persistente en disco
 // DATA_DIR: set to a Railway Volume mount path (e.g. /data) to persist state across redeploys.
 // Without a volume, state resets on each redeploy (Railway ephemeral filesystem).
-const DATA_DIR = process.env.DATA_DIR ? process.env.DATA_DIR : w;
-try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
+const _preferredDataDir = process.env.DATA_DIR ? process.env.DATA_DIR : w;
+try { fs.mkdirSync(_preferredDataDir, { recursive: true }); } catch (e) {}
+// Verify the directory is actually writable (a Volume env var set without actual mount is a common mistake)
+let _dataDirWritable = false;
+try {
+  const _t = path.join(_preferredDataDir, '.write-test');
+  fs.writeFileSync(_t, '');
+  try { fs.unlinkSync(_t); } catch(e) {}
+  _dataDirWritable = true;
+} catch (e) { _dataDirWritable = false; }
+const DATA_DIR = (_dataDirWritable || !process.env.DATA_DIR) ? _preferredDataDir : w;
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
-// stateFileExistedAtBoot: true if state.json was already there when this process started.
-// That means data survived a restart → the Volume mount is actually working.
-// False means either first boot or Volume not mounted (data written to ephemeral storage).
 const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
-let persistInfo = { usingVolume: !!process.env.DATA_DIR, stateFileExistedAtBoot, restored: false, seenCount: 0, submittedCount: 0 };
+const _usingVolume = !!process.env.DATA_DIR && _dataDirWritable;
+let persistInfo = { usingVolume: _usingVolume, stateFileExistedAtBoot, restored: false, seenCount: 0, submittedCount: 0, fallback: process.env.DATA_DIR && !_dataDirWritable };
 
 function loadState() {
   try {
@@ -291,7 +298,7 @@ function saveState() {
       lastSync: new Date().toISOString()
     }));
     fs.renameSync(tmp, STATE_FILE);
-  } catch (e) { console.log('Error guardando estado:', e.message); }
+  } catch (e) { addLog('⚠️ Error guardando estado: ' + e.message, 'warn'); }
 }
 
 loadState();
@@ -1218,7 +1225,7 @@ const server = http.createServer((req, res) => {
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
       'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length,
       submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
-      'Memoria: ' + (!persistInfo.usingVolume ? '⚠️ temporal (configura DATA_DIR)' : persistInfo.restored ? '💾 Volume OK — datos del deploy anterior cargados' : '⚠️ Volume configurado pero sin datos previos — verifica mount en Railway'),
+      'Memoria: ' + (persistInfo.fallback ? '🔴 DATA_DIR no escribible — Volume NO montado, estado se pierde al redeploy' : !persistInfo.usingVolume ? '⚠️ temporal (configura DATA_DIR + Volume en Railway)' : persistInfo.restored ? '💾 Volume OK — datos del deploy anterior cargados' : '💾 Volume OK — primer arranque'),
       '',
       sep,
       'REGISTROS (' + logs.length + ' entradas — más reciente primero)',
@@ -1342,14 +1349,16 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
-  if (!persistInfo.usingVolume) {
-    addLog('⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR)', 'warn');
+  if (persistInfo.fallback) {
+    addLog('⚠️ Memoria: DATA_DIR=' + process.env.DATA_DIR + ' no es escribible (Volume no montado en Railway) — usando disco temporal. Ve a Service → Storage en Railway y adjunta el Volume con mount path /data.', 'warn');
+  } else if (!persistInfo.usingVolume) {
+    addLog('⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR con un Railway Volume)', 'warn');
   } else if (persistInfo.restored) {
     addLog('💾 Memoria: Volume OK — restaurada: ' + persistInfo.submittedCount + ' envíos, ' + persistInfo.seenCount + ' vistos', 'info');
   } else if (persistInfo.stateFileExistedAtBoot) {
     addLog('⚠️ Memoria: state.json encontrado pero vacío/corrupto en ' + DATA_DIR, 'warn');
   } else {
-    addLog('💾 Memoria: Volume montado en ' + DATA_DIR + ' — primer arranque (sin estado previo)', 'info');
+    addLog('💾 Memoria: Volume OK — primer arranque (sin estado previo, escribiendo en ' + DATA_DIR + ')', 'info');
   }
   startCashclaw();
   startBountyEngine({
