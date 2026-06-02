@@ -238,7 +238,11 @@ let lastScan = null;
 const DATA_DIR = process.env.DATA_DIR ? process.env.DATA_DIR : w;
 try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) {}
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
-let persistInfo = { usingVolume: !!process.env.DATA_DIR, restored: false, seenCount: 0, submittedCount: 0 };
+// stateFileExistedAtBoot: true if state.json was already there when this process started.
+// That means data survived a restart → the Volume mount is actually working.
+// False means either first boot or Volume not mounted (data written to ephemeral storage).
+const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
+let persistInfo = { usingVolume: !!process.env.DATA_DIR, stateFileExistedAtBoot, restored: false, seenCount: 0, submittedCount: 0 };
 
 function loadState() {
   try {
@@ -1157,7 +1161,7 @@ const server = http.createServer((req, res) => {
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
       'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length,
       submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
-      'Memoria: ' + (persistInfo.usingVolume ? '💾 persistente (Volume)' : '⚠️ temporal (se borra al redeploy)'),
+      'Memoria: ' + (!persistInfo.usingVolume ? '⚠️ temporal (configura DATA_DIR)' : persistInfo.restored ? '💾 Volume OK — datos del deploy anterior cargados' : '⚠️ Volume configurado pero sin datos previos — verifica mount en Railway'),
       '',
       sep,
       'REGISTROS (' + logs.length + ' entradas — más reciente primero)',
@@ -1269,9 +1273,15 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('Dashboard listo en http://0.0.0.0:' + PORT);
-  addLog(persistInfo.usingVolume
-    ? '💾 Memoria: Volumen persistente (' + DATA_DIR + ') — ' + (persistInfo.restored ? 'restaurada: ' + persistInfo.submittedCount + ' envíos, ' + persistInfo.seenCount + ' vistos' : 'vacía, primer arranque')
-    : '⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR)', 'info');
+  if (!persistInfo.usingVolume) {
+    addLog('⚠️ Memoria: disco temporal — se borrará al redesplegar (configura DATA_DIR)', 'warn');
+  } else if (persistInfo.restored) {
+    addLog('💾 Memoria: Volume OK — restaurada: ' + persistInfo.submittedCount + ' envíos, ' + persistInfo.seenCount + ' vistos', 'info');
+  } else if (persistInfo.stateFileExistedAtBoot) {
+    addLog('⚠️ Memoria: state.json encontrado pero vacío/corrupto en ' + DATA_DIR, 'warn');
+  } else {
+    addLog('💾 Memoria: Volume montado en ' + DATA_DIR + ' — primer arranque (sin estado previo)', 'info');
+  }
   startCashclaw();
   startBountyEngine({
     neynarApiKey: NEYNAR_API_KEY,
