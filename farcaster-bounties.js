@@ -287,17 +287,24 @@ async function fetchBounties(apiKey, onEvent) {
 
   // Neynar Hub API: castsByMention fid=20596 — free tier, Farcaster protocol layer.
   // Returns all casts that mention @bountybot (FID 20596) = the actual bounty posts.
-  // Response is protobuf JSON (different schema from Neynar API v2).
+  // Paginate up to 3 pages (reverse=true → newest first) to access historical bounties.
   let messages = [];
-  try {
-    // reverse=1: newest mentions first (hub default is oldest-first, missing recent bounties)
-    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=200&reverse=true', apiKey);
-    messages = data.messages || [];
-    log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
-  } catch (e) {
-    log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
-    return [];
+  let pageToken = null;
+  for (let page = 0; page < 3; page++) {
+    let url = '/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=true';
+    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
+    try {
+      const data = await hubApiGet(url, apiKey);
+      const batch = data.messages || [];
+      messages = messages.concat(batch);
+      pageToken = data.nextPageToken || null;
+      if (!pageToken || batch.length === 0) break;
+    } catch (e) {
+      if (page === 0) { log('warn', '[BOUNTY] HubAPI falló: ' + e.message); return []; }
+      break; // stop paginating on error after first successful page
+    }
   }
+  log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
 
   return messages.filter(msg => {
     if (!msg.data || msg.data.type !== 'MESSAGE_TYPE_CAST_ADD') return false;
