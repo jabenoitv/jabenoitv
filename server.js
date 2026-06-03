@@ -240,7 +240,10 @@ let warnCount = 0;
 // Estado persistente en disco
 // DATA_DIR: set to a Railway Volume mount path (e.g. /data) to persist state across redeploys.
 // Without a volume, state resets on each redeploy (Railway ephemeral filesystem).
-const _preferredDataDir = process.env.DATA_DIR ? process.env.DATA_DIR : w;
+// Use a .cashclaw subdirectory to avoid conflicts with other files in the mount root
+const _preferredDataDir = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, '.cashclaw')
+  : path.join(w, 'state');
 try { fs.mkdirSync(_preferredDataDir, { recursive: true }); } catch (e) {}
 // Verify the directory is actually writable (a Volume env var set without actual mount is a common mistake)
 let _dataDirWritable = false;
@@ -251,7 +254,7 @@ try {
   try { fs.unlinkSync(_t); } catch(e) {}
   _dataDirWritable = true;
 } catch (e) { _dataDirWritable = false; _dataDirWriteErr = e.code + ': ' + e.message.slice(0, 80); }
-const DATA_DIR = (_dataDirWritable || !process.env.DATA_DIR) ? _preferredDataDir : w;
+const DATA_DIR = (_dataDirWritable || !process.env.DATA_DIR) ? _preferredDataDir : path.join(w, 'state');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
 const _usingVolume = !!process.env.DATA_DIR && _dataDirWritable;
@@ -280,7 +283,7 @@ function loadState() {
     persistInfo.seenCount = Object.keys(bountyState.bountiesSeen || {}).length;
     persistInfo.submittedCount = (bountyState.bountiesSubmitted || []).length;
     console.log('Estado restaurado: ' + totalEarnedEth.toFixed(6) + ' ETH, ' + completedJobsCount + ' trabajos, ' + pollCount + ' polls');
-  } catch (e) { /* first run or corrupt state — no problem */ }
+  } catch (e) { if (stateFileExistedAtBoot) console.error('[STATE] loadState error:', e.message); }
 }
 
 let marketplaceSetupDone = false;
@@ -1211,7 +1214,7 @@ const server = http.createServer((req, res) => {
       '',
       'Uptime: ' + (process.uptime() | 0) + 's',
       'Wallet: ' + (process.env.WALLET_ADDRESS || '?'),
-      '[DIAG] HOME=' + os.homedir() + ' UID=' + (process.getuid ? process.getuid() : 'n/a') + ' DATA_DIR=' + (process.env.DATA_DIR || 'no set') + ' writable=' + _dataDirWritable,
+      '[DIAG] HOME=' + os.homedir() + ' UID=' + (process.getuid ? process.getuid() : 'n/a') + ' DATA_DIR=' + DATA_DIR + ' writable=' + _dataDirWritable + ' state=' + (function(){ try { return fs.statSync(STATE_FILE).size + 'b'; } catch(e) { return 'missing'; } }()),
       'Wallet ETH: ' + (walletEth !== null ? walletEth.toFixed(6) + ' ETH' : 'sin datos (espera ~1 min)'),
       'Wallet USDC: ' + (walletUsdc !== null ? walletUsdc.toFixed(2) + ' USDC' : 'sin datos'),
       'Jobs Moltlaunch: ' + completedJobsCount,
