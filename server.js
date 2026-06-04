@@ -265,7 +265,7 @@ let persistInfo = { usingVolume: _usingVolume, stateFileExistedAtBoot, restored:
 function loadState() {
   try {
     const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    if (typeof s.totalEarnedEth === 'number' && s.totalEarnedEth > 0) totalEarnedEth = s.totalEarnedEth;
+    // totalEarnedEth intentionally not restored — WorkClaw log-parsing is unreliable; real balance comes from /api/wallet
     if (typeof s.completedJobsCount === 'number') completedJobsCount = s.completedJobsCount;
     if (Array.isArray(s.jobs)) s.jobs.slice(0, MAX_JOBS).forEach(j => jobs.push(j));
     if (s.ethPrice && s.ethPrice.usd) ethPrice = s.ethPrice;
@@ -932,7 +932,6 @@ function flashBanner(){
 }
 
 function updateEarnings(te){
-  if(te>prevEarned&&notifOk){var d=(te-prevEarned).toFixed(6);try{new Notification('Pago Moltlaunch',{body:d+' ETH',tag:'cp',requireInteraction:false});}catch(ex){}}
   prevEarned=te;
 }
 
