@@ -632,7 +632,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
           seen[bounty.hash] = Date.now();
           const s2 = getState(); s2.bountiesSeen = purgeSeen(seen); saveState(s2);
           if (/Pro subscription/i.test(errMsg)) {
-            onEvent('warn', '[BOUNTY] Farcaster Pro requerido para este cast — descartado (verifica cuenta en Warpcast)');
+            onEvent('info', '[BOUNTY] Farcaster Pro requerido para este cast — descartado');
           } else {
             onEvent('warn', '[BOUNTY] Error permanente al enviar (skip): ' + errMsg.slice(0, 100));
           }
