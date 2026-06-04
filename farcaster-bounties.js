@@ -172,6 +172,8 @@ async function checkBountyCast(hash, posterFid, apiKey) {
 }
 
 let _claudeCallsMade = 0;
+let _totalInputTokens = 0;
+let _totalOutputTokens = 0;
 
 function claudeChatOnce(messages, system, anthropicKey) {
   _claudeCallsMade++;
@@ -199,6 +201,7 @@ function claudeChatOnce(messages, system, anthropicKey) {
         }
         try {
           const r = JSON.parse(d);
+          if (r.usage) { _totalInputTokens += r.usage.input_tokens || 0; _totalOutputTokens += r.usage.output_tokens || 0; }
           resolve(r.content && r.content[0] ? r.content[0].text : '');
         } catch (e) { reject(new Error('Claude parse: ' + d.slice(0, 80))); }
       });
@@ -669,18 +672,16 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
 
     for (const entry of pending) {
       const submittedTs = new Date(entry.submittedAt).getTime();
-      if (submittedTs > cutoff) { stillPending.push(entry); continue; }
-
       const result = await checkBountyCast(entry.hash, entry.posterFid, neynarApiKey).catch(() => 'unknown');
 
       if (result === 'paid_us') {
-        onEvent('info', '[BOUNTY] ✅ Pago confirmado para bounty ' + entry.amount + ' ' + (entry.token || '').toUpperCase());
+        onEvent('bounty_won', entry);
         changed = true;
       } else if (result === 'paid_other') {
         onEvent('info', '[BOUNTY] Bounty ' + entry.amount + ' ' + (entry.token || '').toUpperCase() + ' fue pagado a otro participante');
         changed = true;
-      } else if (result === 'unknown') {
-        stillPending.push(entry); // can't determine yet, keep watching
+      } else if (result === 'unknown' || submittedTs > cutoff) {
+        stillPending.push(entry); // can't determine or too new for non-payer action
       } else {
         // 'unpaid' — non-payer
         const username = await resolveUsername(entry.posterFid, neynarApiKey);
@@ -768,4 +769,13 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
   }, 2 * 60 * 1000);
 }
 
-module.exports = { startBountyEngine, getClaudeCallCount: () => _claudeCallsMade };
+module.exports = {
+  startBountyEngine,
+  getClaudeCallCount: () => _claudeCallsMade,
+  getApiUsage: () => ({
+    calls: _claudeCallsMade,
+    inputTokens: _totalInputTokens,
+    outputTokens: _totalOutputTokens,
+    costUsd: Math.round((_totalInputTokens * 3 + _totalOutputTokens * 15) / 1e6 * 100) / 100
+  })
+};

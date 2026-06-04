@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn, execFile } = require('child_process');
-const { startBountyEngine, getClaudeCallCount } = require('./farcaster-bounties.js');
+const { startBountyEngine, getClaudeCallCount, getApiUsage } = require('./farcaster-bounties.js');
 
 process.on('uncaughtException', (err) => {
   console.error('[CRASH EVITADO] uncaughtException:', err.message);
@@ -230,7 +230,7 @@ let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
 let lastSetupDate = '';
 let lastFarcasterPost = 0;
-let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], blacklistedFids: {} };
+let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], bountiesWon: [], blacklistedFids: {} };
 let lastScan = null;
 let walletEth = null;
 let walletUsdc = null;
@@ -280,6 +280,7 @@ function loadState() {
     if (Array.isArray(s.bountiesSubmitted)) bountyState.bountiesSubmitted = s.bountiesSubmitted;
     if (s.lastBountySubmit) bountyState.lastBountySubmit = s.lastBountySubmit;
     if (Array.isArray(s.bountiesPending)) bountyState.bountiesPending = s.bountiesPending;
+    if (Array.isArray(s.bountiesWon)) bountyState.bountiesWon = s.bountiesWon;
     if (s.blacklistedFids) bountyState.blacklistedFids = s.blacklistedFids;
     persistInfo.restored = true;
     persistInfo.seenCount = Object.keys(bountyState.bountiesSeen || {}).length;
@@ -301,6 +302,7 @@ function saveState() {
       bountiesSubmitted: bountyState.bountiesSubmitted || [],
       lastBountySubmit: bountyState.lastBountySubmit || 0,
       bountiesPending: bountyState.bountiesPending || [],
+      bountiesWon: bountyState.bountiesWon || [],
       blacklistedFids: bountyState.blacklistedFids || {},
       lastSync: new Date().toISOString()
     }));
@@ -859,7 +861,7 @@ header h1{font-size:1.1em;color:#38bdf8}
     <span id="bts" style="color:#7c3aed">escaneando...</span>
   </div>
   <div class="bcards">
-    <div class="bc"><div class="bl">Trabajos enviados</div><div class="bv" id="b-total">0</div><div class="bs">pendiente de pago</div></div>
+    <div class="bc"><div class="bl">Ganados</div><div class="bv" id="b-won" style="color:#4ade80">0</div><div class="bs" id="b-sent-sub">0 enviados</div></div>
     <div class="bc"><div class="bl">Esperando pago</div><div class="bv" id="b-pending">0</div><div class="bs" id="b-blacklist">0 bloqueados</div></div>
     <div class="bc"><div class="bl">Enviados hoy</div><div class="bv" id="b-today">0</div><div class="bs" id="b-limit">máx 5/día</div></div>
     <div class="bc"><div class="bl">Último trabajo</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
@@ -897,9 +899,10 @@ function loadWallet(){
     }
     if(usdc!==null&&usdc!==undefined)document.getElementById('earn-usdc').textContent='USDC: '+fN(usdc,2);
     if(w.lastCheck)document.getElementById('earn-ts').textContent='Actualizado: '+ftime(new Date(w.lastCheck).toISOString())+' · prox. 5 min';
-    var calls=w.claudeCalls||0,cost=calls*0.003;
-    document.getElementById('roi-calls').textContent=calls;
-    document.getElementById('roi-cost').textContent='~$'+fN(cost,2)+' USD';
+    var api=w.api||{},calls=api.calls||0,cost=api.costUsd||0;
+    var inK=Math.round((api.inputTokens||0)/1000),outK=Math.round((api.outputTokens||0)/1000);
+    document.getElementById('roi-calls').textContent=calls+(inK?(' ('+inK+'k↓ '+outK+'k↑)'):'');
+    document.getElementById('roi-cost').textContent='$'+fN(cost,2)+' USD';
     document.getElementById('roi-ts').textContent='actualizado '+ftime(new Date().toISOString());
     var wc=w.warnCount||0;
     if(wc>0){var b=document.getElementById('errbadge');b.textContent=wc+' err';b.style.display='inline-block';}
@@ -1027,7 +1030,8 @@ function loadBounties(){
   afetch('/api/bounties').then(function(bd){
     if(!bd)return;
     document.getElementById('b-today').textContent=bd.submittedToday||0;
-    document.getElementById('b-total').textContent=bd.submittedTotal||0;
+    document.getElementById('b-won').textContent=bd.wonTotal||0;
+    document.getElementById('b-sent-sub').textContent=(bd.submittedTotal||0)+' enviados';
     document.getElementById('b-pending').textContent=bd.pendingCount||0;
     document.getElementById('b-blacklist').textContent=(bd.blacklistedCount||0)+' bloqueados';
     if(bd.lastSubmission){var ls=bd.lastSubmission;document.getElementById('b-lasttok').textContent=(ls.amount||'?')+' '+(ls.token||'');document.getElementById('b-lastscore').textContent='score '+(ls.score||'?')+'/10';}
@@ -1230,7 +1234,7 @@ const server = http.createServer((req, res) => {
       '',
       '--- Bounties Farcaster ---',
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
-      'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length,
+      'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length + ' | Ganados: ' + (bountyState.bountiesWon || []).length,
       submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
       'Memoria: ' + (persistInfo.fallback ? '🔴 DATA_DIR no escribible — Volume NO montado, estado se pierde al redeploy' : !persistInfo.usingVolume ? '⚠️ temporal (configura DATA_DIR + Volume en Railway)' : persistInfo.restored ? '💾 Volume OK — datos del deploy anterior cargados' : '💾 Volume OK — primer arranque'),
       '',
@@ -1249,7 +1253,7 @@ const server = http.createServer((req, res) => {
       usdc: walletUsdc,
       address: process.env.WALLET_ADDRESS || '0xccba4f45bc42877e9d4abc5fc3f66c208c9bb1cb',
       lastCheck: walletLastCheck,
-      claudeCalls: getClaudeCallCount(),
+      api: getApiUsage(),
       warnCount
     }));
   }
@@ -1265,6 +1269,7 @@ const server = http.createServer((req, res) => {
       recent: showAll ? submitted.slice().reverse() : submitted.slice(-5).reverse(),
       seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
       pendingCount: (bountyState.bountiesPending || []).length,
+      wonTotal: (bountyState.bountiesWon || []).length,
       blacklistedCount: Object.keys(bountyState.blacklistedFids || {}).length,
       dryRun: process.env.BOUNTY_AUTOPOST !== '1',
       lastSubmission: last ? {
@@ -1390,6 +1395,12 @@ server.listen(PORT, '0.0.0.0', () => {
         postToFarcaster('Bounty completed + paid on @bountycaster! ' + data.amount + ' ' + data.token + ' received. Autonomous agent @jabenoitv open for work on Farcaster.');
       } else if (type === 'bounty_submitted') {
         broadcast({ type: 'update' });
+      } else if (type === 'bounty_won') {
+        (bountyState.bountiesWon = bountyState.bountiesWon || []).push(data);
+        bountyState.bountiesPending = (bountyState.bountiesPending || []).filter(p => p.hash !== data.hash);
+        addLog('[BOUNTY] 🏆 GANADO: ' + data.amount + ' ' + (data.token || '').toUpperCase() + ' — score ' + data.score + '/10', 'info');
+        broadcast({ type: 'update' });
+        saveState();
       } else if (type === 'scan_complete') {
         lastScan = data;
         broadcast({ type: 'update' });
