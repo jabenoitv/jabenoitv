@@ -255,6 +255,8 @@ try {
   _dataDirWritable = true;
 } catch (e) { _dataDirWritable = false; _dataDirWriteErr = e.code + ': ' + e.message.slice(0, 80); }
 const DATA_DIR = (_dataDirWritable || !process.env.DATA_DIR) ? _preferredDataDir : path.join(w, 'state');
+// If using fallback, ensure that directory exists too
+if (!_dataDirWritable && process.env.DATA_DIR) { try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {} }
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
 const _usingVolume = !!process.env.DATA_DIR && _dataDirWritable;

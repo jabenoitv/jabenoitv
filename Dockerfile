@@ -10,12 +10,14 @@ RUN npm install --no-audit --no-fund --omit=optional \
 
 COPY . .
 
-# Run as the non-root "node" user (already present in node:20-slim).
-RUN mkdir -p /cashclaw-data && chown node:node /cashclaw-data
-RUN chown -R node:node /app
-USER node
+RUN mkdir -p /cashclaw-data \
+ && chown -R node:node /app
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENV NODE_ENV=production
 EXPOSE 3777
 
-CMD ["node", "server.js"]
+# Entrypoint runs as root, fixes /cashclaw-data ownership, then drops to node user.
+CMD ["/entrypoint.sh"]
