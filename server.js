@@ -230,7 +230,7 @@ let lastCashclawLogSize = 0;
 let lastCashclawLogDate = '';
 let lastSetupDate = '';
 let lastFarcasterPost = 0;
-let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], bountiesWon: [], blacklistedFids: {} };
+let bountyState = { bountiesSeen: {}, bountiesSubmitted: [], lastBountySubmit: 0, bountiesPending: [], bountiesWon: [], bountiesUncollectible: [], blacklistedFids: {} };
 let lastScan = null;
 let walletEth = null;
 let walletUsdc = null;
@@ -281,6 +281,7 @@ function loadState() {
     if (s.lastBountySubmit) bountyState.lastBountySubmit = s.lastBountySubmit;
     if (Array.isArray(s.bountiesPending)) bountyState.bountiesPending = s.bountiesPending;
     if (Array.isArray(s.bountiesWon)) bountyState.bountiesWon = s.bountiesWon;
+    if (Array.isArray(s.bountiesUncollectible)) bountyState.bountiesUncollectible = s.bountiesUncollectible;
     if (s.blacklistedFids) bountyState.blacklistedFids = s.blacklistedFids;
     persistInfo.restored = true;
     persistInfo.seenCount = Object.keys(bountyState.bountiesSeen || {}).length;
@@ -303,6 +304,7 @@ function saveState() {
       lastBountySubmit: bountyState.lastBountySubmit || 0,
       bountiesPending: bountyState.bountiesPending || [],
       bountiesWon: bountyState.bountiesWon || [],
+      bountiesUncollectible: bountyState.bountiesUncollectible || [],
       blacklistedFids: bountyState.blacklistedFids || {},
       lastSync: new Date().toISOString()
     }));
@@ -862,7 +864,7 @@ header h1{font-size:1.1em;color:#38bdf8}
   </div>
   <div class="bcards">
     <div class="bc"><div class="bl">Ganados</div><div class="bv" id="b-won" style="color:#4ade80">0</div><div class="bs" id="b-sent-sub">0 enviados</div></div>
-    <div class="bc"><div class="bl">Esperando pago</div><div class="bv" id="b-pending">0</div><div class="bs" id="b-blacklist">0 bloqueados</div></div>
+    <div class="bc"><div class="bl">Esperando pago</div><div class="bv" id="b-pending">0</div><div class="bs" id="b-blacklist">0 incobrables · 0 bloqueados</div></div>
     <div class="bc"><div class="bl">Enviados hoy</div><div class="bv" id="b-today">0</div><div class="bs" id="b-limit">máx 5/día</div></div>
     <div class="bc"><div class="bl">Último trabajo</div><div class="bv" id="b-lasttok">—</div><div class="bs" id="b-lastscore"></div></div>
   </div>
@@ -1033,7 +1035,7 @@ function loadBounties(){
     document.getElementById('b-won').textContent=bd.wonTotal||0;
     document.getElementById('b-sent-sub').textContent=(bd.submittedTotal||0)+' enviados';
     document.getElementById('b-pending').textContent=bd.pendingCount||0;
-    document.getElementById('b-blacklist').textContent=(bd.blacklistedCount||0)+' bloqueados';
+    document.getElementById('b-blacklist').textContent=(bd.uncollectibleCount||0)+' incobrables · '+(bd.blacklistedCount||0)+' bloqueados';
     if(bd.lastSubmission){var ls=bd.lastSubmission;document.getElementById('b-lasttok').textContent=(ls.amount||'?')+' '+(ls.token||'');document.getElementById('b-lastscore').textContent='score '+(ls.score||'?')+'/10';}
     var bmode=document.getElementById('bmode');
     if(bd.dryRun===false){bmode.textContent='live';bmode.className='mode-badge mode-live';}
@@ -1235,6 +1237,7 @@ const server = http.createServer((req, res) => {
       '--- Bounties Farcaster ---',
       'Modo: ' + (process.env.BOUNTY_AUTOPOST === '1' ? 'LIVE' : 'DRY-RUN'),
       'Evaluados: ' + Object.keys(bountyState.bountiesSeen || {}).length + ' | Enviados hoy: ' + submitted.filter(s => s.date === today).length + ' | Total: ' + submitted.length + ' | Ganados: ' + (bountyState.bountiesWon || []).length,
+      'Cobrable (pendiente pago): ' + (bountyState.bountiesPending || []).length + ' | Incobrable (cast borrado): ' + (bountyState.bountiesUncollectible || []).length,
       submitted.length > 0 ? 'Último envío: ' + (submitted[submitted.length-1].amount || '?') + ' ' + (submitted[submitted.length-1].token || '').toUpperCase() + ' — score ' + (submitted[submitted.length-1].score || '?') + '/10 — ' + new Date(submitted[submitted.length-1].submittedAt || 0).toLocaleString('es-CL') : 'Sin envíos aún',
       'Memoria: ' + (persistInfo.fallback ? '🔴 DATA_DIR no escribible — Volume NO montado, estado se pierde al redeploy' : !persistInfo.usingVolume ? '⚠️ temporal (configura DATA_DIR + Volume en Railway)' : persistInfo.restored ? '💾 Volume OK — datos del deploy anterior cargados' : '💾 Volume OK — primer arranque'),
       '',
@@ -1270,6 +1273,7 @@ const server = http.createServer((req, res) => {
       seenTotal: Object.keys(bountyState.bountiesSeen || {}).length,
       pendingCount: (bountyState.bountiesPending || []).length,
       wonTotal: (bountyState.bountiesWon || []).length,
+      uncollectibleCount: (bountyState.bountiesUncollectible || []).length,
       blacklistedCount: Object.keys(bountyState.blacklistedFids || {}).length,
       dryRun: process.env.BOUNTY_AUTOPOST !== '1',
       lastSubmission: last ? {

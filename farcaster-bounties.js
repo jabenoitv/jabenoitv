@@ -638,7 +638,18 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
           if (/Pro subscription/i.test(errMsg)) {
             onEvent('info', '[BOUNTY] Farcaster Pro requerido para este cast — descartado');
           } else if (/not found|parent/i.test(errMsg)) {
-            onEvent('info', '[BOUNTY] Cast del bounty ya no existe (borrado o inalcanzable) — descartado');
+            // Work was generated but the original cast vanished before delivery → uncollectible, track separately
+            const reason = /Pro subscription/i.test(errMsg) ? 'pro-only' : 'cast-eliminado';
+            const unc = {
+              hash: bounty.hash, date: today, text: bounty.text.slice(0, 120),
+              amount: bounty.amount, token: bounty.token, score: critique.score,
+              posterFid: bounty.authorFid, reason, at: new Date().toISOString()
+            };
+            const s3 = getState();
+            s3.bountiesUncollectible = (s3.bountiesUncollectible || []).concat([unc]).slice(-200);
+            s3.bountiesSeen = purgeSeen(seen);
+            saveState(s3);
+            onEvent('info', '[BOUNTY] Incobrable: cast ' + bounty.amount + ' ' + (bounty.token || '').toUpperCase() + ' ya no existe (borrado/inalcanzable) — trabajo hecho, no entregable');
           } else {
             onEvent('warn', '[BOUNTY] Error permanente al enviar (skip): ' + errMsg.slice(0, 100));
           }
