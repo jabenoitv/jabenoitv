@@ -352,7 +352,34 @@ async function fetchBounties(apiKey, onEvent) {
   }).filter(b => b.hash && b.hash.length > 4);
 }
 
-async function classifyBounty(bounty, anthropicKey) {
+// Builds a performance context string from historical submissions/wins.
+// Injected into classifyBounty prompt once we have ≥3 total submissions.
+function getPerformanceContext(submitted, won) {
+  if (!submitted || submitted.length < 3) return '';
+  const cats = {};
+  for (const s of submitted) {
+    const cat = (s.category || 'unknown').toLowerCase();
+    if (!cats[cat]) cats[cat] = { sub: 0, won: 0 };
+    cats[cat].sub++;
+  }
+  for (const w of (won || [])) {
+    const cat = (w.category || 'unknown').toLowerCase();
+    if (!cats[cat]) cats[cat] = { sub: 0, won: 0 };
+    cats[cat].won++;
+  }
+  const lines = Object.entries(cats)
+    .filter(([, v]) => v.sub >= 2)
+    .sort((a, b) => (b[1].won / b[1].sub) - (a[1].won / a[1].sub))
+    .map(([cat, v]) => {
+      const pct = Math.round((v.won / v.sub) * 100);
+      const flag = v.sub >= 3 && v.won === 0 ? ' — no wins yet, apply stricter criteria' : '';
+      return '  ' + cat + ': ' + v.won + '/' + v.sub + ' won (' + pct + '%)' + flag;
+    });
+  if (!lines.length) return '';
+  return '\n\nHistorical win rates (adjust confidence scores accordingly):\n' + lines.join('\n');
+}
+
+async function classifyBounty(bounty, anthropicKey, performanceContext) {
   const prompt = `You are evaluating whether an AI text agent can complete this Farcaster bounty.
 
 Bounty text: "${bounty.text}"
@@ -362,7 +389,7 @@ ELIGIBLE (return eligible:true): writing, copywriting, research, Q&A, answering 
 NOT ELIGIBLE (return eligible:false): requires writing/running code, creating images/video/audio, physical presence, logging into accounts, on-chain transactions, "first to achieve X" race competitions, NSFW/illegal content, OR requires accessing external content (URLs, files, documents, websites, drafts) NOT included inline in the bounty text.
 
 IMPORTANT: If the reason field would say the agent CAN perform the task, then eligible MUST be true. Only return eligible:false if there is a concrete blocker listed above.
-
+${performanceContext || ''}
 Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "string", "confidence": 0.0-1.0, "reason": "one sentence explaining the decision", "deliverable_type": "string"}`;
 
   const text = await claudeChat(
@@ -501,6 +528,8 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const scanSubmissions = [];
     const blacklisted = state.blacklistedFids || {};
     const pendingList = (state.bountiesPending || []).slice();
+    // Build performance context once per scan from historical data
+    const perfCtx = getPerformanceContext(state.bountiesSubmitted, state.bountiesWon);
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
@@ -544,7 +573,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       // Classify with Claude
       let classification;
       try {
-        classification = await classifyBounty(bounty, anthropicKey);
+        classification = await classifyBounty(bounty, anthropicKey, perfCtx);
       } catch (e) {
         // Transient infra error — do NOT mark seen, retry next scan
         onEvent('warn', '[BOUNTY] Error clasificando (reintentable): ' + e.message);
@@ -613,6 +642,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
           amount: bounty.amount,
           token: bounty.token,
           score: critique.score,
+          category: classification.category || 'unknown',
           posterFid: bounty.authorFid,
           submittedAt: new Date().toISOString()
         };

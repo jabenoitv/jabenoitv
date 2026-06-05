@@ -262,6 +262,20 @@ const stateFileExistedAtBoot = fs.existsSync(STATE_FILE);
 const _usingVolume = !!process.env.DATA_DIR && _dataDirWritable;
 let persistInfo = { usingVolume: _usingVolume, stateFileExistedAtBoot, restored: false, seenCount: 0, submittedCount: 0, fallback: process.env.DATA_DIR && !_dataDirWritable };
 
+// Persistent log directory: /cashclaw-data/logs/YYYY-MM-DD.jsonl
+const LOG_DIR = path.join(DATA_DIR, 'logs');
+try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch(e) {}
+// Prune log files older than 7 days
+try {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  fs.readdirSync(LOG_DIR).forEach(f => {
+    if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) {
+      const fpath = path.join(LOG_DIR, f);
+      try { if (fs.statSync(fpath).mtimeMs < cutoff) fs.unlinkSync(fpath); } catch(e) {}
+    }
+  });
+} catch(e) {}
+
 function loadState() {
   try {
     const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
@@ -392,6 +406,11 @@ function addLog(line, type) {
   const entry = { time: new Date(now).toISOString(), msg, type };
   logs.push(entry);
   if (logs.length > MAX_LOGS) logs.shift();
+  // Append to daily log file (best-effort, never throw)
+  try {
+    const today = new Date(now).toISOString().slice(0, 10);
+    fs.appendFileSync(path.join(LOG_DIR, today + '.jsonl'), JSON.stringify(entry) + '\n');
+  } catch(e) {}
   const t = setTimeout(() => logDedup.delete(msg), LOG_DEDUP_WINDOW_MS);
   if (t.unref) t.unref();
   logDedup.set(msg, { entry, timer: t });
@@ -1248,6 +1267,19 @@ const server = http.createServer((req, res) => {
     ];
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
     return res.end(lines.join('\n'));
+  }
+  if (url === '/api/logs' || url.startsWith('/api/logs?')) {
+    const qs = url.includes('?') ? new URLSearchParams(url.split('?')[1]) : null;
+    const date = (qs && qs.get('date')) || new Date().toISOString().slice(0, 10);
+    const logFile = path.join(LOG_DIR, date + '.jsonl');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    try {
+      const lines = fs.readFileSync(logFile, 'utf8').trim().split('\n').filter(Boolean)
+        .map(l => { try { return JSON.parse(l); } catch(e) { return null; } }).filter(Boolean);
+      return res.end(JSON.stringify({ date, count: lines.length, entries: lines.slice(-500).reverse() }));
+    } catch(e) {
+      return res.end(JSON.stringify({ date, count: 0, entries: [] }));
+    }
   }
   if (url === '/api/wallet') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
