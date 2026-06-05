@@ -281,7 +281,7 @@ function loadState() {
     const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     // totalEarnedEth intentionally not restored — WorkClaw log-parsing is unreliable; real balance comes from /api/wallet
     if (typeof s.completedJobsCount === 'number') completedJobsCount = s.completedJobsCount;
-    if (Array.isArray(s.jobs)) s.jobs.slice(0, MAX_JOBS).forEach(j => jobs.push(j));
+    // jobs[] not restored — session-only, old entries may have fake ETH values from WorkClaw log parsing
     if (s.ethPrice && s.ethPrice.usd) ethPrice = s.ethPrice;
     if (typeof s.pollCount === 'number') pollCount = s.pollCount;
     if (typeof s.claimAttempts === 'number') claimAttempts = s.claimAttempts;
@@ -366,6 +366,7 @@ function postToFarcaster(text) {
 }
 
 function detectJobEvent(line, time) {
+  if (line.startsWith('[BOUNTY]') || line.startsWith('[DIAG]') || line.startsWith('[STATE]')) return;
   if (/task.*receiv|receiv.*task|new.*task|job.*receiv|receiv.*job|assigned|accept.*offer|offer.*accept|new.*job/i.test(line)) {
     const dm = line.match(/["']([^"']{8,80})["']/) || line.match(/task[:\s]+(.{8,60})/i);
     jobs.unshift({ id: Date.now(), startTime: time, completedTime: null, status: 'activo',
