@@ -634,8 +634,11 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
         if (permanent) {
           seen[bounty.hash] = Date.now();
           const s2 = getState(); s2.bountiesSeen = purgeSeen(seen); saveState(s2);
+          // These are cast-level conditions (deleted cast, Pro-only, bad parent), not agent errors → info, not warn
           if (/Pro subscription/i.test(errMsg)) {
             onEvent('info', '[BOUNTY] Farcaster Pro requerido para este cast — descartado');
+          } else if (/not found|parent/i.test(errMsg)) {
+            onEvent('info', '[BOUNTY] Cast del bounty ya no existe (borrado o inalcanzable) — descartado');
           } else {
             onEvent('warn', '[BOUNTY] Error permanente al enviar (skip): ' + errMsg.slice(0, 100));
           }
