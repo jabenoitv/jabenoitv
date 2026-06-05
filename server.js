@@ -353,7 +353,7 @@ function postToFarcaster(text) {
     res.on('end', () => {
       if (res.statusCode === 200 || res.statusCode === 201) {
         console.log('[FARCASTER] Post publicado: ' + text.slice(0, 80));
-        addLog('Farcaster: post publicado', 'info');
+        addLog('Farcaster: ' + text.slice(0, 60) + (text.length > 60 ? '…' : ''), 'info');
       } else {
         console.log('[FARCASTER] Error ' + res.statusCode + ': ' + d.slice(0, 150));
         lastFarcasterPost = 0;
@@ -1454,6 +1454,8 @@ server.listen(PORT, '0.0.0.0', () => {
       }
     }
   });
-  // Startup announcement post removed — agent sells itself through submitted bounty work
+  setTimeout(() => {
+    postToFarcaster('CashClaw #' + AGENT_ID + ' online on @moltlaunch. Writing, coding, research, data extraction, EN↔ES translation — 1-4h delivery, never sleeps. moltlaunch.com/agents/51049');
+  }, 60000);
 });
 server.on('error', err => { console.error('Error servidor:', err.message); process.exit(1); });
