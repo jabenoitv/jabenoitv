@@ -60,9 +60,9 @@ const DISQUALIFY_PATTERNS = [
   /^add\s+\d+\s*(usdc|eth|degen|op)\b/i
 ];
 
-// Purge bountiesSeen entries older than 7 days to keep state.json bounded.
+// Purge bountiesSeen entries older than 48h to keep state.json bounded.
 // Entries are { hash: timestamp(ms) }; non-numeric timestamps are dropped.
-const SEEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SEEN_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 48h — keeps bountiesSeen lean; submitted hashes protected permanently below
 function purgeSeen(seen) {
   const out = {};
   const now = Date.now();
@@ -535,9 +535,12 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     const pendingList = (state.bountiesPending || []).slice();
     // Build performance context once per scan from historical data
     const perfCtx = getPerformanceContext(state.bountiesSubmitted, state.bountiesWon);
+    // Permanent guard: never re-submit a bounty we already answered, even after SEEN_TTL_MS expires
+    const submittedHashes = new Set((state.bountiesSubmitted || []).map(s => s.hash));
 
     for (const bounty of bounties) {
       if (todaySubmissions >= MAX_SUBMISSIONS_PER_DAY) break;
+      if (submittedHashes.has(bounty.hash)) { stats.alreadySeen++; continue; }
       if (seen[bounty.hash]) { stats.alreadySeen++; continue; }
       if (blacklisted[bounty.authorFid]) { stats.disqualified++; seen[bounty.hash] = Date.now(); continue; }
       if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN_MS) break;
