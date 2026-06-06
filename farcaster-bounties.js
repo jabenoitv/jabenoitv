@@ -372,7 +372,7 @@ function getPerformanceContext(submitted, won) {
     .sort((a, b) => (b[1].won / b[1].sub) - (a[1].won / a[1].sub))
     .map(([cat, v]) => {
       const pct = Math.round((v.won / v.sub) * 100);
-      const flag = v.sub >= 3 && v.won === 0 ? ' — no wins yet, apply stricter criteria' : '';
+      const flag = v.sub >= 3 && v.won === 0 ? ' — no wins yet (keep submitting, raise self-score bar)' : '';
       return '  ' + cat + ': ' + v.won + '/' + v.sub + ' won (' + pct + '%)' + flag;
     });
   if (!lines.length) return '';
@@ -406,6 +406,11 @@ Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "stri
     if (!Number.isFinite(conf)) {
       parsed.eligible = false;
       if (!parsed.reason) parsed.reason = 'invalid confidence';
+    }
+    // Auto-correct contradiction: eligible:false but reason says agent CAN do it
+    if (!parsed.eligible && /\bthe agent can\b|\bcan be (?:answered|done|performed|produced|drafted|compiled|written|completed)\b|\bcan (?:answer|draft|write|produce|compile|explain|summarize|provide|recommend|generate|describe)\b/i.test(parsed.reason || '')) {
+      parsed.eligible = true;
+      parsed.confidence = Math.max(parsed.confidence || 0, 0.75);
     }
     return parsed;
   } catch (e) {
