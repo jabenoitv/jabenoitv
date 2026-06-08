@@ -407,10 +407,12 @@ Return ONLY valid JSON (no markdown): {"eligible": true/false, "category": "stri
       parsed.eligible = false;
       if (!parsed.reason) parsed.reason = 'invalid confidence';
     }
-    // Auto-correct contradiction: eligible:false but reason says agent CAN do it
-    if (!parsed.eligible && /\bthe agent can\b|\bcan be (?:answered|done|performed|produced|drafted|compiled|written|completed)\b|\bcan (?:answer|draft|write|produce|compile|explain|summarize|provide|recommend|generate|describe)\b/i.test(parsed.reason || '')) {
+    // Auto-correct contradiction: eligible:false but reason says agent CAN do it.
+    // MIN_CONFIDENCE = 0.80 so the floor here must be at least that high, otherwise
+    // the correction is silently neutralised by the confidence check downstream.
+    if (!parsed.eligible && /\bthe agent can\b|\ba(?:n\s+)?(?:\w+\s+)?agent can\b|\bcan be (?:answered|done|performed|produced|drafted|compiled|written|completed)\b|\bcan (?:answer|draft|write|produce|compile|explain|summarize|provide|recommend|generate|describe)\b|\bagent'?s capabilities\b|\bwithin the agent\b/i.test(parsed.reason || '')) {
       parsed.eligible = true;
-      parsed.confidence = Math.max(parsed.confidence || 0, 0.75);
+      parsed.confidence = Math.max(parsed.confidence || 0, 0.85);
     }
     return parsed;
   } catch (e) {
