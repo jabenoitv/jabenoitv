@@ -295,29 +295,24 @@ function parseDeadline(text) {
 async function fetchBounties(apiKey, onEvent) {
   const log = onEvent || (() => {});
 
-  // Neynar Hub API: castsByMention fid=20596 — free tier, Farcaster protocol layer.
+  // Neynar Hub API: castsByMention fid=20596 — Farcaster protocol layer.
   // Returns all casts that mention @bountybot (FID 20596) = the actual bounty posts.
-  // IMPORTANT: Hubble's HTTP API parses booleans as 1/0 — 'reverse=true' is silently
-  // ignored and returns OLDEST casts first. Must be 'reverse=1' for newest-first.
+  // NOTE: Neynar's hub validates reverse strictly as the string 'true'/'false'
+  // ('reverse=1' → 400). Single page only: each page costs ~100 CUs and the
+  // monthly quota was exhausted at 3 pages/scan; with newest-first ordering and
+  // the 14-day freshness guard, 1000 casts cover all live bounties.
   let messages = [];
-  let pageToken = null;
-  for (let page = 0; page < 3; page++) {
-    let url = '/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=1';
-    if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
-    try {
-      const data = await hubApiGet(url, apiKey);
-      const batch = data.messages || [];
-      messages = messages.concat(batch);
-      pageToken = data.nextPageToken || null;
-      if (!pageToken || batch.length === 0) break;
-      // Newest-first: if the last message of this page is already older than the
-      // freshness cutoff, deeper pages are all stale — stop paginating.
-      const lastTs = batch[batch.length - 1] && batch[batch.length - 1].data && batch[batch.length - 1].data.timestamp;
-      if (lastTs && (lastTs * 1000 + FC_EPOCH_MS) < (Date.now() - MAX_BOUNTY_AGE_MS)) break;
-    } catch (e) {
-      if (page === 0) { log('warn', '[BOUNTY] HubAPI falló: ' + e.message); return []; }
-      break; // stop paginating on error after first successful page
+  try {
+    const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=true', apiKey);
+    messages = data.messages || [];
+  } catch (e) {
+    log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
+    if (/HubAPI 402/.test(e.message || '')) {
+      const err = new Error('quota');
+      err.quotaExceeded = true;
+      throw err;
     }
+    return [];
   }
   // Diagnostic: report the age window actually fetched so we can verify ordering.
   if (messages.length) {
@@ -525,7 +520,12 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
   const mode = dryRun ? 'DRY-RUN' : 'LIVE';
   onEvent('info', '[BOUNTY] Motor iniciado (' + mode + ') — scan cada 25 min, @bountybot FID ' + BOUNTYBOT_FID);
 
+  // When the Neynar monthly CU quota is exhausted (402), pause scans for 6h —
+  // retrying every 25 min just spams the error log until the quota resets.
+  let quotaBackoffUntil = 0;
+
   async function scanBounties() {
+    if (Date.now() < quotaBackoffUntil) return;
     const state = getState();
     const seen = state.bountiesSeen || {};
     const submitted = state.bountiesSubmitted || [];
@@ -542,6 +542,11 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
       bounties = await fetchBounties(neynarApiKey, onEvent);
       onEvent('info', '[BOUNTY] ' + bounties.length + ' bounties elegibles en Farcaster');
     } catch (e) {
+      if (e.quotaExceeded) {
+        quotaBackoffUntil = Date.now() + 6 * 60 * 60 * 1000;
+        onEvent('warn', '[BOUNTY] Cuota mensual de Neynar agotada — scans pausados 6h (se reanudan solos; la cuota se renueva a inicio de mes)');
+        return;
+      }
       onEvent('warn', '[BOUNTY] Error fetching bounties: ' + e.message);
       return;
     }
