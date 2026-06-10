@@ -14,7 +14,9 @@ const MAX_SUBMISSIONS_PER_DAY = 5;
 const SUBMIT_COOLDOWN_MS = 10 * 60 * 1000;
 const MIN_BOUNTY_VALUE_USD = 1.0;
 const MAX_BOUNTY_AGE_MS = 14 * 24 * 60 * 60 * 1000; // ignore bounties older than 14 days
-const SCAN_INTERVAL_MS = 25 * 60 * 1000; // every 25 min
+// 60 min: at ~125 CUs per hub page-call, hourly scans ≈ 90k CUs/month — fits
+// the Neynar plan with headroom for v2 submission calls. 25 min blew the quota.
+const SCAN_INTERVAL_MS = 60 * 60 * 1000;
 const PAYOUT_POLL_MS = 5 * 60 * 1000;    // balance check every 5 min
 const NONPAYER_WAIT_DAYS = 14;            // days before declaring non-payer
 const WATCH_INTERVAL_MS = 6 * 60 * 60 * 1000; // pending check every 6h
@@ -518,7 +520,7 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
   }
 
   const mode = dryRun ? 'DRY-RUN' : 'LIVE';
-  onEvent('info', '[BOUNTY] Motor iniciado (' + mode + ') — scan cada 25 min, @bountybot FID ' + BOUNTYBOT_FID);
+  onEvent('info', '[BOUNTY] Motor iniciado (' + mode + ') — scan cada ' + Math.round(SCAN_INTERVAL_MS / 60000) + ' min, @bountybot FID ' + BOUNTYBOT_FID);
 
   // When the Neynar monthly CU quota is exhausted (402), pause scans for 6h —
   // retrying every 25 min just spams the error log until the quota resets.
