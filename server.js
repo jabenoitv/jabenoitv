@@ -296,6 +296,19 @@ function loadState() {
     if (Array.isArray(s.bountiesPending)) bountyState.bountiesPending = s.bountiesPending;
     if (Array.isArray(s.bountiesWon)) bountyState.bountiesWon = s.bountiesWon;
     if (Array.isArray(s.bountiesUncollectible)) bountyState.bountiesUncollectible = s.bountiesUncollectible;
+    // One-time migration: submissions before 2026-06-10 went to 2024-era casts
+    // (HubAPI pagination bug returned oldest mentions). Those bounties were closed
+    // long before we replied — reclassify as uncollectible so the non-payer watcher
+    // never publicly complains about them.
+    {
+      const cutoff = new Date('2026-06-10T00:00:00Z').getTime();
+      const stale = (bountyState.bountiesPending || []).filter(p => new Date(p.submittedAt).getTime() < cutoff);
+      if (stale.length) {
+        bountyState.bountiesPending = bountyState.bountiesPending.filter(p => new Date(p.submittedAt).getTime() >= cutoff);
+        for (const p of stale) bountyState.bountiesUncollectible.push(Object.assign({}, p, { reason: 'bounty antiguo (cast de 2024, cerrado antes de nuestro envío)' }));
+        console.log('[STATE] Migración: ' + stale.length + ' envíos a casts antiguos movidos a incobrables');
+      }
+    }
     if (s.blacklistedFids) bountyState.blacklistedFids = s.blacklistedFids;
     persistInfo.restored = true;
     persistInfo.seenCount = Object.keys(bountyState.bountiesSeen || {}).length;

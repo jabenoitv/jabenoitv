@@ -13,6 +13,7 @@ const MIN_SELF_SCORE = 8;
 const MAX_SUBMISSIONS_PER_DAY = 5;
 const SUBMIT_COOLDOWN_MS = 10 * 60 * 1000;
 const MIN_BOUNTY_VALUE_USD = 1.0;
+const MAX_BOUNTY_AGE_MS = 14 * 24 * 60 * 60 * 1000; // ignore bounties older than 14 days
 const SCAN_INTERVAL_MS = 25 * 60 * 1000; // every 25 min
 const PAYOUT_POLL_MS = 5 * 60 * 1000;    // balance check every 5 min
 const NONPAYER_WAIT_DAYS = 14;            // days before declaring non-payer
@@ -296,11 +297,12 @@ async function fetchBounties(apiKey, onEvent) {
 
   // Neynar Hub API: castsByMention fid=20596 — free tier, Farcaster protocol layer.
   // Returns all casts that mention @bountybot (FID 20596) = the actual bounty posts.
-  // Paginate up to 3 pages (reverse=true → newest first) to access historical bounties.
+  // IMPORTANT: Hubble's HTTP API parses booleans as 1/0 — 'reverse=true' is silently
+  // ignored and returns OLDEST casts first. Must be 'reverse=1' for newest-first.
   let messages = [];
   let pageToken = null;
   for (let page = 0; page < 3; page++) {
-    let url = '/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=true';
+    let url = '/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=1';
     if (pageToken) url += '&pageToken=' + encodeURIComponent(pageToken);
     try {
       const data = await hubApiGet(url, apiKey);
@@ -308,15 +310,32 @@ async function fetchBounties(apiKey, onEvent) {
       messages = messages.concat(batch);
       pageToken = data.nextPageToken || null;
       if (!pageToken || batch.length === 0) break;
+      // Newest-first: if the last message of this page is already older than the
+      // freshness cutoff, deeper pages are all stale — stop paginating.
+      const lastTs = batch[batch.length - 1] && batch[batch.length - 1].data && batch[batch.length - 1].data.timestamp;
+      if (lastTs && (lastTs * 1000 + FC_EPOCH_MS) < (Date.now() - MAX_BOUNTY_AGE_MS)) break;
     } catch (e) {
       if (page === 0) { log('warn', '[BOUNTY] HubAPI falló: ' + e.message); return []; }
       break; // stop paginating on error after first successful page
     }
   }
-  log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot');
+  // Diagnostic: report the age window actually fetched so we can verify ordering.
+  if (messages.length) {
+    const first = messages[0].data && messages[0].data.timestamp;
+    const last = messages[messages.length - 1].data && messages[messages.length - 1].data.timestamp;
+    const fmt = ts => ts ? new Date(ts * 1000 + FC_EPOCH_MS).toISOString().slice(0, 10) : '?';
+    log('info', '[BOUNTY] HubAPI: ' + messages.length + ' menciones a @bountybot (ventana: ' + fmt(first) + ' → ' + fmt(last) + ')');
+  } else {
+    log('info', '[BOUNTY] HubAPI: 0 menciones a @bountybot');
+  }
 
+  const freshCutoffMs = Date.now() - MAX_BOUNTY_AGE_MS;
   return messages.filter(msg => {
     if (!msg.data || msg.data.type !== 'MESSAGE_TYPE_CAST_ADD') return false;
+    // Freshness guard: never evaluate or reply to old casts — bounties older than
+    // MAX_BOUNTY_AGE_MS are long closed; replying wastes API budget and reputation.
+    const tsMs = (msg.data.timestamp || 0) * 1000 + FC_EPOCH_MS;
+    if (tsMs < freshCutoffMs) return false;
     const body = msg.data.castAddBody || {};
     const low = (body.text || '').toLowerCase();
     if (/paid|closed|completed|winner|rewarded/i.test(low)) return false;
