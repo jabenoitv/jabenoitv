@@ -308,12 +308,15 @@ async function fetchBounties(apiKey, onEvent) {
     const data = await hubApiGet('/v1/castsByMention?fid=' + BOUNTYBOT_FID + '&pageSize=1000&reverse=true', apiKey);
     messages = data.messages || [];
   } catch (e) {
-    log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
+    // 402 = monthly CU quota exhausted. This is an expected state, not an
+    // actionable error — surface it via the quota handler (info, once) instead
+    // of logging a warning here that inflates the dashboard error counter.
     if (/HubAPI 402/.test(e.message || '')) {
       const err = new Error('quota');
       err.quotaExceeded = true;
       throw err;
     }
+    log('warn', '[BOUNTY] HubAPI falló: ' + e.message);
     return [];
   }
   // Diagnostic: report the age window actually fetched so we can verify ordering.
@@ -522,9 +525,12 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
   const mode = dryRun ? 'DRY-RUN' : 'LIVE';
   onEvent('info', '[BOUNTY] Motor iniciado (' + mode + ') — scan cada ' + Math.round(SCAN_INTERVAL_MS / 60000) + ' min, @bountybot FID ' + BOUNTYBOT_FID);
 
-  // When the Neynar monthly CU quota is exhausted (402), pause scans for 6h —
-  // retrying every 25 min just spams the error log until the quota resets.
+  // When the Neynar monthly CU quota is exhausted (402), pause scans for 24h —
+  // the quota only resets at the start of the month, so retrying sooner just
+  // re-hits the 402. quotaNotified ensures we log the pause exactly once per
+  // window instead of on every retry (which was inflating the error counter).
   let quotaBackoffUntil = 0;
+  let quotaNotified = false;
 
   async function scanBounties() {
     if (Date.now() < quotaBackoffUntil) return;
@@ -542,11 +548,15 @@ function startBountyEngine({ neynarApiKey, signerUuid, anthropicKey, verifiedAdd
     let bounties;
     try {
       bounties = await fetchBounties(neynarApiKey, onEvent);
+      quotaNotified = false; // a successful fetch means quota recovered
       onEvent('info', '[BOUNTY] ' + bounties.length + ' bounties elegibles en Farcaster');
     } catch (e) {
       if (e.quotaExceeded) {
-        quotaBackoffUntil = Date.now() + 6 * 60 * 60 * 1000;
-        onEvent('warn', '[BOUNTY] Cuota mensual de Neynar agotada — scans pausados 6h (se reanudan solos; la cuota se renueva a inicio de mes)');
+        quotaBackoffUntil = Date.now() + 24 * 60 * 60 * 1000;
+        if (!quotaNotified) {
+          quotaNotified = true;
+          onEvent('info', '[BOUNTY] Cuota mensual de Neynar agotada — scans en pausa hasta que se renueve la cuota a inicio de mes (se reanuda solo, sin acción necesaria)');
+        }
         return;
       }
       onEvent('warn', '[BOUNTY] Error fetching bounties: ' + e.message);
