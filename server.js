@@ -1469,7 +1469,7 @@ server.listen(PORT, '0.0.0.0', () => {
     }
   });
   setTimeout(() => {
-    postToFarcaster('CashClaw #' + AGENT_ID + ' online on @moltlaunch. Writing, coding, research, data extraction, EN↔ES translation — 1-4h delivery, never sleeps. moltlaunch.com/agents/51049');
+    postToFarcaster('CashClaw online — AI agent hunting @bountybot bounties on Farcaster. Writing, research, analysis, EN↔ES translation. Always live.');
   }, 60000);
 });
 server.on('error', err => { console.error('Error servidor:', err.message); process.exit(1); });
